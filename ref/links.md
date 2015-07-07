@@ -17,18 +17,17 @@ MEC/GI](http://link.springer.com/article/10.1007%2Fs00453-009-9288-1#page-1)
 [Xie : A practical exact algorithm for the individual haplotyping problem
 MEC](http://ieeexplore.ieee.org/xpl/login.jsp?tp=&arnumber=4548638&url=http%3A%2F%2Fieeexplore.ieee.org%2Fxpls%2Fabs_all.jsp%3Farnumber%3D4548638)
 
-<!--- Add in the following form (omit <>) [<Author last name> : <Paper title>](link) --->
-## Research Papers
-
-### Linear Programming
-
 ### Parallel Computing
+
+[Boukedjar : Parallel branch and bound on a CPU-GPU
+system](http://projects.laas.fr/NVIDIAacademic/published.pdf)  
+[Hall : Parallelizing the dual simplex method](http://arxiv.org/abs/1503.01889)  
+[Spampinato : Linear optimisation on modern GPUs](http://www.idi.ntnu.no/~elster/pubs/ipdps09-lin-prog.pdf)  
 
 <!-- Add in the following form (omit <>) [<Article title>](link) --->
 ## Articles 
 
 ### Haplotyping
 
-### Linear Programming
-
 ### Parallel Computing
+
