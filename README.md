@@ -8,6 +8,10 @@ This is for my final year project, which is an investigation into the paralleliz
 * __CUDA__: Parallel implementation using CUDA, capable of running on Nvidia graphics cards. 
 * __Xeon Phi__: Parallel implementation capable of running on the Xeon Phi.
 
+## Languages
+
+C++ (11) is used for all implementations. The Nvidia CUDA API is used for the CUDA implementation
+
 #Organisation 
 
 The repository is structured as follows:
