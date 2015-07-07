@@ -1,0 +1,13 @@
+\begin{thebibliography}{1}
+\newcommand{\enquote}[1]{``#1''}
+\providecommand{\url}[1]{{\tt #1}}
+\providecommand{\urlprefix}{URL }
+
+\bibitem{stephens:2001}
+J.~Stephens.
+\newblock \enquote{Haplotype Variation and Linkage Disequilibrium in 313 Human
+  Genes.}
+\newblock {\em Science\/}, vol. 293, no. 5529, pp. 489--493, Jul. 2001.
+\newblock \urlprefix\url{http://dx.doi.org/10.1126/science.1059431}.
+
+\end{thebibliography}
