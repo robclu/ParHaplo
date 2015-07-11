@@ -10,4 +10,30 @@ J.~Stephens.
 \newblock {\em Science\/}, vol. 293, no. 5529, pp. 489--493, Jul. 2001.
 \newblock \urlprefix\url{http://dx.doi.org/10.1126/science.1059431}.
 
+\bibitem{he:2010}
+D.~He, A.~Choi, K.~Pipatsrisawat, A.~Darwiche, and E.~Eskin.
+\newblock \enquote{Optimal algorithms for haplotype assembly from whole-genome
+  sequence data.}
+\newblock vol.~26, no.~12, pp. i183--i190, 2010.
+
+\bibitem{lippert:2002}
+R.~Lippert, R.~Schwartz, G.~Lancia, and S.~Istrail.
+\newblock \enquote{Algorithmic strategies for the single nucleotide
+  polymorphism haplotype assembly problem.}
+\newblock vol.~3, no.~1, pp. 23--31, 2002.
+
+\bibitem{bonizzoni:2003}
+P.~Bonizzoni, G.~Della~Vedova, R.~Dondi, and J.~Li.
+\newblock \enquote{The Haplotyping problem: An overview of computational models
+  and solutions.}
+\newblock {\em Journal of Computer Science and Technology\/}, vol.~18, no.~6,
+  pp. 675--688, 2003.
+\newblock \urlprefix\url{http://dx.doi.org/10.1007/BF02945456}.
+
+\bibitem{chen:2013}
+Z.-Z. Chen, F.~Deng, and L.~Wang.
+\newblock \enquote{Exact algorithms for haplotype assembly from whole-genome
+  sequence data.}
+\newblock vol.~29, no.~16, pp. 1938--1945, 2013.
+
 \end{thebibliography}
