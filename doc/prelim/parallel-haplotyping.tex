@@ -72,11 +72,14 @@ one of the two copies of the chromosome. \\
 The haplotype assembly problem was proven to be NP-Hard \cite{lippert:2002}. The algorithms used to solve the
 problem are thus computationally complex and until recently, there was nopractical exact algothim to solve 
 the problem using Minmum Error Correction (MEC) \cite{bonizzoni:2003},
-However, recently an exact soluiton was proposed \cite{chen:2013} which is capable of solving the MEC 
-problem exactly and can thus infer all hoaplotypes correctly from the fragment sequences. Furthermore, the
-complex nature of the algorithms results in execution times in the range of days for chromosomes with high
-errors rates. Using parallel implementation of any of the proposed solutions could raduce the long execution 
-times. \\
+However, recently an exact soluiton was proposed by \cite{chen:2013} which is capable of solving the MEC 
+problem exactly, and can thus correctly infer all hoaplotypes from the fragment sequences. Due the NP-Hardness 
+of the problem, the algorithm results in long run times - in the range of days for chromosomes with high
+errors rates. Using a parallel implementation of any of the proposed solutions could raduce the long run
+times, allowing useful haplotype information to be quickly inferred from the avaialable datasets, having
+positive benefits in fields such as drug discovery, prediction of diseases, and variations in gene
+expressions, to name a few. \\
+Come back to introduction ... \\
 Parallel programming makes use of devices which have many simple cores, but which can execute the same
 instrucitons on each of the cores at the same time. The effectiveness of parallel programming is dependant on
 the nature of the problem, as per Amdahl's law. The first attempts at parllel programming came from Graphics
@@ -88,6 +91,30 @@ C++ programs. \\
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{BACKGROUND}
+
+\subsection{Individual Haplotype Assembly Problem}
+
+This subsection will provide a brief overview of the individual haplotype assembly problem, and define the
+notation used through the rest of the paper. The input to the problem is a set of reads from a given genome
+sequence, where each read contains fragments from each of the two chromosomes which make up the genome
+sequence. These reads are denoted by the \textit{ternary string}\{0, 1, -\}, where 0 referrs to the major allele
+at a site, 1 to the minor allele, and - to referrs to the lack of a read at the site. These reads are then
+combined to form a matrix, M, where each row of the matrix corresponds to a read. \\
+Each column of the matrix is known as a SNP site. At each site, the data could be accurate, missing, or have
+error. The goal of the individual haplotype assembly problem is to determine a haplotype H=\{\textit{h,h'}\}
+from the matrix. There are many ways the problem can be formulated to allow the haplotype H to be determined.
+\\
+For the input matrix M, the number of fragments is denoted by \textit{n}, which is the number of rows in M,
+which the number of columns is denoted \textit{m}, which is the number of SNP sites. \textit{f$_{ij}$} denotes
+the j^{th} position of the i^{th} fragment. Two fragments are in conflict if the following conditions are
+true:
+\begin{itemize}
+    \item{f$_${ik}$ $\neq$ f$_{jk}$ \textbf{and} f$_{ik}$ $\neq$ '-' \textbf{and} f$_{jk}$ $\neq$ '-' }
+\end{itemize}
+
+\subsubsection{Minimum Fragment Removal}
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
