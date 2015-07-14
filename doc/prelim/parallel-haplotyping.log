@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2015.1.16)  11 JUL 2015 23:47
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2015.1.16)  15 JUL 2015 00:30
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -404,15 +404,23 @@ LaTeX Font Info:    External font `cmex10' loaded for size
 LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <5> on input line 56.
 
-Underfull \hbox (badness 10000) in paragraph at lines 56--86
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
- []
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 101.
 
+
+(/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 101.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
+ [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
 
-(./parallel-haplotyping.bbl
+
+] (./parallel-haplotyping.bbl
 Underfull \hbox (badness 6332) in paragraph at lines 7--12
 \OT1/cmr/m/n/10 age Dis-e-qui-lib-rium in 313 Hu-man Genes.''
  []
@@ -423,40 +431,41 @@ Underfull \hbox (badness 4805) in paragraph at lines 7--12
  []
 
 )
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 103.
- [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
-
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 131.
+ [2
 
 ]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 103.
-
-(./parallel-haplotyping.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 103.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 103.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 131.
+ (./parallel-haplotyping.aux)
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 131.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 131.
 Package rerunfilecheck Info: File `parallel-haplotyping.out' has not changed.
-(rerunfilecheck)             Checksum: CF364C7B88089FABF66C00B6E26D4385;92.
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 103.
+(rerunfilecheck)             Checksum: 06647865BC0EE98FDBC88775FF2DB9C3;261.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 131.
  ) 
 Here is how much of TeX's memory you used:
- 6250 strings out of 495028
- 91808 string characters out of 6181497
- 171936 words of memory out of 5000000
- 9349 multiletter control sequences out of 15000+600000
+ 6273 strings out of 495028
+ 92197 string characters out of 6181497
+ 172936 words of memory out of 5000000
+ 9366 multiletter control sequences out of 15000+600000
  27814 words of font info for 93 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 37i,5n,30p,363b,317s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 37i,5n,30p,363b,377s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
-e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf
--dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fo
-nts/type1/public/amsfonts/cm/cmsl8.pfb></usr/share/texlive/texmf-dist/fonts/typ
-e1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/pub
-lic/amsfonts/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
-sfonts/cm/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8
-a.pfb>
-Output written on parallel-haplotyping.pdf (1 page, 102223 bytes).
+e/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/share/texlive/texm
+f-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/
+fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/t
+ype1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/pub
+lic/amsfonts/cm/cmsl10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmsl8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
+cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cms
+y7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb
+></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr
+/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb>
+Output written on parallel-haplotyping.pdf (2 pages, 143642 bytes).
 PDF statistics:
- 68 PDF objects out of 1000 (max. 8388607)
- 57 compressed objects within 1 object stream
- 10 named destinations out of 1000 (max. 500000)
- 17 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 97 PDF objects out of 1000 (max. 8388607)
+ 81 compressed objects within 1 object stream
+ 13 named destinations out of 1000 (max. 500000)
+ 33 words of extra memory for PDF output out of 10000 (max. 10000000)
 
