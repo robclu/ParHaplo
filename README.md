@@ -1,5 +1,5 @@
-# ParHaplo
-ParHaplo is an implementation of parallel individual haplotyping assembly. 
+# paraHaplo
+paraHaplo is an implementation of the parallel individual haplotyping assembly problem. 
 
 #Description 
 
