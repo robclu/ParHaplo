@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2015.1.16)  16 JUL 2015 16:44
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2015.1.16)  16 JUL 2015 18:33
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -406,14 +406,14 @@ LaTeX Font Info:    External font `cmex10' loaded for size
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-LaTeX Font Info:    Try loading font information for OMS+cmr on input line 106.
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 104.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
 File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
 )
 LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
-(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 106.
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 104.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
@@ -421,49 +421,64 @@ Underfull \vbox (badness 10000) has occurred while \output is active []
 
 
 ]
-Underfull \hbox (badness 2368) in paragraph at lines 143--147
- \OT1/cmr/m/sl/10 2.1.2  Min-i-mum Edge Re-moval (MER) [][] \OT1/cmr/m/n/10 Thi
-s
+Overfull \hbox (8.3043pt too wide) in paragraph at lines 137--141
+[]\OT1/cmr/bx/n/10 Weighted Min-i-mum Edge Re-moval (WMER)
  []
-
-
-Underfull \hbox (badness 1264) in paragraph at lines 150--152
- \OT1/cmr/m/sl/10 2.1.3  Longest Hap-lo-type Re-con-struc-tion (LHR)[][]
- []
-
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
 
 (./parallel-haplotyping.bbl
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [2]
 Missing character: There is no â in font cmti10!
 Missing character: There is no € in font cmti10!
 Missing character: There is no ” in font cmti10!
 
-Underfull \vbox (badness 10000) has occurred while \output is active []
+Underfull \hbox (badness 1515) in paragraph at lines 51--59
+\OT1/cmr/m/n/10 577--590, June 2012.  [On-line] Avail-able at
+ []
 
- [2])
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 189.
 
-[3
+Underfull \hbox (badness 10000) in paragraph at lines 51--59
+[][]$\OT1/cmtt/m/n/10 http : / / www . brown . edu / Research / Istrail _
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 51--59
+\OT1/cmtt/m/n/10 Lab / papers / hapcompass _ jcb _ draft . pdf$[][] \OT1/cmr/m/
+n/10 [Ac-
+ []
+
+
+Underfull \hbox (badness 1655) in paragraph at lines 61--66
+[]\OT1/cmr/m/n/10 R. Schwartz.  ``The-ory and Al-go-rithms for
+ []
+
+
+Underfull \hbox (badness 1052) in paragraph at lines 61--66
+\OT1/cmr/m/it/10 Inf. Syst.\OT1/cmr/m/n/10 , vol. 10, no. 1, pp. 23--38, 2010.
+ []
+
+)
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 206.
+ [3
 
 ]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 189.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 206.
  (./parallel-haplotyping.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 189.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 189.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 206.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 206.
 Package rerunfilecheck Info: File `parallel-haplotyping.out' has not changed.
-(rerunfilecheck)             Checksum: C5C579F0C53E4969B25D4BBF9C401800;633.
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 189.
+(rerunfilecheck)             Checksum: 2E620AA21C615E83FCD6749F043B4EBE;263.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 206.
  ) 
 Here is how much of TeX's memory you used:
- 6298 strings out of 495028
- 92623 string characters out of 6181497
- 175017 words of memory out of 5000000
+ 6295 strings out of 495028
+ 92558 string characters out of 6181497
+ 175103 words of memory out of 5000000
  9382 multiletter control sequences out of 15000+600000
  27814 words of font info for 93 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 37i,5n,30p,363b,430s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 37i,5n,30p,363b,412s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/share/texlive/texm
 f-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/
@@ -475,10 +490,10 @@ cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cms
 y7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb
 ></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr
 /share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb>
-Output written on parallel-haplotyping.pdf (3 pages, 155274 bytes).
+Output written on parallel-haplotyping.pdf (3 pages, 160971 bytes).
 PDF statistics:
- 133 PDF objects out of 1000 (max. 8388607)
- 115 compressed objects within 2 object streams
- 22 named destinations out of 1000 (max. 500000)
- 65 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 125 PDF objects out of 1000 (max. 8388607)
+ 107 compressed objects within 2 object streams
+ 19 named destinations out of 1000 (max. 500000)
+ 33 words of extra memory for PDF output out of 10000 (max. 10000000)
 

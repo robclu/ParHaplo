@@ -65,7 +65,7 @@ genetic differences. For diploid organisms, which have pairs of chromosomes, a \
 sequence of SNPs in each copy of a pair of chromosomes. A \textit{genotype} describes the conflated data of the
 haplotypes on a pair of chromosomes. Haplotypes are believed to contain more generic information than
 genotypes \cite{stephens:2001}, however, obtaining haplotypes correctly is a difficult problem, which is 
-broken into two subdomains: individual haplotype assembly and haplotype inference. \\
+broken into two subdomains: haplotype assembly and haplotype inference. \\
 Haplotype inference uses the genotype of a set of individuals. The genotype data tells the status of each
 allele at a position, but does not distinguish which copy of the chromosome the allele came from.
 This negative aspects of this approach are that it cannot distinguish rare and novel SNPs \cite{he:2010}, 
@@ -95,11 +95,9 @@ C++ programs.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{BACKGROUND}
+\section{HAPLOTYPE ASSEMBLY PROBLEM}
 
-\subsection{Individual Haplotype Assembly Problem}
-
-This subsection will provide a brief overview of the individual haplotype assembly (IHA) problem, and define the
+This section will provide a brief overview of the haplotype assembly (HA) problem, and define the
 notation used through the rest of the paper. The input to the problem is a set of reads from a given genome
 sequence, where each read contains fragments from each of the two chromosomes which make up the genome
 sequence. These characters of a read consist of elements from a \textit{ternary string}, where a ternary
@@ -108,7 +106,7 @@ at a site, a value of 1 to the minor allele, and a value of - to the lack of a r
 referred to as a \textit{gap}. These reads are then combined to form a matrix, M, where each row of the 
 matrix corresponds to a read. \\
 Each column of the matrix is known as an SNP site. At each site, the data could be accurate, missing, or have
-error. The goal of the individual haplotype assembly problem is to determine a haplotype, H = \{\textit{h,h'}\}
+error. The goal of the haplotype assembly problem is to determine a haplotype, H = \{\textit{h,h'}\}
 from the matrix. The following terminology will be used to refer to properties of the matrix and the
 fragments. \\
 For the input matrix M, the number of fragments is denoted by \textit{m}, which is the number of rows in M.
@@ -128,39 +126,36 @@ define a \textit{conflict graph} \cite{lancia:2001} G = \{ V, E \}, where V corr
 corresponds to and edge between two fragments if they conflict. If the matrix M contains no errors, then none
 of the fragments from the same chromosome will conflict and G will be bipartate. Fragments from the same
 chromosome may conflict. However, if there are errors (as is usually the case) in M, G will not be
-bipartate. The individual haplotype assembly problem then requires the correction of G from a non-bipartate 
-graph to a bipartate graph. There are numerous methods for doing this, and will be discussed in the 
-subsections to follow.
+bipartate. The haplotype assembly problem then requires the correction of G from a non-bipartate 
+graph to a bipartate graph. There are numerous methods for solving the problem:
 
-\subsubsection{ Minimum Fragment Removal (MFR) }
+\begin{itemize}
+    \item{ \textbf{Minimum Fragment Removal (MFR) :} This invloves removing the least number of fragments 
+            from the input data such that the resultant graph G is bipartate. It is shown in 
+            \cite{lancia:2001} that this can be solved in polynomial time.
+        }
+    \item{ \textbf{Weighted Minimum Edge Removal (WMER) \cite{aguiar:2012} :} This method is a recent method, 
+            which requires determining the minimum number of edges to remove such that removal of the edges 
+            results in G being bipartate.
+        }
+    \item{ \textbf{Longest Haplotype Reconstruction (LHR) :} This requires finding a set of fragments which, 
+            when they are removed from M, result in G being bipartate and the length of the resultant 
+            haplotypes being maximized \cite{schwartz:2010}. 
+        }
+    \item{ \textbf{Minimum Error Correction (MEC) :} This method involves correcting the minimum number of 
+            elements (sites for all fragments) in the matrix M which allow the graph G to be bipartate. 
+            Although being the most complex method, it is the most widely used method as it provides the 
+            highest accuracy rates. Only recently has an exact algorith for the MEC problem formulation been
+            proposed which can provide an exact solution for all cases.
+        }
+\end{itemize}
 
-The method of minimum fragment removal is to remove the smallest number of fragments from the inputs
-data such that the resultant graph G is bipartate. It is shown in \cite{lancia:2001} that this can be solved
-in polynomial time.
+Due to the accuracy and more extensive previous work, the MEC method for solving the problem was decided upon
+as the method for which a parallel implementation will be proposed.
 
-\subsubsection{ Minimum Edge Removal (MER) }
+\subsection{ Minimum Error Correction Implementations } \label{sec:mecimp}
 
-This method is not an exact error model \cite{schwartz:2010}, however, allows the problem to be reduced to a
-Max-Cut or weighted Max-Cut problem, which can then be solved to determine a bipartate graph. Informally, 
-minimum edge removal requires determining the least number of edges from G such that removal of the edges 
-results in G being bipartate.
-
-\subsubsection{ Longest Haplotype Reconstruction (LHR)}
-
-This requires finding a set of fragments which, when they are removed from M, result in G being bipartate and
-the length of the resultant haplotypes being maximized \cite{schwartz:2010}. 
-
-\subsection{ Minimum Error Correction (MEC)} 
-
-This method involves correcting the minimum number of elements in the matrix M  (sites for all fragments) 
-which allow the graph G to be bipartate. Although being the most complex method, it is the most widely used
-method as it provides the highest accuracy rates. Furthermore, MEC is the only method which for which an exact
-solution to the individual haplotype assembly problem. For these reasons, a MEC solution was chosen to be
-parallelized.
-
-\subsection{ Minimum Error Correction Implementations }
-
-Much research has been done on solving the MEC formulation of the IHA problem. The first exact algorithm for
+Much research has been done on solving the MEC formulation of the HA problem. The first exact algorithm for
 solving the problem was a branch and bound algorithm proposed by \cite{wang:2005}. The algorithm creates a
 tree which covers the search space of all possible corrections. The tree is then traversed to find the best
 solution. They use an upper bound for when branching that allows branches to be abandoned when a better
@@ -172,8 +167,30 @@ run times up to three orders of magnitude faster than the branch and bound imple
 implementation gives very similar results to the branch and bound implementation, it is slightly worse. \\
 A dynamic programming solution was proposed by \cite{xie:2008} which addresses the run time problem for large
 input sizes. The algorithm has time complexity of O(\textit{mk}3$^{\textit{k}}$ + \textit{mlogm} +
-\textit{mk}), where \K is the maximum number of SNP sites a fragment covers. In practice \K is usually small, 
-however, for inputs where \K is large the algorithm becomes impractical.
+\textit{mk}), where \K is the maximum number of SNP sites a fragment covers. In practice \K is usually small,
+and results were shown small \K (less than 100). The proposed dynamic programming solution had significant run
+time improvements over the solution proposed by \cite{wang:2005}. However, for larger \K values, the 
+algorithm cannot solve the MEC case of the HA problem in a feasible amount of time. \\
+More recently, \cite{chen:2013} proposed an exact algorithm for solving the MEC problem. The proposed
+algorithm is the currently the only algorithm which can solve the HA problem for both the homozygous (the 
+alleles at a site are identical) and hetrozygous (the alleles at an SNP site are different) case. Most other 
+work assumes that the input fragment data is hetrozygous, which, while true for most of the SNP sites in the
+input matrix, is normally false for a small number of the SNP sites. The exact solution removes unnecessary
+data from the matrix, and partitions the matrix into smaller sub-matrices. The problem is then formulated as
+an \textit{integer linear programming} (ILP) problem and solved as an optimization problem. The implementation was
+run using an intel i7-3960X CPU, and the HuRef dataset required 15 days to solve for the general case, and 24h
+for the all-hetrozygous case. Heuristics methods are also proposed which speed up computation time by up to 15
+times. However, the results are only shown for smaller input sizes, and the heuristic methods do not always
+determine the optimal solution. Furthermore, the solutions for the general case show lower MEC scores, meaning
+that the all-hetrozygous assumption is not always valid. 
+
+\subsection{Parallelization}
+
+Of the MEC implementations discussed in Section~\ref{sec:mecimp}, the branch and bound solution proposed by
+\cite{wang:2005}, and the ILP fomulation of the problem by \cite{chen:2013} have the most potential for a
+parallel implementation.
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

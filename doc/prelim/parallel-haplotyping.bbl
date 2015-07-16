@@ -1,4 +1,4 @@
-\begin{thebibliography}{1}
+\begin{thebibliography}{10}
 \newcommand{\enquote}[1]{``#1''}
 \providecommand{\url}[1]{{\tt #1}}
 \providecommand{\urlprefix}{URL }
@@ -46,6 +46,16 @@ G.~Lancia, V.~Bafna, S.~Istrail, R.~Lippert, and R.~Schwartz.
   Berlin Heidelberg, 2001.
 \newblock [Online] Available at
   \url{http://dx.doi.org/10.1007/3-540-44676-1_15} [Accessed 16 July 2015].
+
+\bibitem{aguiar:2012}
+D.~Aguiar and S.~Istrail.
+\newblock \enquote{HAPCOMPASS: A fast cycle basis algorithm for accurate
+  haplotype assembly of sequence data.}
+\newblock {\em Journal of Computational Biology\/}, vol.~19, no.~6, pp.
+  577--590, June 2012.
+\newblock [Online] Available at
+  \url{http://www.brown.edu/Research/Istrail_Lab/papers/hapcompass_jcb_draft.pdf}
+  [Accessed 16 July 2015].
 
 \bibitem{schwartz:2010}
 R.~Schwartz.
