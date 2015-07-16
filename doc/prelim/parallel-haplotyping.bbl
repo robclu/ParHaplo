@@ -77,4 +77,24 @@ M.~Xie, J.~Wang, and J.~Chen.
 \newblock In {\em BioMedical Engineering and Informatics, 2008. BMEI 2008.
   International Conference on\/}, vol.~1, pp. 72--76. May 2008.
 
+\bibitem{galli:2014}
+L.~Galli.
+\newblock \enquote{Algorithms for Integer Programming.}, December 2014.
+\newblock [Online] Available at
+  \url{http://www.di.unipi.it/optimize/Courses/RO2IG/aa1415/IP_algorithms.pdf}
+  [Accessed 27 June 2015].
+
+\bibitem{bouk:2012}
+A.~Boukedjar, M.~Lalami, and D.~El-Baz.
+\newblock \enquote{Parallel Branch and Bound on a CPU-GPU System.}
+\newblock In {\em Parallel, Distributed and Network-Based Processing (PDP),
+  2012 20th Euromicro International Conference on\/}, pp. 392--398. Feb.
+
+\bibitem{kedia:2005}
+M.~Kedia.
+\newblock \enquote{Dynamic Programming.}, October 2005.
+\newblock [Online] Available at
+  \url{http://www.cs.cmu.edu/afs/cs/academic/class/15854-f05/www/scribe/lec10.pdf}
+  [Accessed 27 June 2015].
+
 \end{thebibliography}

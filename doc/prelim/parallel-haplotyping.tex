@@ -134,11 +134,11 @@ graph to a bipartate graph. There are numerous methods for solving the problem:
             from the input data such that the resultant graph G is bipartate. It is shown in 
             \cite{lancia:2001} that this can be solved in polynomial time.
         }
-    \item{ \textbf{Weighted Minimum Edge Removal (WMER) \cite{aguiar:2012} :} This method is a recent method, 
-            which requires determining the minimum number of edges to remove such that removal of the edges 
+    \item{ \textbf{Weighted Minimum Edge Removal (WMER) \cite{aguiar:2012} :} This method is a recent method,
+            which requires determining the minimum number of edges to remove such that removal of the edges
             results in G being bipartate.
         }
-    \item{ \textbf{Longest Haplotype Reconstruction (LHR) :} This requires finding a set of fragments which, 
+    \item{ \textbf{Longest Haplotype Reconstruction (LHR) :} This requires finding a set of fragments which,
             when they are removed from M, result in G being bipartate and the length of the resultant 
             haplotypes being maximized \cite{schwartz:2010}. 
         }
@@ -178,7 +178,7 @@ work assumes that the input fragment data is hetrozygous, which, while true for 
 input matrix, is normally false for a small number of the SNP sites. The exact solution removes unnecessary
 data from the matrix, and partitions the matrix into smaller sub-matrices. The problem is then formulated as
 an \textit{integer linear programming} (ILP) problem and solved as an optimization problem. The implementation was
-run using an intel i7-3960X CPU, and the HuRef dataset required 15 days to solve for the general case, and 24h
+run using an Intel i7-3960X CPU, and the HuRef dataset required 15 days to solve for the general case, and 24h
 for the all-hetrozygous case. Heuristics methods are also proposed which speed up computation time by up to 15
 times. However, the results are only shown for smaller input sizes, and the heuristic methods do not always
 determine the optimal solution. Furthermore, the solutions for the general case show lower MEC scores, meaning
@@ -187,8 +187,32 @@ that the all-hetrozygous assumption is not always valid.
 \subsection{Parallelization}
 
 Of the MEC implementations discussed in Section~\ref{sec:mecimp}, the branch and bound solution proposed by
-\cite{wang:2005}, and the ILP fomulation of the problem by \cite{chen:2013} have the most potential for a
-parallel implementation.
+\cite{wang:2005}, and the ILP formulation of the problem proposed by \cite{chen:2013} have the most potential 
+for a parallel implementation. While there are other methods for solving ILP problems \cite{galli:2014} the 
+most common methods for solving ILP problems are:
+\begin{itemize}
+    \item{ \textbf{Branch and bound :} The search space is divided into sub spaces, each of which is explored
+            for the optimal solution. Bounds are enforced to ensure that sections of the sub spaces for which
+        an optimal solution will not be found, will not be searched.
+    }
+    \item{ \textbf{Branch and cut :} The proble`m is first solved without the integer constraints to find the
+        optimal solution. Cutting planes are then used to divide the search space and then branch and bound is
+        applied.
+    }        
+\end{itemize}
+Thus both the MEC methods mentioned above can be solved using a branch and bound algorithm. The branch and cut
+algorithm involves using a branch and bound method as well as the simplex method, and is thus more complex,
+hence the choice was made to use the branch and bound algorithm. \\
+Recently, the increased interest in general purpose GPU (GPGPU) programming has resulted in attempts being
+made at parallel implementations of the branch and bound algorithm for certain problems. \\
+A hetrogeneous CPU-GPU implementation was proposed by \cite{bouk:2012} and was applied to the knapsack 
+problem \cite{kedia:2005}, which is known to be NP-Hard. Their results show that the GPU implementation is
+only good when the tree has a large number of nodes ($>$ 5000). Furthermore, the tree is built using a
+\textit{depth first} strategy to favour the parallel nature of the GPUs. The GPUs are used for the brancing
+and bounding computations, and returns a list of nodes to search for each iteration. This iterative procedure
+requires a lot of communication between the CPU and GPU, which is undesirable. However, a speedup of up to 
+9.27 times was achieved for larger problem sizes, validating the feasibility of the branch and bound 
+algorithm for parallel implementation.
 
 
 
