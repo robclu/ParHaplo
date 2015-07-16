@@ -16,6 +16,10 @@
 \usepackage{textcomp}
 \usepackage{url}
 
+\newcommand{\K}{\textit{k }}
+\newcommand{\M}{\textit{m }}
+\newcommand{\N}{\textit{n }}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PDF Info %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \ifpdf
@@ -95,7 +99,7 @@ C++ programs.
 
 \subsection{Individual Haplotype Assembly Problem}
 
-This subsection will provide a brief overview of the individual haplotype assembly problem, and define the
+This subsection will provide a brief overview of the individual haplotype assembly (IHA) problem, and define the
 notation used through the rest of the paper. The input to the problem is a set of reads from a given genome
 sequence, where each read contains fragments from each of the two chromosomes which make up the genome
 sequence. These characters of a read consist of elements from a \textit{ternary string}, where a ternary
@@ -107,8 +111,8 @@ Each column of the matrix is known as an SNP site. At each site, the data could 
 error. The goal of the individual haplotype assembly problem is to determine a haplotype, H = \{\textit{h,h'}\}
 from the matrix. The following terminology will be used to refer to properties of the matrix and the
 fragments. \\
-For the input matrix M, the number of fragments is denoted by \textit{n}, which is the number of rows in M.
-The number of SNP sites is denoted by \textit{m}, which is the number of columns in M, while the j$^{th}$ 
+For the input matrix M, the number of fragments is denoted by \textit{m}, which is the number of rows in M.
+The number of SNP sites is denoted by \textit{n}, which is the number of columns in M, while the j$^{th}$ 
 site of the i$^{th}$ fragment is given by \textit{f$_{ij}$}. Furthermore, two fragments are said to 
 conflict if the following conditions are true:
 \begin{itemize}
@@ -123,25 +127,53 @@ conflict. Furthermore, to understand some of the problem formulations from the f
 define a \textit{conflict graph} \cite{lancia:2001} G = \{ V, E \}, where V corresponds to a fragment, and E
 corresponds to and edge between two fragments if they conflict. If the matrix M contains no errors, then none
 of the fragments from the same chromosome will conflict and G will be bipartate. Fragments from the same
-chromosome may conflict. However, if there are errors (as is usually the case) in M, G will not be bipartate.
-The individual haplotype assembly problem then requires the correction of G from a non-bipartate graph to a
-bipartate graph. There are numerous methods for doing this, and will be discussed in the subsections to
-follow.
+chromosome may conflict. However, if there are errors (as is usually the case) in M, G will not be
+bipartate. The individual haplotype assembly problem then requires the correction of G from a non-bipartate 
+graph to a bipartate graph. There are numerous methods for doing this, and will be discussed in the 
+subsections to follow.
 
-\subsubsection{Minimum Fragment Removal}
+\subsubsection{ Minimum Fragment Removal (MFR) }
 
-The method of \textit{minimum fragment removal} (MFR) is to remove the smallest number of fragments from the inputs
+The method of minimum fragment removal is to remove the smallest number of fragments from the inputs
 data such that the resultant graph G is bipartate. It is shown in \cite{lancia:2001} that this can be solved
 in polynomial time.
 
-\subsection{Minimum Edge Removal}
+\subsubsection{ Minimum Edge Removal (MER) }
 
 This method is not an exact error model \cite{schwartz:2010}, however, allows the problem to be reduced to a
 Max-Cut or weighted Max-Cut problem, which can then be solved to determine a bipartate graph. Informally, 
-\textit{minimum edge removal} (MER) requires determining the least number of edges from G such that removal of
-the edges results in G being bipartate.
+minimum edge removal requires determining the least number of edges from G such that removal of the edges 
+results in G being bipartate.
 
+\subsubsection{ Longest Haplotype Reconstruction (LHR)}
 
+This requires finding a set of fragments which, when they are removed from M, result in G being bipartate and
+the length of the resultant haplotypes being maximized \cite{schwartz:2010}. 
+
+\subsection{ Minimum Error Correction (MEC)} 
+
+This method involves correcting the minimum number of elements in the matrix M  (sites for all fragments) 
+which allow the graph G to be bipartate. Although being the most complex method, it is the most widely used
+method as it provides the highest accuracy rates. Furthermore, MEC is the only method which for which an exact
+solution to the individual haplotype assembly problem. For these reasons, a MEC solution was chosen to be
+parallelized.
+
+\subsection{ Minimum Error Correction Implementations }
+
+Much research has been done on solving the MEC formulation of the IHA problem. The first exact algorithm for
+solving the problem was a branch and bound algorithm proposed by \cite{wang:2005}. The algorithm creates a
+tree which covers the search space of all possible corrections. The tree is then traversed to find the best
+solution. They use an upper bound for when branching that allows branches to be abandoned when a better
+solution than the current best cannot result from further exploration of the branch, thus improving
+performance. However, this exact method has time complexity of O(2$^{\textit{m}}$), where \M is the
+number of fragments in the input data, and hence cannot produce solutions for large problem sizes. They also 
+provide a heuristic \textit{genetic algorithm} (GA) to improve the computational time, which only requires 
+run times up to three orders of magnitude faster than the branch and bound implementation. While the GA
+implementation gives very similar results to the branch and bound implementation, it is slightly worse. \\
+A dynamic programming solution was proposed by \cite{xie:2008} which addresses the run time problem for large
+input sizes. The algorithm has time complexity of O(\textit{mk}3$^{\textit{k}}$ + \textit{mlogm} +
+\textit{mk}), where \K is the maximum number of SNP sites a fragment covers. In practice \K is usually small, 
+however, for inputs where \K is large the algorithm becomes impractical.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
