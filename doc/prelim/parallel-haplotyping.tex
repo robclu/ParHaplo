@@ -15,10 +15,14 @@
 \usepackage{KJN}
 \usepackage{textcomp}
 \usepackage{url}
+\usepackage{amsfonts}
 
 \newcommand{\K}{\textit{k }}
 \newcommand{\M}{\textit{m }}
 \newcommand{\N}{\textit{n }}
+\newcommand{\D}{\textit{d}}
+\newcommand{\PP}{\textit{p}}
+\newcommand{\QQ}{\textit{q}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PDF Info %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -95,7 +99,7 @@ C++ programs.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{HAPLOTYPE ASSEMBLY PROBLEM}
+\section{HAPLOTYPE ASSEMBLY PROBLEM} \label{sec:hap}
 
 This section will provide a brief overview of the haplotype assembly (HA) problem, and define the
 notation used through the rest of the paper. The input to the problem is a set of reads from a given genome
@@ -204,6 +208,8 @@ Thus both the MEC methods mentioned above can be solved using a branch and bound
 algorithm involves using a branch and bound method as well as the simplex method, and is thus more complex,
 hence the choice was made to use the branch and bound algorithm. 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{BRANCH AND BOUND}
 
 The branch and bound algorithm can be parallelized in multiple ways \cite{crainic:2006}. Either specific,
@@ -296,7 +302,58 @@ recursion, and is thus also a good candidate for this approach.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\section{ PROBLEM DESCRIPTION }
 
+Considering the potential performance of a parallel from the existing research, as well as the abiliy of the
+algorithm presented in \cite{chen:2013} to solve both the homozygous and hetrozygous case of the HA problem,
+this was the algorithm whis was chosen for the parallelization. This section will describe the agorithm
+presented in \cite{chen:2013} which is the formulation of the HA problem as an ILP problem. Using the
+terminology presented in \ref{sec:hap}, the Hamming distance between two fragments j and k is number of SNP 
+sites at which the fragments conflict, and is denoted by \D($f_j$, f$_k$), which is used to determine the
+MEC score of a solution H = \{ h, h' \}, which is given by
+\begin{equation}
+    \textrm{MEC$_{score}$} = \sum_{i = 1}^{m}{ min\{ \D(f_i, h), \D(f_i, h') \} }
+\end{equation}
+Where \M is again the number of rows in the input matrix M. The MEC score is \textit{optimal} if it is the
+minimum possible score. Some assumptions are made for the input matrix as per \cite{chen:2013}, namely
+\begin{itemize}
+    \item{ No row of the input matrix M is useless - at least one entry in the row is a 1 or 0 
+    }
+    \item{ No column of M in monotone - the column must have at least one 0 and one 1
+    }
+    \item{ No column of M contains more 1's than 0's - if this is not the case the values are all flipped, which
+        does not change the solution
+    }
+\end{itemize}
+The input matrix M first undergoes preprocessing to ensure that the above conditions are met. It must be noted
+that the preprocessing does not affect the solution in any way. The preprocessing functions are:
+\begin{itemize}
+    \item{ \textbf{Block reduction :} Splits the matrix into disjoint sets such that all reads start and end
+            in the same block
+    }
+    \item{ \textbf{Block decomposition :} This process takes reduced blocks and eliminates redundancy, resulting
+        in smaller problems 
+    }
+    \item{ \textbf{Singleton removal :} A singleton is a row for which the start and end positions of the fragment
+        are the same - i,e the fragment has only one element. Since singletons do not affect the MEC score,
+        they can be removed.
+    }
+    \item{ \textbf{Duplicate removal :} Rows and columns which are the same are merged into a single row or
+            column, and the multiplicity of the row or column is recorded
+    }
+\end{itemize}
+
+From the reduced blocks the ILP problem is formulated for the all-hetrozygous and the general case. Despite
+being more complicated, only the general case formulation will be shown. The justification for this is that  
+the results presented in \cite{chen:2013} show that this is the case for which the optimal MEC scores are 
+obtained, furthermore the all-hetrozygous case assumed that there are no errors in the input matrix, which
+in not true for all input cases.
+
+\subsection{ ILP Formulation } \label{ssec:ilpform}
+
+For integers \PP,\ \QQ\ $\in$ $\mathbb{Z}$, where 1 $\le$ \PP\ $\le$ \M, and 1 $\le$ \QQ\ $\le$ \N, \PP\ is the 
+index of the fragment (or row) in the input matrix M, and \QQ\ is the index of SNP (or column) in the input 
+matrix.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %\nocite{*}
