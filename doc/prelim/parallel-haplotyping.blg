@@ -3,51 +3,53 @@ Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
 The top-level auxiliary file: parallel-haplotyping.aux
 The style file: witseie.bst
 Database file #1: sample.bib
+Warning--I'm ignoring chakroun:2013's extra "note" field
+--line 243 of file sample.bib
 Warning--empty journal in he:2010
 Warning--empty journal in lippert:2002
 Warning--empty journal in chen:2013
 Warning--empty journal in wang:2005
 Warning--empty title in alba:2002
 Warning--there's a month but no year in bouk:2012
-You've used 18 entries,
+You've used 20 entries,
             2282 wiz_defined-function locations,
-            638 strings with 8658 characters,
-and the built_in function-call counts, 8717 in all, are:
-= -- 607
-> -- 246
-< -- 35
-+ -- 88
-- -- 70
-* -- 540
-:= -- 904
-add.period$ -- 84
-call.type$ -- 18
-change.case$ -- 22
+            651 strings with 9342 characters,
+and the built_in function-call counts, 9542 in all, are:
+= -- 669
+> -- 268
+< -- 37
++ -- 96
+- -- 76
+* -- 585
+:= -- 992
+add.period$ -- 94
+call.type$ -- 20
+change.case$ -- 24
 chr.to.int$ -- 0
-cite$ -- 24
-duplicate$ -- 870
-empty$ -- 787
-format.name$ -- 85
-if$ -- 1955
+cite$ -- 26
+duplicate$ -- 955
+empty$ -- 858
+format.name$ -- 93
+if$ -- 2140
 int.to.chr$ -- 0
-int.to.str$ -- 18
-missing$ -- 219
-newline$ -- 105
-num.names$ -- 24
-pop$ -- 336
+int.to.str$ -- 20
+missing$ -- 241
+newline$ -- 117
+num.names$ -- 26
+pop$ -- 367
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 0
-skip$ -- 246
+skip$ -- 271
 stack$ -- 0
-substring$ -- 419
-swap$ -- 679
-text.length$ -- 35
+substring$ -- 459
+swap$ -- 739
+text.length$ -- 37
 text.prefix$ -- 0
 top$ -- 0
 type$ -- 0
 warning$ -- 6
-while$ -- 53
-width$ -- 20
-write$ -- 221
-(There were 6 warnings)
+while$ -- 57
+width$ -- 22
+write$ -- 246
+(There were 7 warnings)

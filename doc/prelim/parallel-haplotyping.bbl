@@ -141,4 +141,18 @@ N.~Melab, I.~Chakroun, M.~Mezmaz, and D.~Tuyttens.
 \newblock [Online] Available at \url{http://arxiv.org/abs/1208.3933} [Accessed
   17 July 2015].
 
+\bibitem{chakroun:2012}
+I.~Chakroun, M.~Mezmaz, N.~Melab, and A.~Bendjoudi.
+\newblock \enquote{{Reducing thread divergence in a GPU-accelerated
+  branch-and-bound algorithm}.}
+\newblock {\em {Concurrency and Computation: Practice and Experience}\/}, 2012.
+\newblock [Online] Available at \url{https://hal.inria.fr/hal-00731859}
+  [Accessed 17 July 2015].
+
+\bibitem{chakroun:2013}
+I.~Chakroun and N.~Melab.
+\newblock \enquote{Operator-level GPU-Accelerated Branch and Bound Algorithms.}
+\newblock {\em Procedia Computer Science\/}, vol.~18, pp. 280 -- 289, 2013.
+\newblock 2013 International Conference on Computational Science.
+
 \end{thebibliography}
