@@ -84,11 +84,24 @@ L.~Galli.
   \url{http://www.di.unipi.it/optimize/Courses/RO2IG/aa1415/IP_algorithms.pdf}
   [Accessed 27 June 2015].
 
-\bibitem{bouk:2012}
-A.~Boukedjar, M.~Lalami, and D.~El-Baz.
-\newblock \enquote{Parallel Branch and Bound on a CPU-GPU System.}
-\newblock In {\em Parallel, Distributed and Network-Based Processing (PDP),
-  2012 20th Euromicro International Conference on\/}, pp. 392--398. Feb.
+\bibitem{crainic:2006}
+T.~G. Crainic, B.~Le~Cun, and C.~Roucairol.
+\newblock {\em Parallel Branch-and-Bound Algorithms\/}, pp. 1--28.
+\newblock John Wiley \& Sons, Inc., 2006.
+\newblock [Online] Available at
+  \url{http://dx.doi.org/10.1002/9780470053928.ch1} [Accessed 17 July 2015].
+
+\bibitem{xu:2005}
+Y.~Xu, T.~Ralphs, L.~Ladányi, and M.~Saltzman.
+\newblock \enquote{Alps: A Framework for Implementing Parallel Tree Search
+  Algorithms.}
+\newblock In B.~Golden, S.~Raghavan, and E.~Wasil, editors, {\em The Next Wave
+  in Computing, Optimization, and Decision Technologies\/}, vol.~29 of {\em
+  Operations Research/Computer Science Interfaces Series\/}, pp. 319--334.
+  Springer US, 2005.
+\newblock \urlprefix\url{http://dx.doi.org/10.1007/0-387-23529-9_21}.
+\newblock [Online] Available at
+  \url{http://dx.doi.org/10.1007/0-387-23529-9_21} [Accessed 17 July 2015].
 
 \bibitem{kedia:2005}
 M.~Kedia.
@@ -96,5 +109,36 @@ M.~Kedia.
 \newblock [Online] Available at
   \url{http://www.cs.cmu.edu/afs/cs/academic/class/15854-f05/www/scribe/lec10.pdf}
   [Accessed 27 June 2015].
+
+\bibitem{alba:2002}
+E.~Alba, F.~Almeida, M.~Blesa, J.~Cabeza, C.~Cotta, M.~Díaz, I.~Dorta,
+  J.~Gabarró, C.~León, J.~Luna, L.~Moreno, C.~Pablos, J.~Petit, A.~Rojas, and
+  F.~Xhafa.
+\newblock In B.~Monien and R.~Feldmann, editors, {\em Euro-Par 2002 Parallel
+  Processing\/}, vol. 2400 of {\em Lecture Notes in Computer Science\/}, pp.
+  927--932. Springer Berlin Heidelberg, 2002.
+\newblock [Online] Available at
+  \url{http://dx.doi.org/10.1007/3-540-45706-2_132} [Accessed 17 July 2015].
+
+\bibitem{bouk:2012}
+A.~Boukedjar, M.~Lalami, and D.~El-Baz.
+\newblock \enquote{Parallel Branch and Bound on a CPU-GPU System.}
+\newblock In {\em Parallel, Distributed and Network-Based Processing (PDP),
+  2012 20th Euromicro International Conference on\/}, pp. 392--398. Feb.
+
+\bibitem{nvidia:2012}
+Nvidia.
+\newblock \enquote{CUDA DYNAMIC PARALLELISM PROGRAMMING GUIDE.}, August 2012.
+\newblock [Online] Available at
+  \url{https://www.clear.rice.edu/comp422/resources/cuda/html/cuda-dynamic-parallelism/index.html}
+  [Accessed 17 July 2015].
+
+\bibitem{melab:2012}
+N.~Melab, I.~Chakroun, M.~Mezmaz, and D.~Tuyttens.
+\newblock \enquote{A GPU-accelerated Branch-and-Bound Algorithm for the
+  Flow-Shop Scheduling Problem.}
+\newblock {\em CoRR\/}, vol. abs/1208.3933, 2012.
+\newblock [Online] Available at \url{http://arxiv.org/abs/1208.3933} [Accessed
+  17 July 2015].
 
 \end{thebibliography}

@@ -195,24 +195,65 @@ most common methods for solving ILP problems are:
             for the optimal solution. Bounds are enforced to ensure that sections of the sub spaces for which
         an optimal solution will not be found, will not be searched.
     }
-    \item{ \textbf{Branch and cut :} The proble`m is first solved without the integer constraints to find the
+    \item{ \textbf{Branch and cut :} The problem is first solved without the integer constraints to find the
         optimal solution. Cutting planes are then used to divide the search space and then branch and bound is
         applied.
     }        
 \end{itemize}
 Thus both the MEC methods mentioned above can be solved using a branch and bound algorithm. The branch and cut
 algorithm involves using a branch and bound method as well as the simplex method, and is thus more complex,
-hence the choice was made to use the branch and bound algorithm. \\
-Recently, the increased interest in general purpose GPU (GPGPU) programming has resulted in attempts being
-made at parallel implementations of the branch and bound algorithm for certain problems. \\
+hence the choice was made to use the branch and bound algorithm. 
+
+\section{BRANCH AND BOUND}
+
+The branch and bound algorithm can be parallelized in multiple ways \cite{crainic:2006}. Either specific,
+computationally difficult functions can be accelerated by a parallel implementation, for example matrix
+inversion, or the entire tree can be search in parallel, or a combination of both can be employed. Using tree
+based approaches will require communication between each of the processes which searches a branch, as the
+branch solution will need to be compared against the solutions of the other branches. This becomes a
+bottleneck for both CPU and GPU implementations as groups of threads are assigned local memory, for which
+access is much faster than the global memory space. There have been numerous parallel branch and bound methods
+proposed for both the CPU and GPU which deal with these problems in different ways.
+
+\subsection{ CPU Implementations }
+
+The ALPS framework \cite{xu:2005} is written in C++ and provides a parallel CPU implementation of the branch
+and bound algorithm. The framework is tested on the knapsack problem \cite{kedia:2005}, which is an ILP problem 
+and is known to be NP-hard. The speedup achieved is near linear in the number of nodes when the number of 
+nodes is small, but diminishes as more nodes are added due to the amount of communication between the nodes. 
+A speedup of 8 times is achieved for 8 nodes, and 26 times for 32 nodes. It is likely that for the HA problem, 
+the number of nodes could be extremely large in which case this methods will be insufficient. \\
+The MALLBA framework \cite{alba:2002} is also written in C++ and provides a parallel branch and bound
+algorithm. It labels nodes as \textit{master} or \textit{slave} nodes, which defines the type of work that the
+nodes do. The framework also provides heuristic methods to solve the problems more efficiently, however, the
+accuracy of the results is less, which while acceptable for many applications, is not acceptable for the HA
+problems. The performance results are similar to the ALPS framework, where near linear speed up is achieved for
+a small number of additional nodes, but levels off for larger numbers of nodes.\\
+
+\subsection{ GPU Implementations }
+
 A hetrogeneous CPU-GPU implementation was proposed by \cite{bouk:2012} and was applied to the knapsack 
-problem \cite{kedia:2005}, which is known to be NP-Hard. Their results show that the GPU implementation is
-only good when the tree has a large number of nodes ($>$ 5000). Furthermore, the tree is built using a
-\textit{depth first} strategy to favour the parallel nature of the GPUs. The GPUs are used for the brancing
-and bounding computations, and returns a list of nodes to search for each iteration. This iterative procedure
-requires a lot of communication between the CPU and GPU, which is undesirable. However, a speedup of up to 
-9.27 times was achieved for larger problem sizes, validating the feasibility of the branch and bound 
-algorithm for parallel implementation.
+problem. Due to the overhead of transferring data from the CPU to the GPU before computation, the model only 
+uses GPUs when the tree has a large number of nodes ($>$ 5000), otherwise the CPUs are used Furthermore, the 
+tree is built using a \textit{breadth first} strategy to favour the parallel nature of the GPUs. Both the
+branching and bounding steps can be performed on the CPU or GPU. If the number of nodes is sufficiently large
+such that full ocupancy of the GPU is ensured, then for each iteration of the algorithm the GPU does the
+branching and bounding on a list of nodes, eliminates nodes for which an optimal solution cannot be found, and
+return the list back to the CPU. This process continues until convergence. This regular communication between
+the CPU and GPU is expensive, which lessens the speedup achieved by the implementation. However, a speedup of 
+up to 9.27 times was achieved for larger problem sizes, validating the feasibility of the branch and bound 
+algorithm for parallel implementation. It must be noted that the algorithm was developed for Nvidia's Fermi
+architecture, which does not support dynamic parallelism \cite{nvidia:2012}, hence results in the vast CPU-GPU 
+communication. The newer Kepler architecture, however, does support dynamic parallelism. \\
+An implementation is proposed by \cite{melab:2012} that targets the bounding operation for parallelism,
+specifically the calculation of the lower bound. Traditionally for branch and bound, the tree structure is 
+irregular which makes the entire tree search unsuited for GPUs which do not support recursion and dynamic 
+parallelism, as was the case when the implementation was proposed, hence the focus on only he bounding 
+operation. The implementation was applied to the Flow-Shop scheduling problem, for which it is shown that
+$\mathit{\sim}$98$\%$ of the computation is spent on the calculation of the lower bound. Speed ups of up to
+100 times are achieved over a multi-threaded CPU implementation. However, this kind of speedup will only
+be seen in problems where the calculation of the bounds is the bottleneck. Nevertheless, even if significantly
+less time is spent calculating the bounds, the speed up should be significant.
 
 
 

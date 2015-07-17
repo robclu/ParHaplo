@@ -2,3 +2,6 @@
 \BOOKMARK [1][-]{section.2}{HAPLOTYPE ASSEMBLY PROBLEM}{}% 2
 \BOOKMARK [2][-]{subsection.2.1}{ Minimum Error Correction Implementations }{section.2}% 3
 \BOOKMARK [2][-]{subsection.2.2}{Parallelization}{section.2}% 4
+\BOOKMARK [1][-]{section.3}{BRANCH AND BOUND}{}% 5
+\BOOKMARK [2][-]{subsection.3.1}{ CPU Implementations }{section.3}% 6
+\BOOKMARK [2][-]{subsection.3.2}{ GPU Implementations }{section.3}% 7
