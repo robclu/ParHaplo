@@ -8,3 +8,14 @@
 \BOOKMARK [2][-]{subsection.3.3}{ Potential Improvements }{section.3}% 8
 \BOOKMARK [1][-]{section.4}{ PROBLEM DESCRIPTION }{}% 9
 \BOOKMARK [2][-]{subsection.4.1}{ ILP Formulation }{section.4}% 10
+\BOOKMARK [2][-]{subsection.4.2}{Computation Procedure}{section.4}% 11
+\BOOKMARK [1][-]{section.5}{ PARALLEL PRE-PROCESSING FOR MEC HA }{}% 12
+\BOOKMARK [2][-]{subsection.5.1}{ Determining Intrinsically Hetrozygous Columns}{section.5}% 13
+\BOOKMARK [2][-]{subsection.5.2}{Singleton Removal}{section.5}% 14
+\BOOKMARK [2][-]{subsection.5.3}{Duplicate Removal}{section.5}% 15
+\BOOKMARK [3][-]{subsubsection.5.3.1}{Simultaneous column and row search}{subsection.5.3}% 16
+\BOOKMARK [3][-]{subsubsection.5.3.2}{Simultaneous row and column comparison}{subsection.5.3}% 17
+\BOOKMARK [1][-]{section.6}{PARALLEL BRANCH AND BOUND FOR MEC HA }{}% 18
+\BOOKMARK [2][-]{subsection.6.1}{Node Selection}{section.6}% 19
+\BOOKMARK [1][-]{appendix.A}{Parallel Algorithm Examples }{}% 20
+\BOOKMARK [1][-]{appendix.B}{Heuristic for Lower Bound Estimation}{}% 21

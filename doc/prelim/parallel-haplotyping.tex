@@ -16,6 +16,8 @@
 \usepackage{textcomp}
 \usepackage{url}
 \usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{algorithm}
 
 \newcommand{\K}{\textit{k }}
 \newcommand{\M}{\textit{m }}
@@ -138,20 +140,20 @@ graph to a bipartate graph. There are numerous methods for solving the problem:
             from the input data such that the resultant graph G is bipartate. It is shown in 
             \cite{lancia:2001} that this can be solved in polynomial time.
         }
-    \item{ \textbf{Weighted Minimum Edge Removal (WMER) \cite{aguiar:2012} :} This method is a recent method,
-            which requires determining the minimum number of edges to remove such that removal of the edges
-            results in G being bipartate.
-        }
-    \item{ \textbf{Longest Haplotype Reconstruction (LHR) :} This requires finding a set of fragments which,
-            when they are removed from M, result in G being bipartate and the length of the resultant 
-            haplotypes being maximized \cite{schwartz:2010}. 
-        }
-    \item{ \textbf{Minimum Error Correction (MEC) :} This method involves correcting the minimum number of 
-            elements (sites for all fragments) in the matrix M which allow the graph G to be bipartate. 
-            Although being the most complex method, it is the most widely used method as it provides the 
-            highest accuracy rates. Only recently has an exact algorith for the MEC problem formulation been
-            proposed which can provide an exact solution for all cases.
-        }
+\item{ \textbf{Weighted Minimum Edge Removal (WMER) \cite{aguiar:2012} :} This method is a recent method,
+        which requires determining the minimum number of edges to remove such that removal of the edges
+        results in G being bipartate.
+    }
+\item{ \textbf{Longest Haplotype Reconstruction (LHR) :} This requires finding a set of fragments which,
+        when they are removed from M, result in G being bipartate and the length of the resultant 
+        haplotypes being maximized \cite{schwartz:2010}. 
+    }
+\item{ \textbf{Minimum Error Correction (MEC) :} This method involves correcting the minimum number of 
+        elements (sites for all fragments) in the matrix M which allow the graph G to be bipartate. 
+        Although being the most complex method, it is the most widely used method as it provides the 
+        highest accuracy rates. Only recently has an exact algorith for the MEC problem formulation been
+        proposed which can provide an exact solution for all cases.
+    }
 \end{itemize}
 
 Due to the accuracy and more extensive previous work, the MEC method for solving the problem was decided upon
@@ -195,14 +197,14 @@ Of the MEC implementations discussed in Section~\ref{sec:mecimp}, the branch and
 for a parallel implementation. While there are other methods for solving ILP problems \cite{galli:2014} the 
 most common methods for solving ILP problems are:
 \begin{itemize}
-    \item{ \textbf{Branch and bound :} The search space is divided into sub spaces, each of which is explored
-            for the optimal solution. Bounds are enforced to ensure that sections of the sub spaces for which
-        an optimal solution will not be found, will not be searched.
-    }
-    \item{ \textbf{Branch and cut :} The problem is first solved without the integer constraints to find the
-        optimal solution. Cutting planes are then used to divide the search space and then branch and bound is
-        applied.
-    }        
+\item{ \textbf{Branch and bound :} The search space is divided into sub spaces, each of which is explored
+        for the optimal solution. Bounds are enforced to ensure that sections of the sub spaces for which
+    an optimal solution will not be found, will not be searched.
+}
+\item{ \textbf{Branch and cut :} The problem is first solved without the integer constraints to find the
+    optimal solution. Cutting planes are then used to divide the search space and then branch and bound is
+    applied.
+}        
 \end{itemize}
 Thus both the MEC methods mentioned above can be solved using a branch and bound algorithm. The branch and cut
 algorithm involves using a branch and bound method as well as the simplex method, and is thus more complex,
@@ -210,7 +212,7 @@ hence the choice was made to use the branch and bound algorithm.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{BRANCH AND BOUND}
+\section{BRANCH AND BOUND} \label{sec:bnb}
 
 The branch and bound algorithm can be parallelized in multiple ways \cite{crainic:2006}. Either specific,
 computationally difficult functions can be accelerated by a parallel implementation, for example matrix
@@ -279,16 +281,16 @@ a parallel implementation. Some aspects of the related work have significant per
 parallel implementation, such as:
 
 \begin{itemize}
-    \item{ Using multiple CPUs does not scale effectively, and hence the relative performance increase for
-        adding an additional CPU decreases for each CPU which is added
-    }
-    \item{ The amount of communication between the CPU and the GPU is large, and is required on each
-            iteration, which decreases the performance of the algorithm
-    }
-    \item{ The structure of the tree depends on the problem - one problem may ensure a balanced tree while
-            another may map to an unbalanced tree - which makes a GPU difficult due to its data-parallel
-            nature
-    }
+\item{ Using multiple CPUs does not scale effectively, and hence the relative performance increase for
+    adding an additional CPU decreases for each CPU which is added
+}
+\item{ The amount of communication between the CPU and the GPU is large, and is required on each
+        iteration, which decreases the performance of the algorithm
+}
+\item{ The structure of the tree depends on the problem - one problem may ensure a balanced tree while
+        another may map to an unbalanced tree - which makes a GPU difficult due to its data-parallel
+        nature
+}
 \end{itemize}
 
 The above factors come from the limitations of the parallel hardware available at the time. Due to the lack of
@@ -302,7 +304,7 @@ recursion, and is thus also a good candidate for this approach.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{ PROBLEM DESCRIPTION }
+\section{ PROBLEM DESCRIPTION } \label{sec:probdes}
 
 Considering the potential performance of a parallel from the existing research, as well as the abiliy of the
 algorithm presented in \cite{chen:2013} to solve both the homozygous and hetrozygous case of the HA problem,
@@ -312,55 +314,181 @@ terminology presented in \ref{sec:hap}, the Hamming distance between two fragmen
 sites at which the fragments conflict, and is denoted by \D($f_j$, f$_k$), which is used to determine the
 MEC score of a solution H = \{ h, h' \}, which is given by
 \begin{equation}
-    \textrm{MEC$_{score}$} = \sum_{i = 1}^{m}{ min\{ \D(f_i, h), \D(f_i, h') \} }
+\textrm{MEC$_{score}$} = \sum_{i = 1}^{m}{ min\{ \D(f_i, h), \D(f_i, h') \} }
 \end{equation}
 Where \M is again the number of rows in the input matrix M. The MEC score is \textit{optimal} if it is the
 minimum possible score. Some assumptions are made for the input matrix as per \cite{chen:2013}, namely
 \begin{itemize}
-    \item{ No row of the input matrix M is useless - at least one entry in the row is a 1 or 0 
-    }
-    \item{ No column of M in monotone - the column must have at least one 0 and one 1
-    }
-    \item{ No column of M contains more 1's than 0's - if this is not the case the values are all flipped, which
-        does not change the solution
-    }
+\item{ No row of the input matrix M is useless - at least one entry in the row is a 1 or 0 
+}
+\item{ No column of M in monotone - the column must have at least one 0 and one 1
+}
+\item{ No column of M contains more 1's than 0's - if this is not the case the values are all flipped, which
+    does not change the solution
+}
 \end{itemize}
 The input matrix M first undergoes preprocessing to ensure that the above conditions are met. It must be noted
 that the preprocessing does not affect the solution in any way. The preprocessing functions are:
 \begin{itemize}
-    \item{ \textbf{Block reduction :} Splits the matrix into disjoint sets such that all reads start and end
-            in the same block
-    }
-    \item{ \textbf{Block decomposition :} This process takes reduced blocks and eliminates redundancy, resulting
-        in smaller problems 
-    }
-    \item{ \textbf{Singleton removal :} A singleton is a row for which the start and end positions of the fragment
-        are the same - i,e the fragment has only one element. Since singletons do not affect the MEC score,
-        they can be removed.
-    }
-    \item{ \textbf{Duplicate removal :} Rows and columns which are the same are merged into a single row or
-            column, and the multiplicity of the row or column is recorded
-    }
+\item{ \textbf{Block reduction :} Splits the matrix into disjoint sets such that all reads start and end
+        in the same block
+}
+\item{ \textbf{Block decomposition :} This process takes reduced blocks and eliminates redundancy, resulting
+    in smaller problems 
+}
+\item{ \textbf{Singleton removal :} A singleton is a row for which the start and end positions of the fragment
+    are the same - i,e the fragment has only one element. Since singletons do not affect the MEC score,
+    they can be removed.
+}
+\item{ \textbf{Duplicate removal :} Rows and columns which are the same are merged into a single row or
+        column, and the multiplicity of the row or column is recorded
+}
 \end{itemize}
 
 From the reduced blocks the ILP problem is formulated for the all-hetrozygous and the general case. Despite
 being more complicated, only the general case formulation will be shown. The justification for this is that  
 the results presented in \cite{chen:2013} show that this is the case for which the optimal MEC scores are 
 obtained, furthermore the all-hetrozygous case assumed that there are no errors in the input matrix, which
-in not true for all input cases.
+in not true for all input cases
 
 \subsection{ ILP Formulation } \label{ssec:ilpform}
 
 For integers \PP,\ \QQ\ $\in$ $\mathbb{Z}$, where 1 $\le$ \PP\ $\le$ \M, and 1 $\le$ \QQ\ $\le$ \N, \PP\ is the 
 index of the fragment (or row) in the input matrix M, and \QQ\ is the index of SNP (or column) in the input 
-matrix.
+matrix. The multiplicity of the $j^{th}$ column of M is denoted by $c_j$, while the multiplicity of the
+$i^{th}$ row of M is denoted by $c_j$. The following binary variables are introduced, $y_i$, which has a value of 1
+if \D($f_i$,h) $<$ \D($f_i$, h'), otherwise has a value of 0 (when \D($f_i$, h') $<$ \D($f_j$,h)). Informally,
+if fragment $i$ is part of $h$ then it has a value of 1, otherwise it has a value of 0, $x_j$, which has a 
+value of 1 if the $j^{th}$ bit of $h$ is 1, otherwise has a value of 0 of the $j^{th}$ bit of $h$ is 0, and
+lastly $z_j$, which has a value of 1 if the $j^{th}$ bit of h' is 1, otherwise has a value of 0 if the
+$j^{th}$ bit of h' is 0. Lastly $J_{i,0}$ ($J_{i,1}$) are the sets of integers $j \in \{1,2,...,q\}$ for which 
+the $i^{th}$ value in column $j$ is a 0 (1), and the column is intrinsically hetrozygous. Essentially for each
+row there are two sets, where each a set lists the intrinsically hetrozygous columns which have either values 
+of 0 or 1. DO J-BAR \\
+Using the above mentioned variables, an integer programming formulation is possible, however, non-linear 
+terms in the form of $y_ix_j$ and $y_iz_j$ arise, which cannot be solved using ILP techniques. To overcome
+this problem, \cite{chen:2013} defines variables $t_{i,j}$ for $y_ix_j$ and $u_{i,j}$ for $y_iz_j$ and impose
+constraints on the variables which ensure linearity (the constraints are shown in the final formulation of the
+problem). Using these variables, the final ILP formulation of the HA problem for the general case is 
+\begin{equation*}
+\begin{split}
+    \textrm{Minimize} 
+    &\ \ \ \ \sum_{i = 1}^{p}{w_i} \sum_{j \in J_{i, 0} }^{}{c_j(1 - x_j - y_i + 2t_{i,j})}     \\
+    &+ \sum_{i = 1}^{p}{w_i} \sum_{j \in J_{i, 1}}^{}{c_j(y_i + x_j - 2t_{i,j})}                \\
+    &+ \sum_{i = 1}^{p}{w_i} \sum_{j \in J_{i, 0}}^{}{c_j(z_j + t_{i,j} - u_{i,j})}             \\
+    &+ \sum_{i = 1}^{p}{w_i} \sum_{j \in J_{i, 1}}^{}{c_j(1 - z_j - t_{i,j} + u_{i,j})}
+\end{split}
+\end{equation*}
+\begin{equation*}
+\begin{split}
+    \textrm{Subject to} 
+    &\ \ \ \ \vee_{1 \le i \le p} y_i \in \{0, 1\}                                              \\
+    &\ \ \ \ \vee_{1 \le j \le q} x_j \in \{0, 1\}                                              \\
+    &\ \ \ \ \vee_{1 \le i \le p} \vee_{1 \le j \le p} \ \ t_{i,j} \in \{0, 1\}                 \\
+    &\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ t_{i,j} \le y_i                        \\ 
+    &\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ t_{i,j} \le x_j                        \\ 
+    &\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ t_{i,j} \ge y_i + x_j + 1              \\
+    &\ \ \ \ \vee_{1 \le i \le p} \vee_{j \in J_{i,0} \textrm{U} J_{i,1}} \ \ u_{i,j} \le y_i   \\
+    &\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ u_{i,j} \le z_j            \\
+    &\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ u_{i,j} \ge y_i + z_j - 1 
+    \end{split}
+\end{equation*}
+
+\subsection{Computation Procedure}
+
+Using the information provided by Section~\ref{sec:probdes} and Section~\ref{ssec:ilpform}, the general
+procedure for solving the MEC HA problem using ILP can be defined as
+\begin{algorithm}[t*]\label{alg:proc}
+    \small
+    \caption{Procedure for solving the MEC HA problem using ILP}
+\textbf{Step 1:} Determine intrinsically hetrozygous and homozygous columns in M                        \\
+\textbf{Step 2:} Perform block reduction on M                                                           \\
+\textbf{Step 3:} Perform block decomposition on intrinsically hetrozygous columns in M                 \\
+\textbf{Step 4:} Remove singleton rows from M                                                           \\
+\textbf{Step 5:} Remove duplicate columns in M
+\textbf{Step 6:} Solve ILP formulation using branch and bound algorithm 
+\end{algorithm}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{ PARALLEL PRE-PROCESSING FOR MEC HA }
+
+Observing Algorithm~\ref{alg:proc}, as well as referring to \cite{chen:2013} for the exact definitions of the
+operations, there are numerous areas to which parallelism can be applied.
+
+\subsection{ Determining Intrinsically Hetrozygous Columns}
+
+Determining instrinsically hetrozygous columns in M requires comparing counting the number of rows at each of
+the j columns which are 0 and which are 1, and then comparing the value. A parallel implementation would
+perform this operation for all \textit{n} columns at once if the GPU was used. However, for small \textit{n}
+the overhead of transferring the data to the GPU for computation would result in worse performance. In this
+case, a better approach would be to used the vectorized operations available to modern CPUs to perform the
+operations on multiple columns at a time, which could result in up to 8 times speedup depending on the CPU.
+
+\subsection{Singleton Removal}
+
+Finding singletons is a simple task as it only requires determining if there is more than one element in a
+row. Again, vectorized operations could be used, however, this time one the GPU, which could use \textit{n}
+threads for each row. Each thread checks if its corresponding entry in the row is present, and if it is,
+increments a counter in shared memory. If the value of the counter is $>$ 1, then the row in not singular.
+This would have time complexity of O(1) , compared to O(\textit{n}) using the implementation of
+\cite{chen:2013}.
+
+\subsection{Duplicate Removal}
+
+For the implementation used by \cite{chen:2013}, each row needs to be compared with each other row to
+determine if the rows are identical, and the same procedure is required for the columns. This can be done with
+time complexity of O(Llogk), where L in the length of the reads and k is the number of reads. There are
+numerous ways in which this operation can be parallelized.
+
+\subsubsection{Simultaneous column and row search} This would use the GPU to create threads that perform the
+column and row comparisons at the same time. Furthermore, multiple columns and rows can be done at the same
+tome. For example, the $i^{th}$ and $z^{th}$ rows can be compared to all the other rows at the same time. This
+would allow a speed up of  
+\begin{equation}
+    \textrm{Speed up} = N * \frac{\textrm{CPU frequency}}{\textrm{GPU frequency}} - \alpha B
+\end{equation}
+where N is the number of threads that are used simultaneously, $\alpha B$ is the proportion of the computation
+which is spent transferring the data between teh CPU and GPU. Specifically $\alpha$ is a scaling parameter.
+
+\subsubsection{Simultaneous row and column comparison} This implementation would compare the $i^{th}$ row or
+column to multiple other rows or columns at the same time (for example to the
+\{a$^{th}$,b$^{th}$,..j$^{th}$,k$^{th}$,...z$^{th}$\} rows or column at the same time). This would be much
+faster provided the parallel device has a sufficient number of threads. For very large input sizes there will
+be a serial aspect as there will not be enough threads. Nevertheless, for each of the iterations, the time
+complexity would be O(L + K), assuming there were 2*L*K threads available at each iteration, where L is again
+the length of the reads and K is the number of reads (this is because each row would spawn L*K threads to
+cover the whole matrix on each iteration, and each column would spawn the same.
+
+\section{PARALLEL BRANCH AND BOUND FOR MEC HA }
+
+Considering the related work presented in Section~\ref{sec:bnb}, a similar approach to those presented in
+\cite{melab:2012, chakroun:2012, chakroun:2013} will be taken, however, an attempt will be made to limit the
+number of transactions between the CPU and GPU, preferrring rather to perform as much calculation on the GPU
+as possible. Furthermore, the implementation will not attempt to balance the tree since the parallel devices
+which will be used are capable of recursion, allowing branches to be explared until either an optimal or
+infeasible solution is reached. Simply splitting the problem space into many sub problems will not be
+sufficient for large performance increases. The hard blocks of the HuRef dataset took up to 12 hours on a
+multi-core CPU \cite{chen:2013}. Operator level parallelism can potentially improve this.
+
+\subsection{Node Selection}
+
+The selection operator is less of a problem than in the related work, due to the parallel architecures
+supporting recursion. Branches can recurse, using shared memory (faster memory available to a block of
+threads), until an optimal or infeasibile solution is found along the branch. At this point however, the 
+branch must return to global memory at which point the solution must be compared to the solutions of the other
+branches. New threads are then created to search branches from nodes which have not been searched.
 
 %\nocite{*}
 \bibliographystyle{witseie}
 \bibliography{sample}
 
-%{\tiny \vfill \hfill \today \hspace{5mm} witseie-paper-2003.\TeX}
+\appendix
 
+\clearpage 
+
+\section{Parallel Algorithm Examples }
+
+\section{Heuristic for Lower Bound Estimation}
 \end{document}
 
