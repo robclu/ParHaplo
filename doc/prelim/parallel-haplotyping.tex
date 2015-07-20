@@ -90,13 +90,27 @@ errors rates. Using a parallel implementation of any of the proposed solutions c
 times, allowing useful haplotype information to be quickly inferred from the available datasets, having
 positive effects in fields such as drug discovery, prediction of diseases, and variations in gene
 expressions, to name a few. \\
-Come back to introduction ... \\
-Parallel programming makes use of devices which have many simple cores, but which can execute the same
-instructions on each of the cores at the same time. The effectiveness of parallel programming is dependant on
-the nature of the problem, as per Amdahl's law. The first attempts at parallel programming came from Graphics
-Processing Units (GPUs) which were used to render many pixels simultaneously. More recently, General-Purpose
-GPU (GPGPU) programming has become prominent with API's like CUDA and OpenCL, allowing access to GPUs from C and
-C++ programs. 
+Parallel programming makes use of devices which have numerous cores, and uses these cores to execute a single
+instruction on multiple data (SIMD). The effectiveness of parallel programming is dependant on the nature of 
+the problem, as per Amdahl's law. While using multiple processors can potentially allow for large performance 
+increases, in practise this is difficult to achieve due to additional copliexities which are introduces with 
+parallel capable devices. The main difficulties are the communication between the multiple cores, and the 
+managemet of memory. Threads are usually created in blocks, and the memory heirachy allows threads within the 
+same block to share specific memory. All threads have access to a global memory space, however, access to this 
+memory space is slower, decreasing performance. Furthermore, race conditions, where multiple threads attempt to 
+access memory at the same location simultaneously, can cause undefined behaviour and cause inaccurate results. \\
+With the increasing popularity of General-Purpose GPU (GPGPU) programming, however, API's like CUDA and OpenCL
+wich provide access to GPUs through simple function calls in C and C++ program, have made parallel programming
+easier on GPUs. Intel have also made a move towards parallel programming, introducing the Xeon Phi, which, like 
+a GPU, has numerous cores which can operate on data in parallel. The Xeon Phi is also programmed using an API 
+\cite{intel:2013}, however, far more extensive use is made of compiler directives than with CUDA or OpenCL, 
+with API functions being provided to gain access to parallel variables such as the thread index and number of 
+threads which are runnning in parallel. \\
+The contibution of this paper is to idenfiy one of the proposed algorithms for solving the HA problem, and then 
+to identify components of the selected algorithm which would be suited for parallelism before proposing a 
+possible parallel implementation of the potentially parallelizable components. \\
+The remainder of this paper is structured as follows. Section~\ref{sec:hap} describles the HA problem, and gives 
+an overview of some of the proposed algorithms for solving it.  
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -403,9 +417,9 @@ procedure for solving the MEC HA problem using ILP can be defined as
     \caption{Procedure for solving the MEC HA problem using ILP}
 \textbf{Step 1:} Determine intrinsically hetrozygous and homozygous columns in M                        \\
 \textbf{Step 2:} Perform block reduction on M                                                           \\
-\textbf{Step 3:} Perform block decomposition on intrinsically hetrozygous columns in M                 \\
+\textbf{Step 3:} Perform block decomposition on intrinsically hetrozygous columns in M                 	\\
 \textbf{Step 4:} Remove singleton rows from M                                                           \\
-\textbf{Step 5:} Remove duplicate columns in M
+\textbf{Step 5:} Remove duplicate columns in M								\\
 \textbf{Step 6:} Solve ILP formulation using branch and bound algorithm 
 \end{algorithm}
 
