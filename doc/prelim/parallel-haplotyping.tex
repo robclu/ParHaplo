@@ -15,6 +15,7 @@
 \usepackage{KJN}
 \usepackage{textcomp}
 \usepackage{url}
+\usepackage{fancyvrb}
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{algorithm}
@@ -99,8 +100,9 @@ managemet of memory. Threads are usually created in blocks, and the memory heira
 same block to share specific memory. All threads have access to a global memory space, however, access to this 
 memory space is slower, decreasing performance. Furthermore, race conditions, where multiple threads attempt to 
 access memory at the same location simultaneously, can cause undefined behaviour and cause inaccurate results. \\
-With the increasing popularity of General-Purpose GPU (GPGPU) programming, however, API's like CUDA and OpenCL
-wich provide access to GPUs through simple function calls in C and C++ program, have made parallel programming
+With the increasing popularity of General-Purpose GPU (GPGPU) programming, however, API's like CUDA
+\cite{nvidia:2015} and OpenCL \cite{khronos:2015}
+which provide access to GPUs through simple function calls in C and C++ program, have made parallel programming
 easier on GPUs. Intel have also made a move towards parallel programming, introducing the Xeon Phi, which, like 
 a GPU, has numerous cores which can operate on data in parallel. The Xeon Phi is also programmed using an API 
 \cite{intel:2013}, however, far more extensive use is made of compiler directives than with CUDA or OpenCL, 
@@ -495,14 +497,15 @@ branches. New threads are then created to search branches from nodes which have 
 
 \subsection{Bounding Operator}
 
-
+The bounding operator is used extensively in
 %\nocite{*}
+
 \bibliographystyle{witseie}
 \bibliography{sample}
 
-\appendix
-
 \clearpage 
+
+\appendix
 
 \section{Parallel Algorithm Examples }
 

@@ -17,5 +17,6 @@
 \BOOKMARK [3][-]{subsubsection.5.3.2}{Simultaneous row and column comparison}{subsection.5.3}% 17
 \BOOKMARK [1][-]{section.6}{PARALLEL BRANCH AND BOUND FOR MEC HA }{}% 18
 \BOOKMARK [2][-]{subsection.6.1}{Node Selection}{section.6}% 19
-\BOOKMARK [1][-]{appendix.A}{Parallel Algorithm Examples }{}% 20
-\BOOKMARK [1][-]{appendix.B}{Heuristic for Lower Bound Estimation}{}% 21
+\BOOKMARK [2][-]{subsection.6.2}{Bounding Operator}{section.6}% 20
+\BOOKMARK [1][-]{appendix.A}{Parallel Algorithm Examples }{}% 21
+\BOOKMARK [1][-]{appendix.B}{Heuristic for Lower Bound Estimation}{}% 22

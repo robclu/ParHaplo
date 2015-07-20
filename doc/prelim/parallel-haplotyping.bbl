@@ -38,6 +38,27 @@ Z.-Z. Chen, F.~Deng, and L.~Wang.
   sequence data.}
 \newblock vol.~29, no.~16, pp. 1938--1945, 2013.
 
+\bibitem{nvidia:2015}
+Nvidia.
+\newblock {\em CUDA C PROGRAMMING GUIDE. Version 7.0\/}.
+\newblock 2015.
+\newblock [Online] Available at
+  \url{http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#axzz3gRwjcM3m}
+  [Accessed 20 July 2015].
+
+\bibitem{khronos:2015}
+Khronos.
+\newblock {\em The OpenCL Specification. Version 2.1\/}.
+\newblock 2015.
+\newblock [Online] Available at \url{https://www.khronos.org/registry/cl/}
+  [Accessed 20 July 2015].
+
+\bibitem{intel:2013}
+Intel.
+\newblock {\em Intel Xeon Phi Coprocessor DEVELOPER's QUICKSTART GUIDE. Version
+  1.8\/}.
+\newblock 2013.
+
 \bibitem{lancia:2001}
 G.~Lancia, V.~Bafna, S.~Istrail, R.~Lippert, and R.~Schwartz.
 \newblock \enquote{SNPs Problems, Complexity, and Algorithms.}
