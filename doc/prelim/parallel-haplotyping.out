@@ -1,22 +1,32 @@
-\BOOKMARK [1][-]{section.1}{INTRODUCTION}{}% 1
-\BOOKMARK [1][-]{section.2}{HAPLOTYPE ASSEMBLY PROBLEM}{}% 2
-\BOOKMARK [2][-]{subsection.2.1}{ Minimum Error Correction Implementations }{section.2}% 3
-\BOOKMARK [2][-]{subsection.2.2}{Parallelization}{section.2}% 4
-\BOOKMARK [1][-]{section.3}{BRANCH AND BOUND}{}% 5
-\BOOKMARK [2][-]{subsection.3.1}{ CPU Implementations }{section.3}% 6
-\BOOKMARK [2][-]{subsection.3.2}{ GPU Implementations }{section.3}% 7
-\BOOKMARK [2][-]{subsection.3.3}{ Potential Improvements }{section.3}% 8
-\BOOKMARK [1][-]{section.4}{ PROBLEM DESCRIPTION }{}% 9
-\BOOKMARK [2][-]{subsection.4.1}{ ILP Formulation }{section.4}% 10
-\BOOKMARK [2][-]{subsection.4.2}{Computation Procedure}{section.4}% 11
-\BOOKMARK [1][-]{section.5}{ PARALLEL PRE-PROCESSING FOR MEC HA }{}% 12
-\BOOKMARK [2][-]{subsection.5.1}{ Determining Intrinsically Hetrozygous Columns}{section.5}% 13
-\BOOKMARK [2][-]{subsection.5.2}{Singleton Removal}{section.5}% 14
-\BOOKMARK [2][-]{subsection.5.3}{Duplicate Removal}{section.5}% 15
-\BOOKMARK [3][-]{subsubsection.5.3.1}{Simultaneous column and row search}{subsection.5.3}% 16
-\BOOKMARK [3][-]{subsubsection.5.3.2}{Simultaneous row and column comparison}{subsection.5.3}% 17
-\BOOKMARK [1][-]{section.6}{PARALLEL BRANCH AND BOUND FOR MEC HA }{}% 18
-\BOOKMARK [2][-]{subsection.6.1}{Node Selection}{section.6}% 19
-\BOOKMARK [2][-]{subsection.6.2}{Bounding Operator}{section.6}% 20
-\BOOKMARK [1][-]{appendix.A}{Parallel Algorithm Examples }{}% 21
-\BOOKMARK [1][-]{appendix.B}{Heuristic for Lower Bound Estimation}{}% 22
+\BOOKMARK [1][-]{section.1}{Introduction}{}% 1
+\BOOKMARK [1][-]{section.2}{Background}{}% 2
+\BOOKMARK [2][-]{subsection.2.1}{Haplotype Asembly Problem}{section.2}% 3
+\BOOKMARK [3][-]{subsubsection.2.1.1}{ Minimum Error Correction Implementations }{subsection.2.1}% 4
+\BOOKMARK [3][-]{subsubsection.2.1.2}{Parallelization}{subsection.2.1}% 5
+\BOOKMARK [2][-]{subsection.2.2}{Branch and Bound}{section.2}% 6
+\BOOKMARK [3][-]{subsubsection.2.2.1}{ CPU Implementations }{subsection.2.2}% 7
+\BOOKMARK [3][-]{subsubsection.2.2.2}{ GPU Implementations }{subsection.2.2}% 8
+\BOOKMARK [3][-]{subsubsection.2.2.3}{ Potential Improvements }{subsection.2.2}% 9
+\BOOKMARK [1][-]{section.3}{Project Descriptions}{}% 10
+\BOOKMARK [2][-]{subsection.3.1}{ Project Specification }{section.3}% 11
+\BOOKMARK [2][-]{subsection.3.2}{Hardware}{section.3}% 12
+\BOOKMARK [2][-]{subsection.3.3}{Software}{section.3}% 13
+\BOOKMARK [2][-]{subsection.3.4}{Assumptions}{section.3}% 14
+\BOOKMARK [2][-]{subsection.3.5}{Constraints}{section.3}% 15
+\BOOKMARK [2][-]{subsection.3.6}{Success Criteria}{section.3}% 16
+\BOOKMARK [1][-]{section.4}{ Problem Description }{}% 17
+\BOOKMARK [2][-]{subsection.4.1}{ ILP Formulation }{section.4}% 18
+\BOOKMARK [2][-]{subsection.4.2}{Computation Procedure}{section.4}% 19
+\BOOKMARK [1][-]{section.5}{ Parallel Pre-processing for MEC HA }{}% 20
+\BOOKMARK [2][-]{subsection.5.1}{ Determining Intrinsically Hetrozygous Columns}{section.5}% 21
+\BOOKMARK [2][-]{subsection.5.2}{Singleton Removal}{section.5}% 22
+\BOOKMARK [2][-]{subsection.5.3}{Duplicate Removal}{section.5}% 23
+\BOOKMARK [3][-]{subsubsection.5.3.1}{Simultaneous column and row search}{subsection.5.3}% 24
+\BOOKMARK [3][-]{subsubsection.5.3.2}{Simultaneous row and column comparison}{subsection.5.3}% 25
+\BOOKMARK [1][-]{section.6}{ Parallel Branch and Bound for MEC HA }{}% 26
+\BOOKMARK [2][-]{subsection.6.1}{Node Selection}{section.6}% 27
+\BOOKMARK [2][-]{subsection.6.2}{Branching Operator}{section.6}% 28
+\BOOKMARK [2][-]{subsection.6.3}{Bounding Operator}{section.6}% 29
+\BOOKMARK [1][-]{section.7}{Conclusion}{}% 30
+\BOOKMARK [1][-]{appendix.A}{Parallel Algorithm Examples }{}% 31
+\BOOKMARK [1][-]{appendix.B}{Heuristic for Lower Bound Estimation}{}% 32
