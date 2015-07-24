@@ -510,12 +510,13 @@ procedure for solving the MEC HA problem using ILP can be defined as
     \small
     \caption{Procedure for solving the MEC HA problem using ILP}
     \label{alg:proc}
-\textbf{Step 1:} Determine intrinsically hetrozygous and homozygous columns in M                        \\
-\textbf{Step 2:} Perform block reduction on M                                                           \\
-\textbf{Step 3:} Perform block decomposition on intrinsically hetrozygous columns in M                 	\\
-\textbf{Step 4:} Remove singleton rows from M                                                           \\
-\textbf{Step 5:} Remove duplicate columns in M								\\
-\textbf{Step 6:} Solve ILP formulation using branch and bound algorithm 
+\textbf{Step 1:} Perform block reduction on M                                                                   \\
+\textbf{Step 2:} Perform block decomposition on columns in M to obtain smaller unsplittable blocks $C_k$ (if 
+general case, check if column is intrisically hetrozygos)                                                       \\
+\textbf{Step 3:} Remove singleton rows from all $C_k$ unsplittable blocks in parallel (if general case, check 
+if singleton row starts and ends on intrinsically hetrozygous columns)                                          \\
+\textbf{Step 4:} Remove duplicate columns from all $C_k$ unsplittable blocks 							        \\
+\textbf{Step 5:} Solve ILP formulation using branch and bound algorithm on all $C_k$ unpsplittable blocks 
 \end{algorithm}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -618,6 +619,145 @@ could detract from the performance.
 \appendix
 
 \section{Parallel Algorithm Examples }
+
+This Appendix provides an example of how the input is broken down into smaller problems which can then be 
+solved by integer linear programming. The example procedes as per the steps outlined in Algorithm{alg:proc}.
+
+\begin{table}[h!]
+\centering
+\caption{An example input matrixi, M, for the haplotype assembly problem. Each row of the matrix is a read, 
+        $r_s$ is the start position of the read, and $r_e$ is the end position of the read, $h$ and $h`$ are
+        the haplotypes to be inferrred from the input, and are shown for reference.}
+\label{tab:exinp}   
+\begin{tabular}{c c c c c c c c c c}
+    \hline 
+    $reads$     & 1     & 2     & 3     & 4     & 5     & 6     & 7     & $r_s$     & $r_e$         \\
+    \hline
+    $r_1$       & 0     & -     & -     & -     & -     & -     & -     & 1         & 1             \\
+    $r_2$       & 1     & 0     & -     & -     & -     & -     & -     & 1         & 2             \\
+    $r_3$       & 0     & 0     & 0     & -     & -     & -     & -     & 1         & 3             \\
+    $r_4$       & 0     & 1     & -     & -     & -     & -     & -     & 1         & 2             \\
+    $r_5$       & -     & -     & 0     & 1     & -     & -     & -     & 3         & 4             \\
+    $r_6$       & -     & -     & 1     & 0     & -     & -     & -     & 3         & 4             \\
+    $r_7$       & -     & -     & -     & -     & -     & 1     & 1     & 6         & 7             \\
+    $r_8$       & -     & -     & -     & -     & -     & 0     & 0     & 6         & 7             \\
+    $r_9$       & -     & -     & -     & 0     & 1     & -     & 0     & 4         & 7             \\
+    $r_10$      & -     & -     & -     & -     & 0     & 0     & 0     & 5         & 7             \\
+    \hline                                                                                          
+    \hline                                                                                          
+    $h$         & 1     & 0     & 0     & 1     & 0     & 0     & 0     & -         & -               \\
+    $h`$        & 0     & 1     & 1     & 0     & 1     & 1     & 1     & -         & -               \\
+    \hline
+\end{tabular}
+\end{table}
+
+\subsection{Block Decomposition}
+
+The process of block decomposition is to split a large input matrix, say M, into smaller disjoint matrices,
+say $C_k$ where k is the index of the submatrix. Formally, as per \cite{chen:2013} block decomposition is
+computed as follows (reference will be made to the above input matrix).
+
+Suppose that M is an input matrix with $l$ columns (in this case 7), then for an integer $j$, whith 1 $< j <
+l$, if there is no read, $r$, in M such that $j$ is greater than the start position of $r$ ($r_s$ above) but
+less than the ebd position of $r$ ($r_e$ above), then column j of M (denoted M[$j$]) is a splittable column.
+Suppose that there are $k$ splittable columns in M, then the unsplittable blocks of M are formed by M[1,
+$j_1$], M[$j_1$,$j_2$],..., M[$j_k$, $l$]. 
+
+Consider the input matrix given in Table~\ref{tab:exinp}, all 7 columns of the input matrix must be checked to
+determine if they are splittable. 
+
+\textbf{$j$ = 1} For column 1 to be splittable, none of the reads in the input must have $r_s < 1 < r_e$,
+which is true, hence M[1] is a splittable column.
+
+\textbf{$j$ = 2} For column 2 to be splittable, none of the reads in the input must have $r_s < 2 < r_e$,
+however, $r_3$ has a start position of 1 and an end position of 3, thus M[2] is not splittable.
+
+The same process is applied for $j$ = 3, 4, 5, 6 and the splittable columns are found to be M[3] and M[4]. The
+paralellization of this step comes from performing the computation for all $j$ simultaneously, thus the number
+of parallel processes would be equal to the number of columns in M, which would provide significant speed up
+when the input in large.
+
+From the splittable columns (1, 3, 4), the unsplittable blocks are given by M[1, 1], M[1, 3], M[3, 4], M[4,
+7], and after removing irrelevant rows (rows containing only -'s) the unsplittable blocks are given by
+
+\begin{align*}
+        M[1,1] &= \left[ \begin{array}{c}
+                0                       \\ 
+                1                       \\ 
+                0                       \\ 
+                0 
+        \end{array} \right]             \\
+        M[1,3] &= \left[ \begin{array}{c c c}
+                0       & -     & -     \\
+                1       & 0     & -     \\
+                0       & 0     & 0     \\
+                0       & 1     & -     \\
+                -       & -     & 0     \\
+                -       & -     & 1 
+        \end{array} \right]             \\
+        M[3,4] &= \left[ \begin{array}{c c}
+                0       & -             \\
+                0       & 1             \\
+                1       & 0             \\
+                -       & 0
+        \end{array} \right]             \\
+        M[4,7] &= \left[ \begin{array}{c c c c}
+        1       & -     & -     & -     \\
+        0       & -     & -     & -     \\
+        -       & -     & 1     & 1     \\
+        -       & -     & 0     & 0     \\
+        0       & 1     & -     & 0     \\
+        -       & 0     & 0     & 0     
+        \end{array} \right]
+\end{align*}
+
+\subsection{Singleton Row Removal}
+
+From the unsplittable blocks, singleton rows can be removed to reduce the probelm furhter, since their removal
+does not modify the MEC score. A singleton row is a row for which the start and end position of a read are the
+same ($r_s$ = $r_e$). Informally this is a row for which there is only a single value. It follows that if an
+unsplittable block has only a single column, then all rows are singleton rows, as can be seen in M[1,1] above.
+These blocks do not need to be solved since they are included in other unsplittable blocks (M[1,1] is present
+in M[1,3]).
+
+For M[1,3] the singleton rows are first, second to last, and last rows, their removal results in
+\begin{equation*}
+    M[1,3] = \left[ \begin{array}{c c c}
+            1   & 0     & -     \\
+            0   & 0     & 0     \\
+            0   & 1     & - 
+    \end{array} \right]
+\end{equation*}
+
+For M[3,4] the singleton rows are the first and last, their removal results in 
+\begin{equation*}
+    M[3,4] = \left[ \begin{array}{c c}
+            0   & 1     \\
+            1   & 0     
+    \end{array} \right]
+\end{equation*}
+
+For M[4, 7], the singleton rows are the first and second, their removal results in
+\begin{equation*}
+    M[4,7] = \left[ \begin{array}{c c c c}
+            -   & -     & 1     & 1     \\
+            -   & -     & 0     & 0     \\
+            0   & -     & 1     & 0     \\
+            -   & 0     & 0     & 0     
+    \end{array} \right]
+\end{equation*}
+
+This offers two areas of parallelization, firstly across the unsplittable blocks. In this case there would be
+3 parallel processes, one for M[1,3], another for M[3,4] and another for M[4,7], where each process would be
+eliminating the singleton rows within the block. Secondly, for each row within the unplittable block. For
+process is created for each row in the block to determine if the row is a singleton, and to remove the row 
+if it is a singleton.
+
+\subsection{Duplicate Removal}
+
+For each row and column of an unsplittable block, the number of other rows or columns in the unsplittable
+block which are identical to it need to be determined. Furthermore, if an identical row or column in found,
+the rows or columns are merged and the multiplicity is increased.
 
 \section{Heuristic for Lower Bound Estimation}
 \end{document}

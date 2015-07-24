@@ -29,4 +29,7 @@
 \BOOKMARK [2][-]{subsection.6.3}{Bounding Operator}{section.6}% 29
 \BOOKMARK [1][-]{section.7}{Conclusion}{}% 30
 \BOOKMARK [1][-]{appendix.A}{Parallel Algorithm Examples }{}% 31
-\BOOKMARK [1][-]{appendix.B}{Heuristic for Lower Bound Estimation}{}% 32
+\BOOKMARK [2][-]{subsection.A.1}{Block Decomposition}{appendix.A}% 32
+\BOOKMARK [2][-]{subsection.A.2}{Singleton Row Removal}{appendix.A}% 33
+\BOOKMARK [2][-]{subsection.A.3}{Duplicate Removal}{appendix.A}% 34
+\BOOKMARK [1][-]{appendix.B}{Heuristic for Lower Bound Estimation}{}% 35
