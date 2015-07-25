@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2015.1.16)  25 JUL 2015 12:39
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2015.1.16)  25 JUL 2015 21:48
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -196,12 +196,10 @@ Package: balance 1999/02/23 4.3 (PWD)
 This is texnames.sty, Version 1.10 <02 March 1998>
 )
 \c@thrm=\count99
-) (/usr/share/texlive/texmf-dist/tex/latex/a4wide/a4wide.sty
-Package: a4wide 1994/08/30
-
-(/usr/share/texlive/texmf-dist/tex/latex/ntgclass/a4.sty
-Package: a4 2004/04/15 v1.2g A4 based page layout
-))
+) (/usr/share/texlive/texmf-dist/tex/latex/preprint/fullpage.sty
+Package: fullpage 1999/02/23 1.1 (PWD)
+\FP@margin=\skip46
+)
 (/usr/share/texlive/texmf-dist/tex/latex/base/textcomp.sty
 Package: textcomp 2005/09/27 v1.99g Standard LaTeX package
 Package textcomp Info: Sub-encoding information:
@@ -305,7 +303,7 @@ LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
 )
 (/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
 Package: amsmath 2013/01/14 v2.14 AMS math features
-\@mathmargin=\skip46
+\@mathmargin=\skip47
 
 For additional information on amsmath, use the `?' option.
 (/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
@@ -355,8 +353,8 @@ LaTeX Font Info:    Redeclaring font encoding OMS on input line 567.
 \totwidth@=\dimen117
 \lineht@=\dimen118
 \@envbody=\toks19
-\multlinegap=\skip47
-\multlinetaggap=\skip48
+\multlinegap=\skip48
+\multlinetaggap=\skip49
 \mathdisplay@stack=\toks20
 LaTeX Info: Redefining \[ on input line 2665.
 LaTeX Info: Redefining \] on input line 2666.
@@ -382,8 +380,8 @@ Package: ifthen 2001/05/26 v1.1c Standard LaTeX ifthen package (DPC)
 (/usr/share/texlive/texmf-dist/tex/latex/titlesec/titlesec.sty
 Package: titlesec 2011/12/15 v2.10.0 Sectioning titles
 \ttl@box=\box31
-\beforetitleunit=\skip49
-\aftertitleunit=\skip50
+\beforetitleunit=\skip50
+\aftertitleunit=\skip51
 \ttl@plus=\dimen119
 \ttl@minus=\dimen120
 \ttl@toksa=\toks24
@@ -393,7 +391,7 @@ Package: titlesec 2011/12/15 v2.10.0 Sectioning titles
 )
 (/usr/share/texlive/texmf-dist/tex/latex/enumitem/enumitem.sty
 Package: enumitem 2011/09/28 v3.5.2 Customized lists
-\labelindent=\skip51
+\labelindent=\skip52
 \enit@outerparindent=\dimen124
 \enit@toks=\toks25
 \enit@inbox=\box32
@@ -406,27 +404,27 @@ LaTeX Warning: Unused global option(s):
 (./parallel-haplotyping.aux)
 \openout1 = `parallel-haplotyping.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 50.
-LaTeX Font Info:    ... okay on input line 50.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 50.
-LaTeX Font Info:    ... okay on input line 50.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 50.
-LaTeX Font Info:    ... okay on input line 50.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 50.
-LaTeX Font Info:    ... okay on input line 50.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 50.
-LaTeX Font Info:    ... okay on input line 50.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 50.
-LaTeX Font Info:    ... okay on input line 50.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 50.
-LaTeX Font Info:    ... okay on input line 50.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 50.
-LaTeX Font Info:    Try loading font information for TS1+cmr on input line 50.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 51.
+LaTeX Font Info:    ... okay on input line 51.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 51.
+LaTeX Font Info:    ... okay on input line 51.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 51.
+LaTeX Font Info:    ... okay on input line 51.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 51.
+LaTeX Font Info:    ... okay on input line 51.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 51.
+LaTeX Font Info:    ... okay on input line 51.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 51.
+LaTeX Font Info:    ... okay on input line 51.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 51.
+LaTeX Font Info:    ... okay on input line 51.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 51.
+LaTeX Font Info:    Try loading font information for TS1+cmr on input line 51.
 
 (/usr/share/texlive/texmf-dist/tex/latex/base/ts1cmr.fd
 File: ts1cmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
 )
-LaTeX Font Info:    ... okay on input line 50.
+LaTeX Font Info:    ... okay on input line 51.
 
 (/usr/share/texlive/texmf-dist/tex/context/base/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
@@ -466,7 +464,7 @@ File: color.cfg 2007/01/18 v1.5 color configuration of teTeX/TeXLive
 )
 Package color Info: Driver file: pdftex.def on input line 130.
 )
-Package hyperref Info: Link coloring ON on input line 50.
+Package hyperref Info: Link coloring ON on input line 51.
 
 (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2012/10/27 v2.43 Cross-referencing by name of section
@@ -476,194 +474,119 @@ Package: gettitlestring 2010/12/03 v1.4 Cleanup title references (HO)
 )
 \c@section@level=\count124
 )
-LaTeX Info: Redefining \ref on input line 50.
-LaTeX Info: Redefining \pageref on input line 50.
-LaTeX Info: Redefining \nameref on input line 50.
+LaTeX Info: Redefining \ref on input line 51.
+LaTeX Info: Redefining \pageref on input line 51.
+LaTeX Info: Redefining \nameref on input line 51.
 
 (./parallel-haplotyping.out) (./parallel-haplotyping.out)
 \@outlinefile=\write4
 \openout4 = `parallel-haplotyping.out'.
 
- [1
-
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
-
-]
-LaTeX Font Info:    Try loading font information for U+msa on input line 66.
+LaTeX Font Info:    Try loading font information for U+msa on input line 62.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 66.
+LaTeX Font Info:    Try loading font information for U+msb on input line 62.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-Underfull \vbox (badness 10000) has occurred while \output is active []
+Underfull \vbox (badness 2318) has occurred while \output is active []
 
- [2
+ [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
+
 
 ]
-LaTeX Font Info:    Try loading font information for OMS+cmr on input line 151.
+Underfull \vbox (badness 4193) has occurred while \output is active []
+
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 157.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
 File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
 )
 LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
-(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 151.
- [3]
-Underfull \hbox (badness 3229) in paragraph at lines 190--194
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 157.
+ [2]
+Underfull \hbox (badness 10000) in paragraph at lines 196--200
 []\OT1/cmr/bx/n/10 Longest Hap-lo-type Re-con-struc-tion
  []
 
 
-Underfull \hbox (badness 3713) in paragraph at lines 204--204
- |[]\OT1/cmr/bx/n/12 Minimum Er-ror Cor-rec-tion
- []
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[4]
-Underfull \hbox (badness 7504) in paragraph at lines 242--242
- |[]\OT1/cmr/bx/n/10 All-heterozygous Al-go-rithm by
- []
+ [3]
+Underfull \vbox (badness 6510) has occurred while \output is active []
 
+ [4]
+[5] [6pdfTeX warning (ext4): destination with the same identifier (name{table.1
+}) has been already used, duplicate ignored
 
-Underfull \hbox (badness 2818) in paragraph at lines 266--269
-[]\OT1/cmr/bx/n/10 Block de-com-po-si-tion: \OT1/cmr/m/n/10 This pro-cess
- []
-
-[5]
-Underfull \hbox (badness 1983) in paragraph at lines 355--369
-\OT1/cmr/m/n/10 A het-ero-ge-neous CPU-GPU im-ple-men-ta-tion
- []
-
-[6] [7]
+\AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
+                                                  \fi \fi 
+l.471     \item{
+                The software detailed in Section~\ref{ssec:sware} is available}
+]
 Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 466.
+put line 503.
 
-Underfull \hbox (badness 2012) in paragraph at lines 478--478
- |[] \OT1/cmr/bx/n/14.4 Par-al-lel Pre-processing
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+Underfull \hbox (badness 3471) in paragraph at lines 515--515
+ |[]\OT1/cmr/bx/n/14.4 Parallel Pre-processing for
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 483--483
- |[] \OT1/cmr/bx/n/12 De-ter-min-ing In-trin-si-cally
+Underfull \hbox (badness 1052) in paragraph at lines 520--520
+ |[] \OT1/cmr/bx/n/12 De-ter-min-ing In-trin-si-cally Het-
  []
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 485--491
-\OT1/cmr/m/n/10 Determining in-strin-si-cally het-erozy-gous
- []
-
-
-Underfull \hbox (badness 1412) in paragraph at lines 485--491
-\OT1/cmr/m/n/10 columns in M re-quires com-par-ing count-ing
- []
-
-
-Underfull \hbox (badness 1521) in paragraph at lines 485--491
-\OT1/cmr/m/n/10 avail-able to mod-ern CPUs to per-form the
- []
-
-
-Underfull \hbox (badness 1348) in paragraph at lines 485--491
-\OT1/cmr/m/n/10 op-er-a-tions on mul-ti-ple columns at a time,
- []
-
-
-Underfull \hbox (badness 4569) in paragraph at lines 508--508
- |[]\OT1/cmr/bx/n/10 Simultaneous col-umn and row
- []
-
-
-Underfull \hbox (badness 4569) in paragraph at lines 517--517
- |[]\OT1/cmr/bx/n/10 Simultaneous row and col-umn
- []
-
-
-Underfull \hbox (badness 1917) in paragraph at lines 517--525
-\OT1/cmr/m/n/10 row or col-umn to mul-ti-ple other rows or
- []
-
-[8]
-Underfull \hbox (badness 10000) in paragraph at lines 526--526
- |[] \OT1/cmr/bx/n/14.4 Par-al-lel Branch and
+[7] [8]
+Underfull \hbox (badness 2134) in paragraph at lines 630--637
+\OT1/cmr/m/n/10 Research into the hap-lo-type as-sem-bly prob-lem,
  []
 
 (./parallel-haplotyping.bbl
-Underfull \hbox (badness 7759) in paragraph at lines 7--13
-[]\OT1/cmr/m/n/10 J. Stephens.  ``Hap-lo-type Vari-a-tion
+Underfull \hbox (badness 2245) in paragraph at lines 7--13
+\OT1/cmtt/m/n/10 org / 10 . 1126 / science . 1059431$[][] \OT1/cmr/m/n/10 [Ac-c
+essed 27
  []
 
 
-Underfull \hbox (badness 1968) in paragraph at lines 7--13
-\OT1/cmr/m/n/10 man Genes.''  \OT1/cmr/m/it/10 Sci-ence\OT1/cmr/m/n/10 , vol. 2
-93, no.
+Underfull \hbox (badness 1005) in paragraph at lines 21--25
+\OT1/cmr/m/n/10 nu-cleotide poly-mor-phism hap-lo-type as-sem-bly
  []
 
 
-Underfull \hbox (badness 2409) in paragraph at lines 7--13
-\OT1/cmr/m/n/10 5529, pp. 489--493, Jul. 2001.  [On-
- []
-
-
-Underfull \hbox (badness 1270) in paragraph at lines 7--13
-\OT1/cmr/m/n/10 line]. Avail-able at [][]$\OT1/cmtt/m/n/10 http : / / dx . doi 
-. org /
- []
-
-
-Underfull \hbox (badness 1286) in paragraph at lines 7--13
-\OT1/cmtt/m/n/10 10 . 1126 / science . 1059431$[][] \OT1/cmr/m/n/10 [Ac-cessed 
-27
- []
-
-[9]
-Underfull \hbox (badness 3428) in paragraph at lines 42--48
+Underfull \hbox (badness 10000) in paragraph at lines 42--48
 []\OT1/cmr/m/n/10 Nvidia.  \OT1/cmr/m/it/10 CUDA C PRO-GRAM-MING
  []
 
 
 Underfull \hbox (badness 10000) in paragraph at lines 42--48
-\OT1/cmtt/m/n/10 cuda-[]c-[]programming-[]guide / index .
+\OT1/cmr/m/n/10 able at [][]$\OT1/cmtt/m/n/10 http : / / docs . nvidia . com / 
+cuda /
  []
 
 
-Underfull \hbox (badness 1377) in paragraph at lines 42--48
-\OT1/cmtt/m/n/10 html # axzz3gRwjcM3m$[][] \OT1/cmr/m/n/10 [Ac-cessed 20 July
- []
-
-
-Underfull \hbox (badness 2393) in paragraph at lines 50--55
-\OT1/cmr/m/it/10 sion 2.1\OT1/cmr/m/n/10 .  2015.  [On-line] Avail-able
+Underfull \hbox (badness 10000) in paragraph at lines 42--48
+\OT1/cmtt/m/n/10 cuda-[]c-[]programming-[]guide / index . html #
  []
 
 Missing character: There is no â in font cmti10!
 Missing character: There is no € in font cmti10!
 Missing character: There is no ” in font cmti10!
 
-Underfull \hbox (badness 10000) in paragraph at lines 63--70
-\OT1/cmtt/m/n/10 doi . org / 10 . 1007 / 3-[]540-[]44676-[]1 _ 15$[][]
- []
-
-
-Underfull \hbox (badness 7064) in paragraph at lines 72--80
-\OT1/cmr/m/n/10 PASS: A fast cy-cle ba-sis al-go-rithm
- []
-
-
-Underfull \hbox (badness 1292) in paragraph at lines 72--80
-\OT1/cmr/m/n/10 for ac-cu-rate hap-lo-type as-sem-bly of se-
- []
-
-
-Underfull \hbox (badness 1917) in paragraph at lines 72--80
-\OT1/cmr/m/it/10 Bi-ol-ogy\OT1/cmr/m/n/10 , vol. 19, no. 6, pp. 577--590,
+Underfull \hbox (badness 1052) in paragraph at lines 72--80
+\OT1/cmr/m/n/10 577--590, June 2012.  [On-line] Avail-able at
  []
 
 
 Underfull \hbox (badness 10000) in paragraph at lines 72--80
-\OT1/cmtt/m/n/10 / / www . brown . edu / Research / Istrail _
+[][]$\OT1/cmtt/m/n/10 http : / / www . brown . edu / Research / Istrail _
  []
 
 
@@ -672,80 +595,74 @@ Underfull \hbox (badness 10000) in paragraph at lines 72--80
  []
 
 
-Underfull \hbox (badness 1496) in paragraph at lines 82--87
-\OT1/cmr/m/n/10 for the Hap-lo-type As-sem-bly Prob-lem.''
+Underfull \hbox (badness 1147) in paragraph at lines 82--87
+[]\OT1/cmr/m/n/10 R. Schwartz.  ``The-ory and Al-go-rithms for
+ []
+
+[9]
+Underfull \hbox (badness 3029) in paragraph at lines 102--108
+\OT1/cmr/m/n/10 hap-lo-type as-sem-bly from whole-genome se-
  []
 
 
-Underfull \hbox (badness 3557) in paragraph at lines 82--87
-\OT1/cmr/m/it/10 Com-mun. Inf. Syst.\OT1/cmr/m/n/10 , vol. 10, no. 1,
+Underfull \hbox (badness 10000) in paragraph at lines 102--108
+[][]$\OT1/cmtt/m/n/10 http : / / bioinformatics . oxfordjournals .
  []
 
 
-Underfull \hbox (badness 3158) in paragraph at lines 82--87
-\OT1/cmr/m/n/10 pp. 23--38, 2010.  [On-line] Avail-able
+Underfull \hbox (badness 10000) in paragraph at lines 102--108
+\OT1/cmtt/m/n/10 org / content / suppl / 2013 / 06 / 18 / btt349 . DC1$[][]
  []
 
 
-Underfull \hbox (badness 5970) in paragraph at lines 82--87
-\OT1/cmr/m/n/10 at [][]$\OT1/cmtt/m/n/10 http : / / projecteuclid . org / eucli
-d .
+Underfull \hbox (badness 2005) in paragraph at lines 110--115
+[]\OT1/cmr/m/n/10 T. G. Crainic, B. Le Cun, and C. Rou-
  []
 
 
-Underfull \hbox (badness 6978) in paragraph at lines 102--107
-\OT1/cmr/m/it/10 Par-al-lel Branch-and-Bound Al-go-rithms\OT1/cmr/m/n/10 ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 102--107
-\OT1/cmtt/m/n/10 10 . 1002 / 9780470053928 . ch1$[][] \OT1/cmr/m/n/10 [Ac-cesse
-d
+Underfull \hbox (badness 1997) in paragraph at lines 110--115
+\OT1/cmtt/m/n/10 1002 / 9780470053928 . ch1$[][] \OT1/cmr/m/n/10 [Ac-cessed 17 
+July
  []
 
 Missing character: There is no Ã in font cmr10!
 Missing character: There is no ¡ in font cmr10!
 
-Underfull \hbox (badness 1460) in paragraph at lines 109--119
-\OT1/cmr/m/it/10 Sci-ence In-ter-faces Se-ries\OT1/cmr/m/n/10 , pp. 319--334.
+Underfull \hbox (badness 1859) in paragraph at lines 117--127
+\OT1/cmtt/m/n/10 doi . org / 10 . 1007 / 0-[]387-[]23529-[]9 _ 21$[][]\OT1/cmr/
+m/n/10 .  [On-
  []
 
 
-Underfull \hbox (badness 1264) in paragraph at lines 109--119
-\OT1/cmtt/m/n/10 org / 10 . 1007 / 0-[]387-[]23529-[]9 _ 21$[][]\OT1/cmr/m/n/10
- .  [On-
- []
-
-
-Underfull \hbox (badness 2409) in paragraph at lines 109--119
+Underfull \hbox (badness 7704) in paragraph at lines 117--127
 \OT1/cmr/m/n/10 line] Avail-able at [][]$\OT1/cmtt/m/n/10 http : / / dx . doi .
- org /
+ org / 10 .
  []
 
 
-Underfull \hbox (badness 1648) in paragraph at lines 121--126
+Underfull \hbox (badness 4144) in paragraph at lines 117--127
+\OT1/cmtt/m/n/10 1007 / 0-[]387-[]23529-[]9 _ 21$[][] \OT1/cmr/m/n/10 [Ac-cesse
+d 17 July
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 129--134
 []\OT1/cmr/m/n/10 M. Ke-dia.  ``Dy-namic Pro-gram-ming.'',
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 121--126
-\OT1/cmr/m/n/10 Oc-to-ber 2005.  [On-line] Avail-able
+Underfull \hbox (badness 10000) in paragraph at lines 129--134
+\OT1/cmr/m/n/10 Oc-to-ber 2005.  [On-line] Avail-able at
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 121--126
-\OT1/cmr/m/n/10 at [][]$\OT1/cmtt/m/n/10 http : / / www . cs . cmu . edu / afs 
-/ cs /
+Underfull \hbox (badness 10000) in paragraph at lines 129--134
+[][]$\OT1/cmtt/m/n/10 http : / / www . cs . cmu . edu / afs / cs / academic /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 121--126
-\OT1/cmtt/m/n/10 academic / class / 15854-[]f05 / www /
- []
-
-
-Underfull \hbox (badness 6927) in paragraph at lines 121--126
-\OT1/cmtt/m/n/10 scribe / lec10 . pdf$[][] \OT1/cmr/m/n/10 [Ac-cessed 27 June
+Underfull \hbox (badness 10000) in paragraph at lines 129--134
+\OT1/cmtt/m/n/10 class / 15854-[]f05 / www / scribe / lec10 . pdf$[][]
  []
 
 Missing character: There is no Ã in font cmr10!
@@ -755,91 +672,105 @@ Missing character: There is no ³ in font cmr10!
 Missing character: There is no Ã in font cmr10!
 Missing character: There is no ³ in font cmr10!
 
-Underfull \hbox (badness 10000) in paragraph at lines 128--136
-\OT1/cmtt/m/n/10 10 . 1007 / 3-[]540-[]45706-[]2 _ 132$[][] \OT1/cmr/m/n/10 [Ac
--cessed
+Underfull \hbox (badness 2932) in paragraph at lines 136--144
+\OT1/cmr/m/n/10 C. Cotta, M. Daz, I. Dorta, J. Gabarr,
  []
 
 
-Underfull \hbox (badness 2261) in paragraph at lines 138--142
-\OT1/cmr/m/it/10 Network-Based Pro-cess-ing (PDP), 2012
+Underfull \hbox (badness 5316) in paragraph at lines 136--144
+\OT1/cmr/m/n/10 C. Len, J. Luna, L. Moreno, C. Pab-
  []
 
 
-Underfull \hbox (badness 1762) in paragraph at lines 144--149
-[]\OT1/cmr/m/n/10 Nvidia.  ``CUDA DY-NAMIC PAR-AL-
+Underfull \hbox (badness 4805) in paragraph at lines 136--144
+\OT1/cmr/m/n/10 los, J. Pe-tit, A. Ro-jas, and F. Xhafa.
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 144--149
-\OT1/cmr/m/n/10 LELISM PRO-GRAM-MING GUIDE.'',
+Underfull \hbox (badness 3333) in paragraph at lines 136--144
+\OT1/cmr/m/n/10 In B. Monien and R. Feld-mann, ed-i-tors,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 144--149
-\OT1/cmr/m/n/10 Au-gust 2012.  [On-line] Avail-able
+Underfull \hbox (badness 1242) in paragraph at lines 136--144
+\OT1/cmr/m/n/10 of \OT1/cmr/m/it/10 Lec-ture Notes in Com-puter Sci-ence\OT1/cm
+r/m/n/10 , pp.
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 144--149
-\OT1/cmr/m/n/10 at [][]$\OT1/cmtt/m/n/10 https : / / www . clear . rice . edu /
-
+Underfull \hbox (badness 3281) in paragraph at lines 136--144
+\OT1/cmr/m/n/10 927--932. Springer Berlin Hei-del-berg, 2002.
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 144--149
-\OT1/cmtt/m/n/10 comp422 / resources / cuda / html /
+Underfull \hbox (badness 1406) in paragraph at lines 136--144
+\OT1/cmtt/m/n/10 1007 / 3-[]540-[]45706-[]2 _ 132$[][] \OT1/cmr/m/n/10 [Ac-cess
+ed 17 July
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 144--149
+Underfull \hbox (badness 4647) in paragraph at lines 152--157
+\OT1/cmr/m/n/10 PRO-GRAM-MING GUIDE.'', Au-gust 2012.
+ []
+
+
+Underfull \hbox (badness 7326) in paragraph at lines 152--157
+\OT1/cmr/m/n/10 [On-line] Avail-able at [][]$\OT1/cmtt/m/n/10 https : / / www .
+ clear .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 152--157
+\OT1/cmtt/m/n/10 rice . edu / comp422 / resources / cuda / html /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 152--157
 \OT1/cmtt/m/n/10 cuda-[]dynamic-[]parallelism / index . html$[][]
  []
 
-[10]
-Underfull \hbox (badness 10000) in paragraph at lines 151--157
-\OT1/cmr/m/n/10 and-Bound Al-go-rithm for the Flow-
+
+Underfull \hbox (badness 1968) in paragraph at lines 159--165
+[]\OT1/cmr/m/n/10 N. Melab, I. Chakroun, M. Mez-maz, and
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 151--157
-\OT1/cmr/m/n/10 at [][]$\OT1/cmtt/m/n/10 http : / / arxiv . org / abs / 1208 . 
-3933$[][]
+Underfull \hbox (badness 1968) in paragraph at lines 167--173
+[]\OT1/cmr/m/n/10 I. Chakroun, M. Mez-maz, N. Melab, and
  []
 
-) [11
 
-] [12
+Underfull \hbox (badness 2653) in paragraph at lines 175--179
+\OT1/cmr/m/n/10 GPU-Accelerated Branch and Bound Al-go-
+ []
 
-pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
+) [10] [11
+
+pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
  been already used, duplicate ignored
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.676 
+l.747 
       ]
-Underfull \hbox (badness 10000) in paragraph at lines 742--742
- |[]\OT1/cmr/bx/n/14.4 Heuristic for Lower
- []
-
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 743.
-[13]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 743.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 814.
+ [12]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 814.
  (./parallel-haplotyping.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 743.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 743.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 814.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 814.
 Package rerunfilecheck Info: File `parallel-haplotyping.out' has not changed.
-(rerunfilecheck)             Checksum: 8AC505D2E0E8B61BFC86CBDF0A79AD24;2292.
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 743.
+(rerunfilecheck)             Checksum: D07456656C703479DB95F27BBC074289;2394.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 814.
  ) 
 Here is how much of TeX's memory you used:
- 7961 strings out of 495028
- 115914 string characters out of 6181497
- 214351 words of memory out of 5000000
- 10965 multiletter control sequences out of 15000+600000
+ 7967 strings out of 495028
+ 115847 string characters out of 6181497
+ 214336 words of memory out of 5000000
+ 10974 multiletter control sequences out of 15000+600000
  17461 words of font info for 66 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 37i,17n,33p,429b,492s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 37i,17n,33p,429b,464s stack positions out of 5000i,500n,10000p,200000b,80000s
  </home/joker/.texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1000.600pk></usr/sha
 re/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/share/tex
 live/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/t
@@ -854,19 +785,17 @@ pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></u
 sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/shar
 e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/share/texliv
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-
-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fon
-ts/type1/public/amsfonts/cm/cmr9.pfb></usr/share/texlive/texmf-dist/fonts/type1
-/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/publi
-c/amsfonts/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfo
-nts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/
-cmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.
-pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti7.pfb></u
-sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/sha
-re/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on parallel-haplotyping.pdf (13 pages, 321550 bytes).
+dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/share/texlive/texmf-dist/fon
+ts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/typ
+e1/public/amsfonts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/ams
+fonts/cm/cmti7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/c
+m/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols
+/msbm10.pfb>
+Output written on parallel-haplotyping.pdf (12 pages, 300671 bytes).
 PDF statistics:
- 438 PDF objects out of 1000 (max. 8388607)
- 394 compressed objects within 4 object streams
- 74 named destinations out of 1000 (max. 500000)
- 265 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 433 PDF objects out of 1000 (max. 8388607)
+ 393 compressed objects within 4 object streams
+ 76 named destinations out of 1000 (max. 500000)
+ 281 words of extra memory for PDF output out of 10000 (max. 10000000)
 
