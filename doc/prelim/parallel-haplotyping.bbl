@@ -1,180 +1,173 @@
 \begin{thebibliography}{10}
-\newcommand{\enquote}[1]{``#1''}
-\providecommand{\url}[1]{{\tt #1}}
-\providecommand{\urlprefix}{URL }
-
-\bibitem{stephens:2001}
-J.~Stephens.
-\newblock \enquote{Haplotype Variation and Linkage Disequilibrium in 313 Human
-  Genes.}
-\newblock {\em Science\/}, vol. 293, no. 5529, pp. 489--493, Jul. 2001.
-\newblock [Online]. Available at
-  \url{http://dx.doi.org/10.1126/science.1059431} [Accessed 27 June 2015].
-
-\bibitem{he:2010}
-D.~He, A.~Choi, K.~Pipatsrisawat, A.~Darwiche, and E.~Eskin.
-\newblock \enquote{Optimal algorithms for haplotype assembly from whole-genome
-  sequence data.}
-\newblock vol.~26, no.~12, pp. i183--i190, 2010.
-
-\bibitem{lippert:2002}
-R.~Lippert, R.~Schwartz, G.~Lancia, and S.~Istrail.
-\newblock \enquote{Algorithmic strategies for the single nucleotide
-  polymorphism haplotype assembly problem.}
-\newblock vol.~3, no.~1, pp. 23--31, 2002.
-
-\bibitem{bonizzoni:2003}
-P.~Bonizzoni, G.~Della~Vedova, R.~Dondi, and J.~Li.
-\newblock \enquote{The Haplotyping problem: An overview of computational models
-  and solutions.}
-\newblock {\em Journal of Computer Science and Technology\/}, vol.~18, no.~6,
-  pp. 675--688, 2003.
-\newblock [Online]. Available at \url{http://dx.doi.org/10.1007/BF02945456}
-  [Accessed 27 June 2015].
-
-\bibitem{chen:2013}
-Z.-Z. Chen, F.~Deng, and L.~Wang.
-\newblock \enquote{Exact algorithms for haplotype assembly from whole-genome
-  sequence data.}
-\newblock vol.~29, no.~16, pp. 1938--1945, 2013.
-
-\bibitem{nvidia:2015}
-Nvidia.
-\newblock {\em CUDA C PROGRAMMING GUIDE. Version 7.0\/}.
-\newblock 2015.
-\newblock [Online] Available at
-  \url{http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#axzz3gRwjcM3m}
-  [Accessed 20 July 2015].
-
-\bibitem{khronos:2015}
-Khronos.
-\newblock {\em The OpenCL Specification. Version 2.1\/}.
-\newblock 2015.
-\newblock [Online] Available at \url{https://www.khronos.org/registry/cl/}
-  [Accessed 20 July 2015].
-
-\bibitem{intel:2013}
-Intel.
-\newblock {\em Intel Xeon Phi Coprocessor DEVELOPER's QUICKSTART GUIDE. Version
-  1.8\/}.
-\newblock 2013.
-
-\bibitem{lancia:2001}
-G.~Lancia, V.~Bafna, S.~Istrail, R.~Lippert, and R.~Schwartz.
-\newblock \enquote{SNPs Problems, Complexity, and Algorithms.}
-\newblock In F.~auf~der Heide, editor, {\em Algorithms — ESA 2001\/}, vol.
-  2161 of {\em Lecture Notes in Computer Science\/}, pp. 182--193. Springer
-  Berlin Heidelberg, 2001.
-\newblock [Online] Available at
-  \url{http://dx.doi.org/10.1007/3-540-44676-1_15} [Accessed 16 July 2015].
 
 \bibitem{aguiar:2012}
 D.~Aguiar and S.~Istrail.
-\newblock \enquote{HAPCOMPASS: A fast cycle basis algorithm for accurate
-  haplotype assembly of sequence data.}
-\newblock {\em Journal of Computational Biology\/}, vol.~19, no.~6, pp.
-  577--590, June 2012.
+\newblock Hapcompass: A fast cycle basis algorithm for accurate haplotype
+  assembly of sequence data.
+\newblock {\em Journal of Computational Biology}, 19(6):577--590, June 2012.
 \newblock [Online] Available at
   \url{http://www.brown.edu/Research/Istrail_Lab/papers/hapcompass_jcb_draft.pdf}
   [Accessed 16 July 2015].
-
-\bibitem{schwartz:2010}
-R.~Schwartz.
-\newblock \enquote{Theory and Algorithms for the Haplotype Assembly Problem.}
-\newblock {\em Commun. Inf. Syst.\/}, vol.~10, no.~1, pp. 23--38, 2010.
-\newblock [Online] Available at
-  \url{http://projecteuclid.org/euclid.cis/1268143371} [Accessed 16 July 2015].
-
-\bibitem{wang:2005}
-R.-S. Wang, L.-Y. Wu, Z.-P. Li, and X.-S. Zhang.
-\newblock \enquote{Haplotype reconstruction from SNP fragments by minimum error
-  correction.}
-\newblock vol.~21, no.~10, pp. 2456--2462, 2005.
-
-\bibitem{xie:2008}
-M.~Xie, J.~Wang, and J.~Chen.
-\newblock \enquote{A Practical Exact Algorithm for the Individual Haplotyping
-  Problem MEC.}
-\newblock In {\em BioMedical Engineering and Informatics, 2008. BMEI 2008.
-  International Conference on\/}, vol.~1, pp. 72--76. May 2008.
-
-\bibitem{sup:2013}
-Z.-Z. Chen, F.~Deng, and L.~Wang.
-\newblock \enquote{Suppementary Material for Exact algorithms for haplotype
-  assembly from whole-genome sequence data.}, 2013.
-\newblock [Online] Available at
-  \url{http://bioinformatics.oxfordjournals.org/content/suppl/2013/06/18/btt349.DC1}
-  [Accessed 20 April 2015].
-
-\bibitem{crainic:2006}
-T.~G. Crainic, B.~Le~Cun, and C.~Roucairol.
-\newblock {\em Parallel Branch-and-Bound Algorithms\/}, pp. 1--28.
-\newblock John Wiley \& Sons, Inc., 2006.
-\newblock [Online] Available at
-  \url{http://dx.doi.org/10.1002/9780470053928.ch1} [Accessed 17 July 2015].
-
-\bibitem{xu:2005}
-Y.~Xu, T.~Ralphs, L.~Ladányi, and M.~Saltzman.
-\newblock \enquote{Alps: A Framework for Implementing Parallel Tree Search
-  Algorithms.}
-\newblock In B.~Golden, S.~Raghavan, and E.~Wasil, editors, {\em The Next Wave
-  in Computing, Optimization, and Decision Technologies\/}, vol.~29 of {\em
-  Operations Research/Computer Science Interfaces Series\/}, pp. 319--334.
-  Springer US, 2005.
-\newblock \urlprefix\url{http://dx.doi.org/10.1007/0-387-23529-9_21}.
-\newblock [Online] Available at
-  \url{http://dx.doi.org/10.1007/0-387-23529-9_21} [Accessed 17 July 2015].
-
-\bibitem{kedia:2005}
-M.~Kedia.
-\newblock \enquote{Dynamic Programming.}, October 2005.
-\newblock [Online] Available at
-  \url{http://www.cs.cmu.edu/afs/cs/academic/class/15854-f05/www/scribe/lec10.pdf}
-  [Accessed 27 June 2015].
 
 \bibitem{alba:2002}
 E.~Alba, F.~Almeida, M.~Blesa, J.~Cabeza, C.~Cotta, M.~Díaz, I.~Dorta,
   J.~Gabarró, C.~León, J.~Luna, L.~Moreno, C.~Pablos, J.~Petit, A.~Rojas, and
   F.~Xhafa.
 \newblock In B.~Monien and R.~Feldmann, editors, {\em Euro-Par 2002 Parallel
-  Processing\/}, vol. 2400 of {\em Lecture Notes in Computer Science\/}, pp.
+  Processing}, volume 2400 of {\em Lecture Notes in Computer Science}, pages
   927--932. Springer Berlin Heidelberg, 2002.
 \newblock [Online] Available at
   \url{http://dx.doi.org/10.1007/3-540-45706-2_132} [Accessed 17 July 2015].
 
+\bibitem{bonizzoni:2003}
+P.~Bonizzoni, G.~Della~Vedova, R.~Dondi, and J.~Li.
+\newblock The haplotyping problem: An overview of computational models and
+  solutions.
+\newblock {\em Journal of Computer Science and Technology}, 18(6):675--688,
+  2003.
+\newblock [Online]. Available at \url{http://dx.doi.org/10.1007/BF02945456}
+  [Accessed 27 June 2015].
+
 \bibitem{bouk:2012}
 A.~Boukedjar, M.~Lalami, and D.~El-Baz.
-\newblock \enquote{Parallel Branch and Bound on a CPU-GPU System.}
+\newblock Parallel branch and bound on a cpu-gpu system.
 \newblock In {\em Parallel, Distributed and Network-Based Processing (PDP),
-  2012 20th Euromicro International Conference on\/}, pp. 392--398. Feb.
+  2012 20th Euromicro International Conference on}, pages 392--398, Feb.
+
+\bibitem{chakroun:2013}
+I.~Chakroun and N.~Melab.
+\newblock Operator-level gpu-accelerated branch and bound algorithms.
+\newblock {\em Procedia Computer Science}, 18:280 -- 289, 2013.
+\newblock 2013 International Conference on Computational Science.
+
+\bibitem{chakroun:2012}
+I.~Chakroun, M.~Mezmaz, N.~Melab, and A.~Bendjoudi.
+\newblock {Reducing thread divergence in a GPU-accelerated branch-and-bound
+  algorithm}.
+\newblock {\em {Concurrency and Computation: Practice and Experience}}, 2012.
+\newblock [Online] Available at \url{https://hal.inria.fr/hal-00731859}
+  [Accessed 17 July 2015].
+
+\bibitem{chen:2013}
+Z.-Z. Chen, F.~Deng, and L.~Wang.
+\newblock Exact algorithms for haplotype assembly from whole-genome sequence
+  data.
+\newblock 29(16):1938--1945, 2013.
+
+\bibitem{sup:2013}
+Z.-Z. Chen, F.~Deng, and L.~Wang.
+\newblock Suppementary material for exact algorithms for haplotype assembly
+  from whole-genome sequence data, 2013.
+\newblock [Online] Available at
+  \url{http://bioinformatics.oxfordjournals.org/content/suppl/2013/06/18/btt349.DC1}
+  [Accessed 20 April 2015].
+
+\bibitem{crainic:2006}
+T.~G. Crainic, B.~Le~Cun, and C.~Roucairol.
+\newblock {\em Parallel Branch-and-Bound Algorithms}, pages 1--28.
+\newblock John Wiley \& Sons, Inc., 2006.
+\newblock [Online] Available at
+  \url{http://dx.doi.org/10.1002/9780470053928.ch1} [Accessed 17 July 2015].
+
+\bibitem{he:2010}
+D.~He, A.~Choi, K.~Pipatsrisawat, A.~Darwiche, and E.~Eskin.
+\newblock Optimal algorithms for haplotype assembly from whole-genome sequence
+  data.
+\newblock 26(12):i183--i190, 2010.
+
+\bibitem{intel:2013}
+Intel.
+\newblock {\em Intel Xeon Phi Coprocessor DEVELOPER's QUICKSTART GUIDE. Version
+  1.8}.
+\newblock 2013.
+
+\bibitem{kedia:2005}
+M.~Kedia.
+\newblock Dynamic programming, October 2005.
+\newblock [Online] Available at
+  \url{http://www.cs.cmu.edu/afs/cs/academic/class/15854-f05/www/scribe/lec10.pdf}
+  [Accessed 27 June 2015].
+
+\bibitem{khronos:2015}
+Khronos.
+\newblock {\em The OpenCL Specification. Version 2.1}.
+\newblock 2015.
+\newblock [Online] Available at \url{https://www.khronos.org/registry/cl/}
+  [Accessed 20 July 2015].
+
+\bibitem{lancia:2001}
+G.~Lancia, V.~Bafna, S.~Istrail, R.~Lippert, and R.~Schwartz.
+\newblock Snps problems, complexity, and algorithms.
+\newblock In F.~auf~der Heide, editor, {\em Algorithms — ESA 2001}, volume
+  2161 of {\em Lecture Notes in Computer Science}, pages 182--193. Springer
+  Berlin Heidelberg, 2001.
+\newblock [Online] Available at
+  \url{http://dx.doi.org/10.1007/3-540-44676-1_15} [Accessed 16 July 2015].
+
+\bibitem{lippert:2002}
+R.~Lippert, R.~Schwartz, G.~Lancia, and S.~Istrail.
+\newblock Algorithmic strategies for the single nucleotide polymorphism
+  haplotype assembly problem.
+\newblock 3(1):23--31, 2002.
+
+\bibitem{melab:2012}
+N.~Melab, I.~Chakroun, M.~Mezmaz, and D.~Tuyttens.
+\newblock A gpu-accelerated branch-and-bound algorithm for the flow-shop
+  scheduling problem.
+\newblock {\em CoRR}, abs/1208.3933, 2012.
+\newblock [Online] Available at \url{http://arxiv.org/abs/1208.3933} [Accessed
+  17 July 2015].
 
 \bibitem{nvidia:2012}
 Nvidia.
-\newblock \enquote{CUDA DYNAMIC PARALLELISM PROGRAMMING GUIDE.}, August 2012.
+\newblock Cuda dynamic parallelism programming guide, August 2012.
 \newblock [Online] Available at
   \url{https://www.clear.rice.edu/comp422/resources/cuda/html/cuda-dynamic-parallelism/index.html}
   [Accessed 17 July 2015].
 
-\bibitem{melab:2012}
-N.~Melab, I.~Chakroun, M.~Mezmaz, and D.~Tuyttens.
-\newblock \enquote{A GPU-accelerated Branch-and-Bound Algorithm for the
-  Flow-Shop Scheduling Problem.}
-\newblock {\em CoRR\/}, vol. abs/1208.3933, 2012.
-\newblock [Online] Available at \url{http://arxiv.org/abs/1208.3933} [Accessed
-  17 July 2015].
+\bibitem{nvidia:2015}
+Nvidia.
+\newblock {\em CUDA C PROGRAMMING GUIDE. Version 7.0}.
+\newblock 2015.
+\newblock [Online] Available at
+  \url{http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#axzz3gRwjcM3m}
+  [Accessed 20 July 2015].
 
-\bibitem{chakroun:2012}
-I.~Chakroun, M.~Mezmaz, N.~Melab, and A.~Bendjoudi.
-\newblock \enquote{{Reducing thread divergence in a GPU-accelerated
-  branch-and-bound algorithm}.}
-\newblock {\em {Concurrency and Computation: Practice and Experience}\/}, 2012.
-\newblock [Online] Available at \url{https://hal.inria.fr/hal-00731859}
-  [Accessed 17 July 2015].
+\bibitem{schwartz:2010}
+R.~Schwartz.
+\newblock Theory and algorithms for the haplotype assembly problem.
+\newblock {\em Commun. Inf. Syst.}, 10(1):23--38, 2010.
+\newblock [Online] Available at
+  \url{http://projecteuclid.org/euclid.cis/1268143371} [Accessed 16 July 2015].
 
-\bibitem{chakroun:2013}
-I.~Chakroun and N.~Melab.
-\newblock \enquote{Operator-level GPU-Accelerated Branch and Bound Algorithms.}
-\newblock {\em Procedia Computer Science\/}, vol.~18, pp. 280 -- 289, 2013.
-\newblock 2013 International Conference on Computational Science.
+\bibitem{stephens:2001}
+J.~Stephens.
+\newblock Haplotype variation and linkage disequilibrium in 313 human genes.
+\newblock {\em Science}, 293(5529):489--493, July 2001.
+\newblock [Online]. Available at
+  \url{http://dx.doi.org/10.1126/science.1059431} [Accessed 27 June 2015].
+
+\bibitem{wang:2005}
+R.-S. Wang, L.-Y. Wu, Z.-P. Li, and X.-S. Zhang.
+\newblock Haplotype reconstruction from snp fragments by minimum error
+  correction.
+\newblock 21(10):2456--2462, 2005.
+
+\bibitem{xie:2008}
+M.~Xie, J.~Wang, and J.~Chen.
+\newblock A practical exact algorithm for the individual haplotyping problem
+  mec.
+\newblock In {\em BioMedical Engineering and Informatics, 2008. BMEI 2008.
+  International Conference on}, volume~1, pages 72--76, May 2008.
+
+\bibitem{xu:2005}
+Y.~Xu, T.~Ralphs, L.~Ladányi, and M.~Saltzman.
+\newblock Alps: A framework for implementing parallel tree search algorithms.
+\newblock In B.~Golden, S.~Raghavan, and E.~Wasil, editors, {\em The Next Wave
+  in Computing, Optimization, and Decision Technologies}, volume~29 of {\em
+  Operations Research/Computer Science Interfaces Series}, pages 319--334.
+  Springer US, 2005.
+\newblock [Online] Available at
+  \url{http://dx.doi.org/10.1007/0-387-23529-9_21} [Accessed 17 July 2015].
 
 \end{thebibliography}
