@@ -1,58 +1,59 @@
 This is BibTeX, Version 0.99d (TeX Live 2013/Debian)
 Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
 The top-level auxiliary file: parallel-haplotyping.aux
-The style file: abbrv.bst
+The style file: ieeetr.bst
 Database file #1: sample.bib
 Warning--I'm ignoring chakroun:2013's extra "note" field
 --line 276 of file sample.bib
+Warning--I didn't find a database entry for "chenapp:2013"
+Warning--empty journal in he:2010
+Warning--empty journal in lippert:2002
+Warning--empty journal in chen:2013
+Warning--empty publisher in nvidia:2015
+Warning--empty publisher in khronos:2015
+Warning--empty publisher in intel:2013
+Warning--empty journal in wang:2005
 Warning--empty title in alba:2002
 Warning--there's a month but no year in bouk:2012
-Warning--empty journal in chen:2013
-Warning--empty journal in he:2010
-Warning--empty publisher in intel:2013
-Warning--empty publisher in khronos:2015
-Warning--empty journal in lippert:2002
-Warning--empty publisher in nvidia:2015
-Warning--empty journal in wang:2005
 You've used 23 entries,
-            2118 wiz_defined-function locations,
-            647 strings with 9402 characters,
-and the built_in function-call counts, 8719 in all, are:
-= -- 821
-> -- 460
-< -- 10
-+ -- 183
-- -- 156
-* -- 648
-:= -- 1437
-add.period$ -- 84
+            1876 wiz_defined-function locations,
+            628 strings with 9175 characters,
+and the built_in function-call counts, 6841 in all, are:
+= -- 666
+> -- 287
+< -- 0
++ -- 104
+- -- 81
+* -- 498
+:= -- 964
+add.period$ -- 43
 call.type$ -- 23
-change.case$ -- 139
+change.case$ -- 18
 chr.to.int$ -- 0
 cite$ -- 32
-duplicate$ -- 313
-empty$ -- 654
-format.name$ -- 156
-if$ -- 1830
+duplicate$ -- 325
+empty$ -- 643
+format.name$ -- 81
+if$ -- 1682
 int.to.chr$ -- 0
 int.to.str$ -- 23
 missing$ -- 24
-newline$ -- 130
-num.names$ -- 52
-pop$ -- 168
+newline$ -- 92
+num.names$ -- 29
+pop$ -- 86
 preamble$ -- 1
-purify$ -- 121
+purify$ -- 0
 quote$ -- 0
-skip$ -- 221
+skip$ -- 228
 stack$ -- 0
-substring$ -- 483
-swap$ -- 76
-text.length$ -- 10
+substring$ -- 431
+swap$ -- 137
+text.length$ -- 0
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 84
+type$ -- 0
 warning$ -- 9
-while$ -- 74
+while$ -- 60
 width$ -- 25
-write$ -- 272
-(There were 10 warnings)
+write$ -- 249
+(There were 11 warnings)
