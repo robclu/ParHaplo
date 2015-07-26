@@ -51,7 +51,7 @@
 
 \begin{document}
 
-\title{Parallelizing the Haplotying Assembly Problem}
+\title{Parallelizing the Haplotype Assembly Problem}
 
 \author{Author : Robert Clucas - 541590 \\
         Partner : Sasha Naidoo - 607993}       
@@ -246,19 +246,20 @@ are only shown for smaller input sizes, and the heuristic methods does  not alwa
 solution. Most importantly, the solutions for the general case show lower MEC scores, meaning that the 
 all heterozygous assumption is not always valid. This algorithm for the MEC formulation was chosen as it
 achieved optimal solutions for the all heterozygous and general cases. Their exact formulation of the problem
-as an ILP problem for the al lheterozygous case is now given.
+as an ILP problem for the all lheterozygous case is now given.
 
 \subsubsection{All Heterozygous Algorithm by Chen} \label{sec:allhetro}
 
-This subsection will summarize the all heterozygous ILP formulation of MEC HA problem as it is the algoirhm
+This subsection will summarize the all heterozygous ILP formulation of MEC HA problem by \cite{chen:2013} as
+it is the algorithm
 which was chosen for parallelization, and is referred to throughout the remainder of the paper.
 
-The Hamming distance between two fragments $i$ and $j$, d = ($f_i$,$f_j$), is used by \cite{chen:2013} to 
-determine the MEC score of a solution H = \{$h$,$h'$\}, and is number of SNP sites at which the fragments 
-conflict. Using the Hamming distance between all the fragments and the solution, the MEC score is given by
-\begin{equation}
+The Hamming distance between two fragments $i$ and $j$ is given by d = ($f_i$,$f_j$), and is used by \cite{chen:2013} to 
+determine the MEC score of a solution H = \{$h$,$h'$\}. It is number of SNP sites at which the fragments 
+conflict. Using the Hamming distance between each of the fragments and the solution, the MEC score is given by
+\begin{equation*}
 \textrm{MEC score} = \sum_{i = 1}^{m}{ min\{\D(f_i, h), \D(f_i, h')\} }
-\end{equation}
+\end{equation*}
 Where \M is again the number of rows in the input matrix M. The MEC score is \textit{optimal} if it is the
 minimum possible score. Some assumptions are made for the input matrix as per \cite{chen:2013}, namely
 \begin{itemize}[noitemsep]
@@ -288,9 +289,10 @@ the solution in any way. The pre-processing functions which are applied are:
 \end{itemize}
 Additionally for the general case, the intrinsically heterozygous columns need to be determined. 
 Determining if a column $j$ is intrinsically heterozygous requires counting the number of rows in the input matrix which
-have a value of 0 (1) at position $j$, which is stored as a variable $n_{j,0}$ ($n_{j,1}$), as well as the
-number of non-singular rows in the input matrix which have a value of 0 (1) at position $j$, which is stored
-as a variable $s_{j,0}$ ($s_{j,1}$). Column $j$ is then intrinsically heterozygous if
+have a value of 0 (1, respectively) at position $j$, which is stored as a variable $n_{j,0}$ ($n_{j,1}$,
+respectively), as well as the
+number of non-singular rows in the input matrix which have a value of 0 (1, respectively) at position $j$, which is stored
+as a variable $s_{j,0}$ ($s_{j,1}$, respectively). Column $j$ is then intrinsically heterozygous if
 \begin{equation*}
     min\{n_{j,0},n_{j,1}\} \ge \left[ \frac{s_{j,0} + s_{j,1}}{2} \right]
 \end{equation*}
@@ -300,18 +302,17 @@ all heterozygous case formulation will be shown, the general case formulation is
 \paragraph{ILP Formulation} \label{ssec:ilpform}
 
 For integers \PP,\ \QQ\ $\in$ $\mathbb{Z}$, where 1 $\le$ \PP\ $\le$ \M, and 1 $\le$ \QQ\ $\le$ \N, \PP\ is the 
-index of the fragment (or row) in the input matrix, M, and \QQ\ is the index of SNP (or column) in M. 
+index of the fragment (or row) in the input matrix, M, and \QQ\ is the index of the SNP site (or column) in M. 
 The multiplicity of the $j^{th}$ column of M is denoted by $c_j$, while the multiplicity of the
-$i^{th}$ row of M is denoted by $c_j$. The following 
-binary variables are introduced, $y_i$, which has a value of 1 if \D($f_i$, h) $\le$ \D($f_i$, h'), otherwise 
-has a value of 0 (when \D($f_i$, h') $<$ \D($f_i$, h)). Informally, if fragment $i$ is part of $h$ then $y_i$ 
-has a value of 1, otherwise it has a value of 0. $x_j$, which has a value of 1 if the $j^{th}$ bit of 
+$i^{th}$ row of M is denoted by $w_i$. A binary variable $y_i$ is introduced, which has a value of 1 if \D($f_i$, h) $\le$ \D($f_i$, h'), otherwise 
+has a value of 0 (when \D($f_i$, h') $<$ \D($f_i$, h)). Informally, if fragment $i$ is aligned with $h$ then $y_i$ 
+has a value of 1, otherwise it has a value of 0. Another binary variable $x_j$ is introduced, which has a value of 1 if the $j^{th}$ bit of 
 $h$ is 1, otherwise has a value of 0 (if the $j^{th}$ bit of $h$ is 0). 
-Lastly $J_{i,0}$ ($J_{i,1}$) are the sets of integers $j \in \{1,2,...,q\}$ for which 
-the $i^{th}$ value in column $j$ is a 0 (1). An example of the ILP formulation is is given in 
-Appendix~\ref{app:ilpex}.
+Lastly $J_{i,0}$ ($J_{i,1}$, respectively) is the set of integers $j \in \{1,2,...,q\}$ for which 
+the $i^{th}$ value in column $j$ is a 0 (1, respectively). An example of the ILP formulation, and its solution
+for a subset of the input data, is is given in Appendix~\ref{app:ilpex}.
 
-Using the above defined variables, an integer programming formulation is possible, however, a non-linear 
+Using the variables defined above, an integer programming formulation is possible, however, a non-linear 
 term in the form of $y_ix_j$ arises, which cannot be solved using ILP techniques. To overcome this problem, 
 \cite{chen:2013} defines a variable $t_{i,j}$ for $y_ix_j$ and imposes constraints on the variable which 
 ensure linearity (the constraints are shown in the final formulation of the problem below). The final ILP 
@@ -428,24 +429,26 @@ general case of the HA problem optimally. The 3 configurations are:
 
 \subsection{Project Schedule}
 The schedule presented in Table~\ref{tab:sched} details the milestones which have been set to ensure that the 
-project is completed on time.
+project is completed on time, as well as to which engineer the milestone is assigned.
 \begin{table}[t!]
-    \small
+    \footnotesize
     \centering
-    \caption{Project schedule detailing milestones and the dates by which they should be completed.}
+    \caption{Project schedule detailing milestones and the dates by which they should be completed. RC =
+    Robert Clucas, SN = Sasha Naidoo}
     \label{tab:sched}
     \vspace{0.2cm}
-    \begin{tabular}{l l}
+    \begin{tabular}{l l l}
         \hline  
-        Date    & Milestone                                                         \\
+        Date    & Milestone    & Engineer                                                          \\
         \hline
         \hline
-        3 Aug   & Get access to required hardware                                   \\
-        10 Aug  & Install all required software                                     \\
-        4 Sept  & CPU OpenMP/MPI implementation                                     \\
-        7 Oct   & GPU and Xeon Phi Implementation                                   \\
-        15 Oct  & Open day - implementations debugged                               \\
-        23 Oct  & Report and presentation complete                                  \\\hline
+        3 Aug   & Get access to required hardware       &       RC, SN                          \\
+        10 Aug  & Install all required software         & RC, SN                          \\
+        4 Sept  & CPU OpenMP/MPI implementation         & RC, SN                          \\
+        7 Oct   & GPU Implementation                    & RC                                \\
+        7 Oct   & Xeon Phi Implementation               & SN                              \\
+        15 Oct  & Open day - implementations debugged   & RC, SN                            \\
+        23 Oct  & Report and presentation complete      & RC, SN                           \\\hline
     \end{tabular}
 \end{table}
 \subsection{Hardware} \label{ssec:hware}
