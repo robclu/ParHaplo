@@ -67,11 +67,11 @@
     formulation. An algorithm for solving the minimum error correction formulation of the problem is chosen
     for parallelization which is based on integer linear programming and is known to be NP hard. The branch
     and bound algorithm is chosen as the method for solving the problem. Possible parallel implementations 
-    of both the pre-processing of the input data and the branch and bound algorithm are provided, which aim to
-    reduce the long run times required by current implementations to solve the problem. The project will be
+    of both input data pre-processing and the branch and bound algorithm are provided, both of which aim to
+    reduce the long run times by current implementations required to solve the problem. The project will be
     implemented using multi-core CPUs, Intel Xeon Phi coprocessors, and Nvidia GPUs. The software will be
     written using C and C++, and only free software will be used. The CUDA and OpenMP libraries will be used
-    for the Nvidia GPUs and for communication between CPU threads, respectively.
+    for the Nvidia GPUs and for communication between CPU threads respectively.
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% BODY %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -426,7 +426,7 @@ general case of the HA problem optimally. The 3 configurations are:
     \item{Nvidia GPU based cluster}
 \end{itemize}
 
-\subsection{Project Scedule}
+\subsection{Project Schedule}
 The schedule presented in Table~\ref{tab:sched} details the milestones which have been set to ensure that the 
 project is completed on time.
 \begin{table}[t!]
@@ -520,30 +520,30 @@ if singleton row starts and ends on intrinsically heterozygous columns)         
 
 \section{Parallel Pre-processing for MEC HA } \label{sec:parpre}
 
-Observing the procedure for solving the MEC HA problem outlined by Algorithm~\ref{alg:proc}, there are 
+Observing the procedure for solving the MEC HA problem presented by Algorithm~\ref{alg:proc}, there are 
 numerous areas to which parallelism can be applied.
 
 \subsection{ Determining Intrinsically Hetrozygous Columns}
 
-Determining instrinsically heterozygous columns in M requires computing, for all $j$ columns in M, the
+Determining intrinsically heterozygous columns in M requires computing, for all $j$ columns in M, the
 variables $n_{j,0}$, $n_{j,1}$, $s_{j,0}$, $s_{j,1}$ as described in Section~\ref{sec:allhetro}.
-A parallel implementation use two threads for each column, where one thread would compute the values of the
+A parallel implementation could use two threads for each column, where one thread would compute the values of the
 $n$ variables, while the other would compute the values of the $s$ variables. This would require 2$n$ threads,
 where $n$ is the number of columns in M.
 
 \subsection{Singleton Removal}
 
 Finding singletons is a simple task as it only requires determining if there is more than one element in a
-row. Each thread checks if  its corresponding entry in the row is a 0 or 1, and if it is, increments a
-counter. If the value of the counter is $>$ 1, then the row in not singular since more than one element in 
+row. Each thread checks if  its corresponding entry in the row is a 0 or 1 and, if it is, increments a
+counter. If the value of the counter is $>$ 1, then the row is not singular, since more than one element in 
 the row must have had a value of 0 or 1. This would have time complexity of O(1) on the GPU, compared to 
-O(\textit{n}) using the implementation of \cite{chen:2013}. Additionally, vectorized operations could be used
-for furhter performance increase if the data is stored contiguously.
+O(\textit{m}) using the implementation of \cite{chen:2013}. Additionally, vectorized operations could be used
+for further performance increase if the data is stored contiguously.
 
 \subsection{Duplicate Removal}
 
 For the implementation used by \cite{chen:2013}, each row needs to be compared with each other row to
-determine if the rows are identical, and the same procedure is required for the columns. This can be done with
+determine whether the rows are identical, and the same procedure is required for the columns. This can be done with
 time complexity of O(L$log$k), where L is the total length of the reads and k is the number of reads. If the
 total length of the reads is large, this process can require large amounts of time for computation. The 
 parallel approach for this operation would have two components.
@@ -552,26 +552,26 @@ parallel approach for this operation would have two components.
 
 \textbf{Parallelism within row and column search:}
 Multiple rows and columns can be compared at the same time. Consider N rows or columns, then $\frac{N}{2}$
-threads could be used where the $i^{th}$ thread checks if its row or column is identical to the i($i +
-\frac{N}{2}$)$^{th}$ row or column. This would continue iteratively, where the number of threads would haf on
+threads could be used where the $i^{th}$ thread checks if its row or column is identical to the ($i +
+\frac{N}{2}$)$^{th}$ row or column. This would continue iteratively, where the number of threads would half on
 each iteration until completion. The time complexity would be logarithmic for the column and row search, with
-the total time complexity being max\{$log$m,$log$n\}, where m and n are the number of rows and columns in the
-input matrix, respectively.
+the total time complexity being max\{$log$m,$log$n\}, where m and n are the number of rows and columns to
+check for duplicates, respectively.
 
 \section{ Parallel Branch and Bound for MEC HA } \label{sec:parbnb}
 
 Considering the related work presented in Section~\ref{sec:bnb}, a similar approach to those presented in
 \cite{melab:2012, chakroun:2012, chakroun:2013} will be taken, however, an attempt will be made to limit the
-number of transactions between the CPU and GPU, preferrring rather to perform as much calculation on the GPU
+number of transactions between the CPU and GPU, preferring rather to perform as much of the computation on the GPU
 as possible. Furthermore, the implementation will not attempt to balance the tree since the parallel devices
-which will be used are capable of recursion, allowing branches to be explared until either an optimal or
+which will be used are capable of recursion, allowing branches to be explored until either an optimal or
 infeasible solution is reached.
 
 \subsection{Branching Operator}
 
 The branching operator is used to create child nodes from the current node, and continues recursively until
 the leaves of the branch are found. The operator determines which of the variables should be branched 
-on, and the selection operator to request additional threads so that the child nodes can be explored in
+on, and the selection operator is called to request additional threads so that the child nodes can be explored in
 parallel.
 
 \subsection{Selection Operator}
@@ -580,13 +580,13 @@ Since the algorithm proceeds in parallel, the selection operator is not used to 
 explored next, but rather to decide which branch should be allocated more threads first when multiple branches
 request additional threads. The selection operator uses the lower bound of the branch to determine which
 branch is given additional threads first, hence the selection strategy is that of best first. The selection
-operator also keeps track of the total number threads in use so that threads are only allocated if they are
+operator also keeps track of the total number of threads in use so that threads are only allocated if they are
 available.
 
 \subsection{Pruning Operator}
 
 The pruning operator removes branches which have a lower bound greater than the current best
-solution, and is applied to each of the branches which allow it to operate in parallle. Additionally the 
+solution, and is applied to each of the branches, which allow it to operate in parallel. Additionally the 
 pruning operator moves the threads of the pruned branches back into the thread pool so that they can be
 allocated to other branches by the selection operator.
 
@@ -598,15 +598,16 @@ provide.
 The bounding operator involves computing the current score of the branch using the values of the
 known variables. Since adding more variables can only increase the score of the branch, this provides a lower
 bound for the score. A limitation, however, is that the lower bound is only relevant when compared to
-another lower bound computed using at least the same varibles. For example if the bound is computed using
+another lower bound computed using at least the same variables. For example if the bound is computed using
 $x_1$, $y_1$, and $y_2$, then the bound can only be compared to another bound which used either the same variables,
-or the same variables and additional variables. This will always be the case when a branch is traversed
-downwards and is hence not a problem. The current score can be computed in parallel since the minimization 
-problem described in Section~\ref{ssec:ilpform} involves two sets of multiple summations, can be created for
+or the same variables as well as additional variables. This will always be the case when a branch is traversed
+downwards, as is the case for a recursive implementation, and is therefore not a problem. The current score 
+can be computed in parallel, since the minimization 
+problem described in Section~\ref{ssec:ilpform}, involving two sets of multiple summations, can be created for
 each of the outer sums (the sums with the index $i$ in the ILP formulation). 
 
 \subsubsection{Current score}
-If for the thread index, $i$, the corresponding variable $y_i$ is known then a thread creates two more 
+If, for the thread index $i$ the corresponding variable $y_i$ is known, then a thread creates two more 
 threads, where one thread computes 
 \begin{equation*}
     \sum_{j \in J_{i,0}}^{}{c_j(1 - x_j - y_i + 2t_{i,j}})  \ \ \ \forall \ \textrm{known} \ x_j
@@ -615,21 +616,23 @@ and the other computes
 \begin{equation*}
     \sum_{j \in J_{i,1}}^{}{c_j(y_i + x_j - 2t_{i,j}})  \ \ \ \forall \ \textrm{known} \ x_j
 \end{equation*}
-The constraint for all known $x$ variables is required since both $x_j$ and $y_i$ must be known to determine
-the score. The variable $t_{i,j}$ can be determined from the constraints if both $x$ and $y$ are known.
+The constraint for all known $x$ variables is required, since both $x_j$ and $y_i$ must be known to determine
+the score. The variable $t_{i,j}$ can be determined from the constraints if both $x_j$ and $y_i$ are known.
 The results of each thread are then added to give the current score over the know variables for the thread
 index.
 
 Once all the threads are complete, the score of each of the threads is added to give the total current score,
-which is the lower bound of teh branch.
+which is the lower bound of the branch.
 
 \section{Conclusion} \label{sec:conc}
 
 Research into the haplotype assembly problem, specifically the minimum error correction formulation, as well
 as the branch and bound algorithm and its parallel implementations, has been conducted in this report. From
-this research, an integer linear programming formulation of the problem was chosen for parallelisation.
-Areas of parallelisation are identified for both the pre-processing of the input data and the branch and bound
-algorithm itself. There will be three implementations, one using multi-core CPUs, another using the Intel Xeon
+this research, an integer linear programming formulation of the problem was chosen for parallelization.
+Areas of parallelization are identified for both the pre-processing of the input data and the branch and bound
+algorithm itself. The proposed parallelizations will theoretically reduce the long run times required by
+current implementations for solving the problem. There will be three implementations, one using multi-core CPUs, 
+another using the Intel Xeon
 Phi coprocessor, and the last using Nvidia GPUs. The required hardware and software is outlined, and the 
 project schedule is given. 
 
