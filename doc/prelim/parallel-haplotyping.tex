@@ -53,7 +53,8 @@
 
 \title{Parallelizing the Haplotying Assembly Problem}
 
-\author{Robert Clucas - 541590}
+\author{Author : Robert Clucas - 541590 \\
+        Partner : Sasha Naidoo - 607993}       
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ABSTRACT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -639,10 +640,12 @@ project schedule is given.
 
 \appendix
 
-\section{Input Pre-processing Examples } \label{app:inpre}
+The following two appendices are examples of the proposed work and are formally being declared as joint work.
+
+\section{Input Pre-processing Example} \label{app:inpre}
 
 This appendix provides an example of how the input is broken down into smaller problems which can then be 
-solved by integer linear programming. The example procedes as per the steps outlined in
+solved more easily as an integer linear programming problem. The example proceeds as per the steps outlined in
 Algorithm~\ref{alg:proc}. The examples are shown for the all heterozygous case, for the general case, the
 block decomposition and singleton removal steps would require determining the intrinsically heterozygous
 columns.
@@ -650,8 +653,8 @@ columns.
 \begin{table}[h!]
 \centering
 \caption{An example input matrix, M, for the haplotype assembly problem. Each row of the matrix is a read, 
-        $r_s$ is the start position of the read, and $r_e$ is the end position of the read, $h$ and $h`$ are
-        the haplotypes to be inferrred from the input, and are shown for reference.}
+        $r_s$ is the start position of the read, and $r_e$ is the end position of the read, $h$ and $h'$ are
+        the haplotypes to be assembled from the input, and are shown for reference.}
         \vspace{0.2cm}
 \label{tab:exinp}   
 \begin{tabular}{c c c c c c c c c c}
@@ -667,11 +670,11 @@ columns.
     $r_7$       & -     & -     & -     & -     & -     & 1     & 1     & 6         & 7             \\
     $r_8$       & -     & -     & -     & -     & -     & 0     & 0     & 6         & 7             \\
     $r_9$       & -     & -     & -     & 0     & 1     & -     & 0     & 4         & 7             \\
-    $r_10$      & -     & -     & -     & -     & 0     & 0     & 0     & 5         & 7             \\
+    $r_{10}$      & -     & -     & -     & -     & 0     & 0     & 0     & 5         & 7             \\
     \hline                                                                                          
     \hline                                                                                          
     $h$         & 1     & 0     & 0     & 1     & 0     & 0     & 0     & -         & -               \\
-    $h`$        & 0     & 1     & 1     & 0     & 1     & 1     & 1     & -         & -               \\
+    $h'$        & 0     & 1     & 1     & 0     & 1     & 1     & 1     & -         & -               \\
     \hline
 \end{tabular}
 \end{table}
@@ -679,31 +682,31 @@ columns.
 \subsection{Block Decomposition}
 
 The process of block decomposition is to split a large input matrix, say M, into smaller disjoint matrices,
-say $C_k$ where k is the index of the submatrix. Formally, as per \cite{chenapp:2013} block decomposition is
+say $C_k$, where k is the index of the submatrix. Formally, as per \cite{chenapp:2013} block decomposition is
 computed as follows (reference will be made to the above input matrix).
 
-Suppose that M is an input matrix with $l$ columns (in this case 7), then for an integer $j$, whith 1 $< j <
+Suppose that M is an input matrix with $l$ columns (in this case 7), then for an integer $j$, with 1 $< j <
 l$, if there is no read, $r$, in M such that $j$ is greater than the start position of $r$ ($r_s$ above) but
-less than the ebd position of $r$ ($r_e$ above), then column j of M (denoted M[$j$]) is a splittable column.
+less than the end position of $r$ ($r_e$ above), then column $j$ of M (denoted M[$j$]) is a splittable column.
 Suppose that there are $k$ splittable columns in M, then the unsplittable blocks of M are formed by M[1,
 $j_1$], M[$j_1$,$j_2$],..., M[$j_k$, $l$]. 
 
 Consider the input matrix given in Table~\ref{tab:exinp}, all 7 columns of the input matrix must be checked to
 determine if they are splittable. 
 
-\textbf{$j$ = 1} For column 1 to be splittable, none of the reads in the input must have $r_s < 1 < r_e$,
+\textbf{$j$ = 1:} For column 1 to be splittable, none of the reads in the input must have $r_s < 1 < r_e$,
 which is true, hence M[1] is a splittable column.
 
-\textbf{$j$ = 2} For column 2 to be splittable, none of the reads in the input must have $r_s < 2 < r_e$,
+\textbf{$j$ = 2:} For column 2 to be splittable, none of the reads in the input must have $r_s < 2 < r_e$,
 however, $r_3$ has a start position of 1 and an end position of 3, thus M[2] is not splittable.
 
-The same process is applied for $j$ = 3, 4, 5, 6 and the splittable columns are found to be M[3] and M[4]. The
-paralellization of this step comes from performing the computation for all $j$ simultaneously, thus the number
+The same process is applied for $j$ = 3, 4, 5, 6 and the additional splittable columns are found to be M[3] and M[4]. The
+parallelization of this step comes from performing the computation for all $j$ simultaneously, thus the number
 of parallel processes would be equal to the number of columns in M, which would provide significant speed up
 when the input in large.
 
-From the splittable columns (1, 3, 4), the unsplittable blocks are given by M[1, 1], M[1, 3], M[3, 4], M[4,
-7], and after removing irrelevant rows (rows containing only -'s) the unsplittable blocks are given by
+From the splittable columns (1, 3, 4), the unsplittable blocks are then given by M[1, 1], M[1, 3], M[3, 4], M[4,
+7], and after removing irrelevant rows (rows containing only -'s) the unsplittable blocks are
 
 \begin{align*}
         M[1,1] &= \left[ \begin{array}{c}
@@ -774,7 +777,7 @@ For M[4, 7], the singleton rows are the first and second, their removal results 
 
 This offers two areas of parallelization, firstly across the unsplittable blocks. In this case there would be
 3 parallel processes, one for M[1,3], another for M[3,4] and another for M[4,7], where each process would be
-eliminating the singleton rows within the block. Secondly, for each row within the unplittable block. For
+eliminating the singleton rows within the block. Secondly, for each row within the unplittable block. A
 process is created for each row in the block to determine if the row is a singleton, and to remove the row 
 if it is a singleton.
 
@@ -794,11 +797,20 @@ Using M[3,4] as an example, none of the rows or columns are duplicates, hence th
 
 This can also be parallelized by calculating the multiplicities for the columns and rows simultaneously.
 
-\section{Integet Linear Programming Example} \label{app:ilpex}
+\section{Integer Linear Programming Example} \label{app:ilpex}
+
+\begin{figure}[b!]
+\centering
+\includegraphics[width=0.45\textwidth]{tree1}
+\caption{Tree illustrating the known variables for the nodes and the lower bounds determined using the
+variables. A white node represents a branch which should be explored, while a black node represents a
+branch which should be pruned.}
+\label{fig:tree1}
+\end{figure}
 
 This appendix demostrates an example of how the haplotype assembly problem can be solved in parallel, as well
 as how the branching and bounding operators are used. The unsplittable block M[3,4] from 
-Appendix~\ref{app:duprem} will be used.
+Appendix~\ref{app:inpre} will be used.
 
 Two sets of integers are defined which are used in the ILP example, $J_{i,0}$ is the set of integers $j \in$
 \{1,2,...,$q$\}, where $q$ is the number of columns in the unsplittable block, such that the $i^{th}$ entry in
@@ -811,42 +823,17 @@ For the unsplittable block M[3,4], the sets of integers would be
     J_{2,0} &= \{2\}     & \ \ \  J_{2,1} &= \{1\}   
 \end{alignat*}
 
-The variables to be solved are then $x_1$, $x_2$, $y_1$, and $y_2$. For the purposes of illustration, the set
+The variables to be solved are then $x_1$, $x_2$, $y_1$, and $y_2$. as per the ILP formulation described in
+Section~\ref{sec:allhetro} in the main text. For the purposes of illustration, the set
 of variables will be represented by \textbf{z} = [$x_1$, $y_1$, $x_2$, $y_2$]. The tree is first created with
 two roots by branching the first variable, $x_1$. Each root is created by a thread. One thread sets $x_1$ = 0, 
 and the other sets $x_1$ = 1. Each of these threads then branches the next variable $y_1$, again with two
-threads. The rest of the example details the procedure for one of the branches.
-
-\begin{figure}[b!]
-\centering
-\includegraphics[width=0.45\textwidth]{tree1}
-\caption{Tree illustrating the known variables for the nodes and the lower bounds determined by the
-variables. A white node represents a branch which should be explored, while a black node represents a
-branch which should be pruned.}
-\label{fig:tree1}
-\end{figure}
-
-Figure~\ref{fig:tree1} shows the root created with $x_1$ = 0, and then the branching of $y_1$. The calculation
-of the lower bound for the two child nodes is the done is parallel. Additionally the computation is done in
-parallel as explained in Section~\ref{sec:bounding}. Two threads are used, one for the top summation over $j$,
-and another for the bottom summation over $j$. Thus for $i$ = 1, the first thread uses $j$ = $J_{1,0}$ = 1 and
-computes
-\begin{align*}
-    \textrm{partial sum} &= c_1(1 - x_1 - y_1 + 2t_{1,1} \\
-                         &= 1(1 - 0 - 0) = 1
-\end{align*}
-simultaneously, the other thread uses $j$ = $J_{1,1}$ = 2 and computes
-\begin{align*}
-    \textrm{partial sum} &= c_1(y_1 + x_2 + 2t_{1,2} \\
-                         &= 1(1 - 0 - 0) = 1
-\end{align*}
-but since $x_2$ is not know, it does not return a value. The lower bound is then 1, since only the result of
-the first thread is used.
+threads. The rest of the example details the procedure for one of the branches, with $x_1$ = 0.
 
 \begin{figure}[t!]
     \centering
     \includegraphics[width=0.45\textwidth]{tree3}
-    \caption{Tree illustrating the known variables for the nodes and the lower bounds determined by the
+    \caption{Tree illustrating the known variables for the nodes and the lower bounds determined using the
     variables. A white node represents a branch which should be explored, while a black node represents a
 branch which should be pruned.}
     \label{fig:tree3}
@@ -858,9 +845,27 @@ branch which should be pruned.}
     \label{fig:tree5}
 \end{figure}
 
+Figure~\ref{fig:tree1} shows the root created with $x_1$ = 0, and then the branching of $y_1$. The calculation
+of the lower bound for the two child nodes is the done is parallel. Additionally the computation of each of
+the bounds is parallelized as explained in Section~\ref{sec:bounding} of the main text. Two threads are used, 
+one for the top summation over $j$,
+and another for the bottom summation over $j$. Thus for $i$ = 1, the first thread uses $j$ = $J_{1,0}$ = 1 and
+computes
+\begin{align*}
+    \textrm{partial sum} &= c_1(1 - x_1 - y_1 + 2t_{1,1}) \\
+                         &= 1(1 - 0 - 0) = 1
+\end{align*}
+simultaneously, the other thread uses $j$ = $J_{1,1}$ = 2 and computes
+\begin{align*}
+    \textrm{partial sum} &= c_1(y_1 + x_2 + 2t_{1,2}) \\
+                         &= 1(1 - ? - ?) = -
+\end{align*}
+but since $x_2$ is not know, it does not return a value. The lower bound is then 1, since only the result of
+the first thread is used.
+
 At the same time, the lower bound of the right branch would have been computed using the same procedure to
 determine the lower bound of 0 as shown in Figure~\ref{fig:tree1}.
-Since the lower bound of the left branch is higher than that of the right branch, the branch is pruned and
+Since the lower bound of the left branch is higher than that of the right branch, the left branch is pruned and
 will not be explored further. Node 3, however, must be explored so 2 new threads are created for branching, 
 and the same procedure is applied in parallel. The known variables and the resulting lower bounds for
 this are shown in Figure~\ref{fig:tree3}
@@ -868,14 +873,15 @@ this are shown in Figure~\ref{fig:tree3}
 Node 4 in Figure~\ref{fig:tree3} has a lower bound of 1, which is higher than the lower bound of node 5, which
 is 0. Node 4 is pruned while new threads are created to explore node 5 further. Since there is only one
 variable left for branching, the two child nodes from node 5 return the score of the branch rather than the lower
-bound since the child nodes are leaves. Figure~\ref{fig:tree5} shows the results of branchinf from node 5,
-annd the scores of the branch.
+bound since the child nodes are leaves. Figure~\ref{fig:tree5} shows the results of branching from node 5,
+and the scores of the branch.
 
 Since the leaves of the branch have been found, the lowest score (in this case the score of node 6) is return
 to the root of the tree, where is is compared to the solutions of all the other branches to determine which
-solution is optimal. In this case, the solution would be $x_1$ = 0, $x_2$ = 1, $y_1$ = 1, $y_2$ = 0, which is
+solution is optimal. For this branch, the solution would be $x_1$ = 0, $x_2$ = 1, $y_1$ = 1, $y_2$ = 0, which is
 the optimal solution for all branches for this example. Since the concatination of the $x$ variables is the 
-solution for the haplotype $h$, $h_{3,4}$ = [$x_1$, $x_2$] = [0,1] which can be verified by
+solution for the haplotype $h$, $h_{3,4}$ = [$x_1$, $x_2$] = [0,1] is the assmebled component of the haplotype
+for the unsplittable block M[3,4], which can be verified by
 Table~\ref{tab:exinp}.
 
 \begin{thebibliography}{99}
