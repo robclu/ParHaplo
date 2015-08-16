@@ -1,8 +1,6 @@
-# phap
+*A parallel implementation of the haplotype assembly problem*
 
-phap is an implementation of the parallel individual haplotyping assembly problem. 
-
-#Description 
+# Parahaplo
 
 This is for my final year project, which is an investigation into the parallelization of the individual haplotyping assembly problem. There will be 3 different implementations:
 * __Multi-threaded C++__: Using standard C++ and the SIMD instructions.
@@ -11,7 +9,7 @@ This is for my final year project, which is an investigation into the paralleliz
 
 ## Languages
 
-C++ (11) is used for all implementations. The Nvidia CUDA API is used for the CUDA implementation.
+C++ is used for all implementations. The Nvidia CUDA API is used for the CUDA implementation.
 
 #Organisation 
 
