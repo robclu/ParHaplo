@@ -15,8 +15,8 @@ BOOST_AUTO_TEST_SUITE( BlockTestSuite )
     
 BOOST_AUTO_TEST_CASE( canCreateABlockOfAnyTypeAnSize )
 {
-    phap::Block<float, 3, 4>    block_34;
-    phap::Block<int  , 9, 9>    block_99;
+    haplo::Block<float, 3, 4>    block_34;
+    haplo::Block<int  , 9, 9>    block_99;
     
     BOOST_CHECK( block_34.size() == 12 );
     BOOST_CHECK( block_99.size() == 81 );
@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_CASE( canCreateABlockOfAnyTypeAnSize )
 
 BOOST_AUTO_TEST_CASE( canAssignAndGetBlockData )
 {
-    phap::Block<int, 2, 2>      block_22;
+    haplo::Block<int, 2, 2>     block_22;
     int                         data[4] = {1, 2, 3, 4};
     
     // Assign data - static assert for dimensions mismatch
@@ -37,6 +37,12 @@ BOOST_AUTO_TEST_CASE( canAssignAndGetBlockData )
     BOOST_CHECK( block_22_data[1] == 2 );
     BOOST_CHECK( block_22_data[2] == 3 );
     BOOST_CHECK( block_22_data[3] == 4 );
+}
+
+BOOST_AUTO_TEST_CASE( canCreateBlockFromInputFile ) 
+{   
+    const std::string input_file = "test_input_file.txt";
+    haplo::Block<char, 3, 8> block_38(input_file, 24);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

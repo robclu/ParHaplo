@@ -3,14 +3,23 @@
 /// @brief  Header file for the block class for the parahaplo library
 // ----------------------------------------------------------------------------------------------------------
 
-#ifndef PARAHAPLO_CPP_BLOCK
-#define PARAHAPLO_CPP_BLOCK
+#ifndef PARAHAPLO_CPP_BLOCK_HPP
+#define PARAHAPLO_CPP_BLOCK_HPP
 
 #include "block_expressions.hpp"
+#include "block_exceptions.hpp"
+#include "../general/input_parser.hpp"
+
+#include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/spirit/include/qi.hpp>
 
 #include <cassert>
+#include <string>
 
-namespace phap {
+namespace qi = boost::spirit::qi;
+namespace io = boost::iostreams;
+
+namespace haplo {
  
 // ----------------------------------------------------------------------------------------------------------
 /// @class  Block 
@@ -37,8 +46,23 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Defult constructor, intitlizes the data to empty
     // ------------------------------------------------------------------------------------------------------
-    Block() : _data(Rows * Cols) {}
+    Block();
 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Constructs a Block from a string which gives the location of the input data. The file is 
+    ///             loaded as a memory mapped file - since the input data files will likely be huge, this 
+    ///             should save have a significant performance incease.                                      \n
+    ///                                                                                                      \n
+    ///             See boost memory mapped files for reference:                                             \n
+    ///                 http://www.boost.org/doc/libs/1_38_0/libs/iostreams/doc/index.html                   \n
+    ///                                                                                                      \n
+    ///             Or if you download the boost libraries the source for the memory mapped files is at:     \n
+    ///                 boost/iostreams/device/mapped_file.hpp
+    /// @param      filename        The name of the file which has the input data
+    /// @param      num_elements    The number of elements to read from the file
+    // ------------------------------------------------------------------------------------------------------
+    Block(const std::string filename, const std::size_t num_elements);
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructs a Block from a block expression
     /// @param[in]  expression  The expression to create the Block from
@@ -86,7 +110,33 @@ public:
 
 // ---------------------------------------- Implementations -------------------------------------------------
 
+template<typename T, std::size_t Rows, std::size_t Cols>
+Block<T, Rows, Cols>::Block() : _data(Rows * Cols) {}
 
-}           // End namespace phap
+template <typename T, std::size_t Rows, std::size_t Cols>
+Block<T, Rows, Cols>::Block(const std::string filename, std::size_t num_elements) 
+{
+    using namespace qi;
+    using namespace io;
+    
+    // Create a readonly memory mapped file to get the data
+    io::mapped_file_source mapped_input_data(filename.c_str());
+    
+    _data.reserve(num_elements);                            // Make sure we have enough space for all the data
 
-#endif      // PARAHAPLO_CPP_BLOCK
+    try {
+        if (!phrase_parse( mapped_input_data.begin() ,
+                           mapped_input_data.end()   ,
+                           char_                     ,
+                           blank                     ,
+                           _data                     ) ) {
+            throw BlockInputParseError(filename);
+        }
+    } catch (BlockInputParseError& e) {
+        std::cout << e.what() << std::endl;
+    }        
+}
+
+}           // End namespace haplo
+
+#endif      // PARAHAPLO_CPP_BLOCK_HPP

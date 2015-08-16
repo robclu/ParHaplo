@@ -2,12 +2,12 @@
 /// @file   Header file for Block expressions
 // ----------------------------------------------------------------------------------------------------------
 
-#ifndef PARHAPLO_CPP_BLOCK_EXPRESSION
-#define PARHAPLO_CPP_BLOCK_EXPRESSION
+#ifndef PARHAPLO_CPP_BLOCK_EXPRESSION_HPP
+#define PARHAPLO_CPP_BLOCK_EXPRESSION_HPP
 
 #include <vector>
 
-namespace phap {
+namespace haplo {
     
 // ----------------------------------------------------------------------------------------------------------
 /// @class  BlockExpression
@@ -60,6 +60,6 @@ public:
     operator Expression const&() const   { return static_cast<const  Expression&>(*this); }
 };
 
-}       // End namespace phap
+}       // End namespace haplo
 
-#endif  // PARAHAPLO_CPP_BLOCK_EXPRESSION
+#endif  // PARAHAPLO_CPP_BLOCK_EXPRESSION_HPP
