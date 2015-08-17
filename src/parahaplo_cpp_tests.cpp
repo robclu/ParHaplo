@@ -7,10 +7,39 @@
 #define BOOST_TEST_MODULE       ParahaploCppTests
 #include <boost/test/unit_test.hpp>
 
+#include "cpp/data.hpp"
 #include "cpp/block.hpp"
 
 #include <iostream>
 
+// ------------------------------------------ DATA TESTS ----------------------------------------------------
+
+BOOST_AUTO_TEST_SUITE( DataTestSuite )
+
+BOOST_AUTO_TEST_CASE( canCreateDataTypeAndGetValueForCorrectInput )
+{
+    haplo::Data data_zero('0');
+    haplo::Data data_one( '1');
+    haplo::Data data_dash('-');
+    
+    BOOST_CHECK( data_zero.value() == 0 );
+    BOOST_CHECK( data_one.value()  == 1 );
+    BOOST_CHECK( data_dash.value() == 2 );
+}
+
+BOOST_AUTO_TEST_CASE( canCreateDataTypeAndGetValueForIncorrectInput )
+{
+    haplo::Data data_wrong_1('b');
+    haplo::Data data_wrong_2('z');
+    
+    BOOST_CHECK( data_wrong_1.value() == 3 );
+    BOOST_CHECK( data_wring_2.value() == 3 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+// ---------------------------------------- BLOCK TESTS -----------------------------------------------------
+// 
 BOOST_AUTO_TEST_SUITE( BlockTestSuite )
     
 BOOST_AUTO_TEST_CASE( canCreateABlockOfAnyTypeAnSize )
@@ -43,6 +72,12 @@ BOOST_AUTO_TEST_CASE( canCreateBlockFromInputFile )
 {   
     const std::string input_file = "test_input_file.txt";
     haplo::Block<char, 3, 8> block_38(input_file, 24);
+
+    const std::vector<char>& block_data = block_38.get_data();
+    
+    for (auto& input : block_data) {
+        std::cout << input << " ";
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

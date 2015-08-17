@@ -15,8 +15,9 @@
 
 #include <cassert>
 #include <string>
+#include <iostream>
 
-namespace qi = boost::spirit::qi;
+namespace sp = boost::spirit;
 namespace io = boost::iostreams;
 
 namespace haplo {
@@ -46,7 +47,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Defult constructor, intitlizes the data to empty
     // ------------------------------------------------------------------------------------------------------
-    Block();
+    Block() : _data(Rows * Cols) {}
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructs a Block from a string which gives the location of the input data. The file is 
@@ -110,26 +111,22 @@ public:
 
 // ---------------------------------------- Implementations -------------------------------------------------
 
-template<typename T, std::size_t Rows, std::size_t Cols>
-Block<T, Rows, Cols>::Block() : _data(Rows * Cols) {}
-
 template <typename T, std::size_t Rows, std::size_t Cols>
 Block<T, Rows, Cols>::Block(const std::string filename, std::size_t num_elements) 
 {
-    using namespace qi;
+    using namespace sp;
     using namespace io;
     
     // Create a readonly memory mapped file to get the data
     io::mapped_file_source mapped_input_data(filename.c_str());
     
     _data.reserve(num_elements);                            // Make sure we have enough space for all the data
-
+    
     try {
-        if (!phrase_parse( mapped_input_data.begin() ,
-                           mapped_input_data.end()   ,
-                           char_                     ,
-                           blank                     ,
-                           _data                     ) ) {
+        if (!qi::parse( mapped_input_data.begin()           ,
+                        mapped_input_data.end()             ,
+                        sp::ascii::char_ >> sp::qi::space   ,
+                        _data                               ) ) {
             throw BlockInputParseError(filename);
         }
     } catch (BlockInputParseError& e) {
