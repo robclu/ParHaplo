@@ -117,9 +117,9 @@ public:
     inline container_type const& get_data() const { return _data; }
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets input data for a block from a file
-    /// @param[in]  filename    The file to get the input data from
+    /// @brief      Print the block data (for debugging and verifying operation results quickly)
     // ------------------------------------------------------------------------------------------------------
+    void print() const;
 };
 
 // ---------------------------------------- Implementations -------------------------------------------------
@@ -139,45 +139,54 @@ void Block<Rows, Cols>::fill(const std::string filename, const std::size_t num_t
     // Create a readonly memory mapped file to get the data
     io::mapped_file_source mapped_input(filename.c_str());
     const char* input_data = mapped_input.data();
-    
+
+    int counter = 0;
+    for (auto& elem : mapped_input) {
+        if (counter++ % 2 == 0 ) {
+            std::cout  <<  elem;   
+        }
+    } 
+    std::cout << std::endl;
     _data.reserve(Rows * Cols);                            // Make sure we have enough space for all the data
-   
+ 
 #pragma omp parallel num_threads( num_threads < Rows ? num_threads : Rows )
 {
-    int thread_idx = omp_get_thread_num();
-   
+    int thread_idx          = omp_get_thread_num();
+    int num_used_threads    = omp_get_num_threads(); 
+    
     // Determine total number of iterations for the thread
-    int iters = (Rows / num_threads)    +                           // Each thred gets this many iterations 
-                 (thread_idx < (Rows % num_threads) ?               // If row / thread is not an integer
-                            static_cast<int>(1)     :               // add iteration if tidx is less then rem
-                            static_cast<int>(0)     );              // otherwise don't add another iteration
+    int iters = (Rows / num_used_threads)    +                      // Each thred gets this many iterations 
+                 (thread_idx < (Rows % num_used_threads)    ?       // If row / thread is not an integer
+                            static_cast<int>(1)             :       // add iteration if tidx is less then rem
+                            static_cast<int>(0)             );      // otherwise don't add another iteration
 
     for (int it = 0; it < iters; ++it) {
-        int row_offset  = omp_get_num_threads() * it + thread_idx; 
-        int map_offset  = row_offset * (Cols * 2 + 1);              // Add whitespace and newline character
-        int data_offset = row_offset * Cols;
+        int row_offset  = num_used_threads * it + thread_idx; 
+        int map_offset  = row_offset * (Cols * 2);                  // Add whitespace and newline character
         
         // Put elements from the line into _data vecor
         for (int index = map_offset; index < map_offset + (Cols * 2); index += 2) {
-            _data[data_offset + (index / 2)] = *(input_data + index);
-            std::cout << *(input_data + index) << " ";
+            _data.insert(_data.begin() + (index / 2), *(input_data + index));
+            if (thread_idx == 1 ) {
+                std::cout << index << " : " << *(input_data + index) << " ";
+            }
         }       
     }
-        /*                    
-    try {
-        if (!qi::parse( mapped_input_data.begin()           ,
-                        mapped_input_data.end()             ,
-                        sp::ascii::char_ >> sp::qi::space   ,
-                        _data                               ) ) {
-            throw BlockInputParseError(filename);
-        }
-    } catch (BlockInputParseError& e) {
-        std::cout << e.what() << std::endl;
-    } 
-    */
-}   // End omp parallel
+#pragma omp barrier         // Wait for all threads to complete
+}                           // End omp parallel
+    // Debugging - print
+    print();
+}
 
-   for (auto& elem : _data) std::cout << elem.value() << " "; 
+template <std::size_t Rows, std::size_t Cols>
+void Block<Rows, Cols>::print() const 
+{
+    for (int r = 0; r < Rows; ++r) {
+        for (int c = 0; c < Cols; ++c) {
+            std::cout << _data[r * Cols + c].value() << " ";
+        }   
+        std::cout << "\n";
+    }
 }
 
 }           // End namespace haplo
