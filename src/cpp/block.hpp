@@ -10,6 +10,7 @@
 #include "block_exceptions.hpp"
 #include "../general/input_parser.hpp"
 
+#include <omp.h>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/spirit/include/qi.hpp>
 
@@ -49,19 +50,11 @@ public:
     Block() : _data(Rows * Cols) {}
 
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Constructs a Block from a string which gives the location of the input data. The file is 
-    ///             loaded as a memory mapped file - since the input data files will likely be huge, this 
-    ///             should save have a significant performance incease.                                      \n
-    ///                                                                                                      \n
-    ///             See boost memory mapped files for reference:                                             \n
-    ///                 http://www.boost.org/doc/libs/1_38_0/libs/iostreams/doc/index.html                   \n
-    ///                                                                                                      \n
-    ///             Or if you download the boost libraries the source for the memory mapped files is at:     \n
-    ///                 boost/iostreams/device/mapped_file.hpp
-    /// @param      filename        The name of the file which has the input data
-    /// @param      num_elements    The number of elements to read from the file
+    /// @brief      Constructs a Block from an input data file - calls the fill() function.
+    /// @param[in]  filename        The name of the file which has the input data
+    /// @param[in]  num_threads     The number of threads to use for loading the data
     // ------------------------------------------------------------------------------------------------------
-    Block(const std::string filename, const std::size_t num_elements);
+    Block(const std::string filename, const std::size_t num_threads = 1);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructs a Block from a block expression
@@ -77,6 +70,27 @@ public:
             _data[i] = expr[i];                                     // Put data from expr into this block
         }
     }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Loads data into the Block from the given file. The function will look for as many elements 
+    ///             as are specified by the Block dimensions, so for a Block with 3 rows and 6 columns, the
+    ///             function will look for 3 lines each with 6 elements.                                     \n
+    ///                                                                                                      \n
+    ///             The file is loaded as a memory mapped file since the input data files will likely be     \n
+    ///             huge, which should save have a significant performance incease.                          \n
+    ///                                                                                                      \n
+    ///             See boost memory mapped files for reference:                                             \n
+    ///                 http://www.boost.org/doc/libs/1_38_0/libs/iostreams/doc/index.html                   \n
+    ///                                                                                                      \n
+    ///             Or if you download the boost libraries the source for the memory mapped files is at:     \n
+    ///                 boost/iostreams/device/mapped_file.hpp                                               \n
+    ///                                                                                                      \n
+    ///             The function also uses threads to improve performance - the number of threads to use needs
+    ///             to be specified if the default of 1 is not used.
+    /// @param[in]  filename        The name of the file to get the input data from.
+    /// @param[in]  num_threads     The number of threads to use 
+    // ------------------------------------------------------------------------------------------------------
+    void fill(const std::string fileanme, const std::size_t num_threads = 1);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Gets the size of the block (total number of elements)
@@ -111,17 +125,45 @@ public:
 // ---------------------------------------- Implementations -------------------------------------------------
 
 template <std::size_t Rows, std::size_t Cols>
-Block<Rows, Cols>::Block(const std::string filename, std::size_t num_elements) 
+Block<Rows, Cols>::Block(const std::string filename, std::size_t num_threads) 
+{
+    fill(filename, num_threads);
+}
+
+template <std::size_t Rows, std::size_t Cols>
+void Block<Rows, Cols>::fill(const std::string filename, const std::size_t num_threads) 
 {
     using namespace sp;
     using namespace io;
     
     // Create a readonly memory mapped file to get the data
-    io::mapped_file_source mapped_input_data(filename.c_str());
+    io::mapped_file_source mapped_input(filename.c_str());
+    const char* input_data = mapped_input.data();
     
-    _data.reserve(num_elements);                            // Make sure we have enough space for all the data
+    _data.reserve(Rows * Cols);                            // Make sure we have enough space for all the data
    
-   /* 
+#pragma omp parallel num_threads( num_threads < Rows ? num_threads : Rows )
+{
+    int thread_idx = omp_get_thread_num();
+   
+    // Determine total number of iterations for the thread
+    int iters = (Rows / num_threads)    +                           // Each thred gets this many iterations 
+                 (thread_idx < (Rows % num_threads) ?               // If row / thread is not an integer
+                            static_cast<int>(1)     :               // add iteration if tidx is less then rem
+                            static_cast<int>(0)     );              // otherwise don't add another iteration
+
+    for (int it = 0; it < iters; ++it) {
+        int row_offset  = omp_get_num_threads() * it + thread_idx; 
+        int map_offset  = row_offset * (Cols * 2 + 1);              // Add whitespace and newline character
+        int data_offset = row_offset * Cols;
+        
+        // Put elements from the line into _data vecor
+        for (int index = map_offset; index < map_offset + (Cols * 2); index += 2) {
+            _data[data_offset + (index / 2)] = *(input_data + index);
+            std::cout << *(input_data + index) << " ";
+        }       
+    }
+        /*                    
     try {
         if (!qi::parse( mapped_input_data.begin()           ,
                         mapped_input_data.end()             ,
@@ -133,6 +175,9 @@ Block<Rows, Cols>::Block(const std::string filename, std::size_t num_elements)
         std::cout << e.what() << std::endl;
     } 
     */
+}   // End omp parallel
+
+   for (auto& elem : _data) std::cout << elem.value() << " "; 
 }
 
 }           // End namespace haplo

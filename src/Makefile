@@ -35,7 +35,7 @@ CXX_INCLUDE     :=
 #				   	                   LIBRARIES 						               #
 ########################################################################################
 
-CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm
+CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm -lgomp
 CXX_LDIR  	    := 
 
 ########################################################################################
