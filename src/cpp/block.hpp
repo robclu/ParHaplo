@@ -28,18 +28,17 @@ namespace haplo {
 ///         performed on the block, such as decomposition, row, column and duplicate removal to simplify 
 ///         the block making the problem easier to compute. Block inherits BlockExpression so that we can
 ///         do operations on the block that look as their mathematical expressions would.
-/// @tparam T       The type of data used by the block
 /// @tparam Rows    The number of rows in the block
 /// @tparam Cols    The number of columns in the block
 // ----------------------------------------------------------------------------------------------------------
-template <typename T, std::size_t Rows, std::size_t Cols>
-class Block : public BlockExpression<T, Block<T, Rows, Cols>> {
+template <std::size_t Rows, std::size_t Cols>
+class Block : public BlockExpression<Block<Rows, Cols>> {
 public:
     // --------------------------------------- Typedefs -----------------------------------------------------
-    using container_type    = typename BlockExpression<T, Block<T, Rows, Cols>>::container_type;
-    using size_type         = typename BlockExpression<T, Block<T, Rows, Cols>>::size_type;
-    using value_type        = typename BlockExpression<T, Block<T, Rows, Cols>>::value_type;
-    using reference         = typename BlockExpression<T, Block<T, Rows, Cols>>::reference;
+    using container_type    = typename BlockExpression<Block<Rows, Cols>>::container_type;
+    using size_type         = typename BlockExpression<Block<Rows, Cols>>::size_type;
+    using value_type        = typename BlockExpression<Block<Rows, Cols>>::value_type;
+    using reference         = typename BlockExpression<Block<Rows, Cols>>::reference;
     // ------------------------------------------------------------------------------------------------------
 private:
     container_type  _data;          //!< Container for the data - just std::vector<T>(Rows * Cols)
@@ -70,7 +69,7 @@ public:
     /// @tparam     Expression  The type of expression 
     // ------------------------------------------------------------------------------------------------------
     template <typename Expression>
-    Block(BlockExpression<T, Expression> const& expression) 
+    Block(BlockExpression<Expression> const& expression) 
     {
         Expression const& expr = expression;
         _data.resize(expr.size());
@@ -91,7 +90,7 @@ public:
     /// @param[in]  data_source     A reference to the data array
     /// @tparam     N               The number of elements in the data array
     template <std::size_t N>
-    inline void assign_data(const T (&data_source)[N])
+    inline void assign_data(const haplo::Data (&data_source)[N])
     {
         static_assert( N == (Rows * Cols), "Invalid data source size for block" );
         _data.assign(data_source, data_source + N);
@@ -111,8 +110,8 @@ public:
 
 // ---------------------------------------- Implementations -------------------------------------------------
 
-template <typename T, std::size_t Rows, std::size_t Cols>
-Block<T, Rows, Cols>::Block(const std::string filename, std::size_t num_elements) 
+template <std::size_t Rows, std::size_t Cols>
+Block<Rows, Cols>::Block(const std::string filename, std::size_t num_elements) 
 {
     using namespace sp;
     using namespace io;
@@ -121,7 +120,8 @@ Block<T, Rows, Cols>::Block(const std::string filename, std::size_t num_elements
     io::mapped_file_source mapped_input_data(filename.c_str());
     
     _data.reserve(num_elements);                            // Make sure we have enough space for all the data
-    
+   
+   /* 
     try {
         if (!qi::parse( mapped_input_data.begin()           ,
                         mapped_input_data.end()             ,
@@ -131,7 +131,8 @@ Block<T, Rows, Cols>::Block(const std::string filename, std::size_t num_elements
         }
     } catch (BlockInputParseError& e) {
         std::cout << e.what() << std::endl;
-    }        
+    } 
+    */
 }
 
 }           // End namespace haplo

@@ -19,11 +19,22 @@ private:
 
 public:
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Default constructor - sets the values to '-' or gaps
+    // ------------------------------------------------------------------------------------------------------
+    Data() : _value(2) {}
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Takes a character as input (sicne that's what the input will be from the input file, and
     ///             converts it to the relevant 2 bit value
     /// @param[in]  value   The char value of the data
     // ------------------------------------------------------------------------------------------------------
     Data(const char value);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Defines the equality operator for comparing with an int 
+    /// @param[in]  rhs     The value to compare with
+    // ------------------------------------------------------------------------------------------------------
+    bool operator==(const int& rhs) const { return _value == rhs; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the value of the data
@@ -38,13 +49,13 @@ Data::Data(const char value)
 {
     switch(value) {
         case '0':
-            _value = 0;
+            _value = 0;     // 0 (Minor allele)
             break;
         case '1':
-            _value = 1;
+            _value = 1;     // 1 (Major allele)
             break;
         case '-':
-            _value = 2;
+            _value = 2;     // Gap (No read)
             break;
         default:            // Anything else is invalid
             _value = 3;

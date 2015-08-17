@@ -5,6 +5,7 @@
 #ifndef PARHAPLO_CPP_BLOCK_EXPRESSION_HPP
 #define PARHAPLO_CPP_BLOCK_EXPRESSION_HPP
 
+#include "data.hpp"
 #include <vector>
 
 namespace haplo {
@@ -21,14 +22,13 @@ namespace haplo {
 ///         Expression Templates:                                                                            \n
 ///         Wikipedia: https://en.wikipedia.org/wiki/Expression_templates                                    \n
 ///         Dr. Dobbs: http://www.drdobbs.com/c-expression-templates/184401627
-/// @tparam T           The type of data used by the expressions 
 /// @tapram Expression  The expression (Block, BlockSlice ...)
 // ----------------------------------------------------------------------------------------------------------
-template <typename T, typename Expression>
+template <typename Expression>
 class BlockExpression {
 public:
     // -------------------------------------- Typedefs ------------------------------------------------------
-    using container_type    = std::vector<T>;
+    using container_type    = std::vector<haplo::Data>;
     using size_type         = typename container_type::size_type;
     using value_type        = typename container_type::value_type;           
     using reference         = typename container_type::reference;
