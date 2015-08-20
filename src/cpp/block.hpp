@@ -8,7 +8,6 @@
 
 #include "block_expressions.hpp"
 #include "block_exceptions.hpp"
-#include "../general/input_parser.hpp"
 
 #include <omp.h>
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -120,6 +119,14 @@ public:
     /// @brief      Print the block data (for debugging and verifying operation results quickly)
     // ------------------------------------------------------------------------------------------------------
     void print() const;
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a data element from the Block.
+    /// @param[in]  r       The row in the block of the data element to get
+    /// @param[in]  c       The column in the block of the data element to get
+    /// @return     The value of the element at position [r, c] in the block
+    // ------------------------------------------------------------------------------------------------------
+    inline unsigned int operator()(const int r, const int c) const { return _data[r * Cols + c].value(); } 
 };
 
 // ---------------------------------------- Implementations -------------------------------------------------
@@ -147,9 +154,17 @@ void Block<Rows, Cols>::fill(const std::string filename, const std::size_t num_t
         }
     } 
     std::cout << std::endl;
-    _data.reserve(Rows * Cols);                            // Make sure we have enough space for all the data
- 
-#pragma omp parallel num_threads( num_threads < Rows ? num_threads : Rows )
+    _data.reserve(Rows * Cols);                         // Make sure we have enough space for all the data
+
+    container_type& data_reference = _data;             // Create a reference to the Block data. We need this 
+                                                        // because OpenMP does not allow class variables to be 
+                                                        // shared amoung threads. But since we know that no
+                                                        // two threads will access the same element of data,
+                                                        // we know that there will be no race conditions and
+                                                        // this is okay and allows the data to be filled in
+                                                        // parallel
+    
+#pragma omp parallel num_threads( num_threads < Rows ? num_threads : Rows ) shared(data_reference)
 {
     int thread_idx          = omp_get_thread_num();
     int num_used_threads    = omp_get_num_threads(); 
@@ -166,16 +181,12 @@ void Block<Rows, Cols>::fill(const std::string filename, const std::size_t num_t
         
         // Put elements from the line into _data vecor
         for (int index = map_offset; index < map_offset + (Cols * 2); index += 2) {
-            _data.insert(_data.begin() + (index / 2), *(input_data + index));
-            if (thread_idx == 1 ) {
-                std::cout << index << " : " << *(input_data + index) << " ";
-            }
+            data_reference.insert(data_reference.begin() + (index / 2), *(input_data + index));
         }       
     }
-#pragma omp barrier         // Wait for all threads to complete
-}                           // End omp parallel
-    // Debugging - print
-    print();
+    #pragma omp barrier         // Wait for all threads to complete
+}                               // End omp parallel
+    mapped_input.close();       // Close memory mapped file
 }
 
 template <std::size_t Rows, std::size_t Cols>
