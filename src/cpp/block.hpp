@@ -9,7 +9,7 @@
 #include "block_expressions.hpp"
 #include "block_exceptions.hpp"
 
-#include <omp.h>
+#include <tbb/tbb.h>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/spirit/include/qi.hpp>
 
@@ -17,7 +17,6 @@
 #include <string>
 #include <iostream>
 
-namespace sp = boost::spirit;
 namespace io = boost::iostreams;
 
 namespace haplo {
@@ -140,53 +139,43 @@ Block<Rows, Cols>::Block(const std::string filename, std::size_t num_threads)
 template <std::size_t Rows, std::size_t Cols>
 void Block<Rows, Cols>::fill(const std::string filename, const std::size_t num_threads) 
 {
-    using namespace sp;
     using namespace io;
     
     // Create a readonly memory mapped file to get the data
     io::mapped_file_source mapped_input(filename.c_str());
     const char* input_data = mapped_input.data();
 
-    int counter = 0;
-    for (auto& elem : mapped_input) {
-        if (counter++ % 2 == 0 ) {
-            std::cout  <<  elem;   
-        }
-    } 
-    std::cout << std::endl;
     _data.reserve(Rows * Cols);                         // Make sure we have enough space for all the data
 
-    container_type& data_reference = _data;             // Create a reference to the Block data. We need this 
-                                                        // because OpenMP does not allow class variables to be 
-                                                        // shared amoung threads. But since we know that no
-                                                        // two threads will access the same element of data,
-                                                        // we know that there will be no race conditions and
-                                                        // this is okay and allows the data to be filled in
-                                                        // parallel
+    // Check that we arent't using more threads than rows
+    size_t threads_to_use = (num_threads < Rows ? num_threads : Rows);
     
-#pragma omp parallel num_threads( num_threads < Rows ? num_threads : Rows ) shared(data_reference)
-{
-    int thread_idx          = omp_get_thread_num();
-    int num_used_threads    = omp_get_num_threads(); 
-    
-    // Determine total number of iterations for the thread
-    int iters = (Rows / num_used_threads)    +                      // Each thred gets this many iterations 
-                 (thread_idx < (Rows % num_used_threads)    ?       // If row / thread is not an integer
-                            static_cast<int>(1)             :       // add iteration if tidx is less then rem
-                            static_cast<int>(0)             );      // otherwise don't add another iteration
-
-    for (int it = 0; it < iters; ++it) {
-        int row_offset  = num_used_threads * it + thread_idx; 
-        int map_offset  = row_offset * (Cols * 2);                  // Add whitespace and newline character
-        
-        // Put elements from the line into _data vecor
-        for (int index = map_offset; index < map_offset + (Cols * 2); index += 2) {
-            data_reference.insert(data_reference.begin() + (index / 2), *(input_data + index));
-        }       
-    }
-    #pragma omp barrier         // Wait for all threads to complete
-}                               // End omp parallel
-    mapped_input.close();       // Close memory mapped file
+    // Parallel tasks to get the input data from the memory
+    // mapped file into the class _data vector 
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_to_use),
+        [&](const tbb::blocked_range<size_t>& thread_indices) 
+        {
+            // This first loop is actually in parallel
+            for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
+                // Determine the number of iterations this thread must  perform
+                size_t thread_iters = (Rows / threads_to_use)        +  // Each thread gets this many iters
+                                      (idx < (Rows % threads_to_use) ?  // If 'leftover' threads
+                                        1                            :  // Add iter if idx < left over num threads
+                                        0                            ); // Otherwise don't add another thread
+                
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    size_t row_offset = threads_to_use * it + idx;      // Offset due to row in data
+                    size_t map_offset = row_offset * (Cols * 2);        // Add whitespace and \n char
+                    
+                    for (size_t elem_idx = map_offset; elem_idx < map_offset + (Cols * 2); elem_idx += 2) {
+                        _data.insert(_data.begin() + (elem_idx / 2), *(input_data + elem_idx));
+                    }
+                }
+            }
+        }
+    );
+    mapped_input.close();                                               
 }
 
 template <std::size_t Rows, std::size_t Cols>

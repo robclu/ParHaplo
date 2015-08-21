@@ -29,13 +29,14 @@ PXX             :=
 #				                    INCLUDE DIRECTORIES 		                       #
 ########################################################################################
 
-CXX_INCLUDE     :=
+CXX_INCLUDE     := -I$(TBBROOT)/include
 
 ########################################################################################
 #				   	                   LIBRARIES 						               #
 ########################################################################################
 
-CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm -lgomp
+CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm \
+					-Wl,-rpath,`$(TBB_LIBRARY_RELEASE) -L$(TBB_LIBRARY_RELEASE)` -ltbb	
 CXX_LDIR  	    := 
 
 ########################################################################################
@@ -45,7 +46,7 @@ CXX_LDIR  	    :=
 # 		--compiler-options -Wall                                                       #
 ########################################################################################
 
-CXX_FLAGS 		:= -std=c++11 -w -O3 -fopenmp
+CXX_FLAGS 		:= -std=c++11 -w -O3
 NXX_FLAGS       := -arch=sm_30
 PXX_FLAGS       :=
 
