@@ -42,8 +42,8 @@ public:
     // ------------------------------------------------------------------------------------------------------
 private:
     container_type      _data;          //!< Container for the data - just std::vector<T>(Rows * Cols)
-    std::vector<Read>   _read_info;     //!< Vector for holding the information for each read (row)
 public:
+    std::vector<Read>   _read_info;     //!< Vector for holding the information for each read (row)
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Defult constructor, intitlizes the data to empty
     // ------------------------------------------------------------------------------------------------------
@@ -129,14 +129,14 @@ public:
     // ------------------------------------------------------------------------------------------------------
     inline unsigned int operator()(const int r, const int c) const { return _data[r * Cols + c].value(); } 
     
-private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines the start (forst 0 | 1) and end (last 0 | 1)  positions of each of the reads 
     ///             (rows)
     /// @param[in]  num_threads     The number of thereads to use for getting the row information
     // ------------------------------------------------------------------------------------------------------
     void get_read_info(const size_t num_threads);
-    
+
+private:    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines how many iterations each thread must perform in a given situation. Say for
     ///             example there is a block with 9 rows and we have 4 threads, and each thread does some 
@@ -175,10 +175,15 @@ void Block<Rows, Cols>::fill(const std::string filename, const size_t num_thread
     io::mapped_file_source mapped_input(filename.c_str());
     const char* input_data = mapped_input.data();
 
-    _data.reserve(Rows * Cols);                         // Make sure we have enough space for all the data
+    // Make sure that we have enough space for all the data. We need to use 
+    // resize since the vector must hold data that gets modified. If we just 
+    // allocate, then a thread may try to insert at pos 100 when the vector 
+    // only has 40 elements due to the random order of thread execution, which 
+    // will cause undefined behaviour
+    _data.resize(Rows * Cols);
 
     // Check that we arent't using more threads than rows
-    size_t threads_to_use = (num_threads < Rows ? num_threads : Rows);
+    size_t threads_to_use = Rows < num_threads ? Rows : num_threads;
     
     // Parallel tasks to get the input data from the memory
     // mapped file into the class _data vector 
@@ -196,7 +201,7 @@ void Block<Rows, Cols>::fill(const std::string filename, const size_t num_thread
                     size_t map_offset = row_offset * (Cols * 2);        // Add whitespace and \n char
                     
                     for (size_t elem_idx = map_offset; elem_idx < map_offset + (Cols * 2); elem_idx += 2) {
-                        _data.insert(_data.begin() + (elem_idx / 2), *(input_data + elem_idx));
+                        _data[elem_idx / 2] = *(input_data + elem_idx);
                     }
                 }
             }
@@ -251,7 +256,7 @@ void Block<Rows, Cols>::get_read_info(const size_t num_threads)
                     size_t start_offset = (threads_to_use * it + idx);
                     size_t end_offset   = start_offset + Cols;
                     
-                    for (auto& read_it = _data.begin() + start_offset; read_it != _data.begin() + end_offset; ++read_it) {
+                    for (auto read_it = _data.begin() + start_offset; read_it != _data.begin() + end_offset; ++read_it) {
                         if (read_it->value() != 2 ) {
                             if (read_start == -1) 
                                 read_start = counter;

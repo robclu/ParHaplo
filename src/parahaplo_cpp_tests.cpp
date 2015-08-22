@@ -85,4 +85,17 @@ BOOST_AUTO_TEST_CASE( canCreateBlockFromInputFile )
     BOOST_CHECK( block_10_7(8, 5) == 2 );
 }
 
+BOOST_AUTO_TEST_CASE( canGetReadInfoCorrectly )
+{
+    const std::string input_file = "data/test_input_file.txt";
+    haplo::Block<10, 7> block_10_7(input_file, 8);         // Use 8 threads
+    
+    // Get the read info of each of the reads
+    block_10_7.get_read_info(8);                            // Also use 8 threads
+    
+    for (auto& read : block_10_7._read_info) {
+        std::cout << read._start << " : " << read._end << " : " << read.length() << "\n";
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

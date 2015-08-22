@@ -46,7 +46,7 @@ CXX_LDIR  	    :=
 # 		--compiler-options -Wall                                                       #
 ########################################################################################
 
-CXX_FLAGS 		:= -std=c++11 -w -O3
+CXX_FLAGS 		:= -std=c++11 -w -g
 NXX_FLAGS       := -arch=sm_30
 PXX_FLAGS       :=
 
