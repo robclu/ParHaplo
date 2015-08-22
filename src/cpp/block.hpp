@@ -8,6 +8,7 @@
 
 #include "block_expressions.hpp"
 #include "block_exceptions.hpp"
+#include "read.hpp"
 
 #include <tbb/tbb.h>
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -30,7 +31,7 @@ namespace haplo {
 /// @tparam Rows    The number of rows in the block
 /// @tparam Cols    The number of columns in the block
 // ----------------------------------------------------------------------------------------------------------
-template <std::size_t Rows, std::size_t Cols>
+template <size_t Rows, size_t Cols>
 class Block : public BlockExpression<Block<Rows, Cols>> {
 public:
     // --------------------------------------- Typedefs -----------------------------------------------------
@@ -40,7 +41,8 @@ public:
     using reference         = typename BlockExpression<Block<Rows, Cols>>::reference;
     // ------------------------------------------------------------------------------------------------------
 private:
-    container_type  _data;          //!< Container for the data - just std::vector<T>(Rows * Cols)
+    container_type      _data;          //!< Container for the data - just std::vector<T>(Rows * Cols)
+    std::vector<Read>   _read_info;     //!< Vector for holding the information for each read (row)
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Defult constructor, intitlizes the data to empty
@@ -52,7 +54,7 @@ public:
     /// @param[in]  filename        The name of the file which has the input data
     /// @param[in]  num_threads     The number of threads to use for loading the data
     // ------------------------------------------------------------------------------------------------------
-    Block(const std::string filename, const std::size_t num_threads = 1);
+    Block(const std::string filename, const size_t num_threads = 1);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructs a Block from a block expression
@@ -88,7 +90,7 @@ public:
     /// @param[in]  filename        The name of the file to get the input data from.
     /// @param[in]  num_threads     The number of threads to use 
     // ------------------------------------------------------------------------------------------------------
-    void fill(const std::string fileanme, const std::size_t num_threads = 1);
+    void fill(const std::string fileanme, const size_t num_threads = 1);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Gets the size of the block (total number of elements)
@@ -101,7 +103,7 @@ public:
     ///             the raw pointer. There shouldn't be any performance loss, but we will have to test that
     /// @param[in]  data_source     A reference to the data array
     /// @tparam     N               The number of elements in the data array
-    template <std::size_t N>
+    template <size_t N>
     inline void assign_data(const haplo::Data (&data_source)[N])
     {
         static_assert( N == (Rows * Cols), "Invalid data source size for block" );
@@ -126,18 +128,46 @@ public:
     /// @return     The value of the element at position [r, c] in the block
     // ------------------------------------------------------------------------------------------------------
     inline unsigned int operator()(const int r, const int c) const { return _data[r * Cols + c].value(); } 
+    
+private:
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the start (forst 0 | 1) and end (last 0 | 1)  positions of each of the reads 
+    ///             (rows)
+    /// @param[in]  num_threads     The number of thereads to use for getting the row information
+    // ------------------------------------------------------------------------------------------------------
+    void get_read_info(const size_t num_threads);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines how many iterations each thread must perform in a given situation. Say for
+    ///             example there is a block with 9 rows and we have 4 threads, and each thread does some 
+    ///             operations on a row, then each thread will need to peform 2 iterations, except for one of
+    ///             the threads, which will need to perform 3. So the iteration mapping for the threads would
+    ///             be:                                                                                     \n\n
+    ///             Thread Id  | Rows to operate on | Iterations                                            \n\n
+    ///             0          | 0, 4, 8            | 3
+    ///             1          | 1, 5               | 2
+    ///             2          | 2, 6               | 2
+    ///             3          | 3, 7               | 2
+    /// @param[in]  thread_id       The thread number 
+    /// @param[in]  total_ops       The total number of operations (9 in the above example)
+    /// @param[in]  num_threads     The number of threads being used
+    /// @return     The total number of iterations for the thread
+    // ------------------------------------------------------------------------------------------------------
+    size_t get_thread_iterations(const size_t thread_id, const size_t total_ops, const size_t num_threads) const;
 };
 
-// ---------------------------------------- Implementations -------------------------------------------------
+// ---------------------------------------- IMPLEMENTATIONS -------------------------------------------------
 
-template <std::size_t Rows, std::size_t Cols>
-Block<Rows, Cols>::Block(const std::string filename, std::size_t num_threads) 
+// -------------------------------------------- PUBLIC ------------------------------------------------------
+
+template <size_t Rows, size_t Cols>
+Block<Rows, Cols>::Block(const std::string filename, size_t num_threads) 
 {
     fill(filename, num_threads);
 }
 
-template <std::size_t Rows, std::size_t Cols>
-void Block<Rows, Cols>::fill(const std::string filename, const std::size_t num_threads) 
+template <size_t Rows, size_t Cols>
+void Block<Rows, Cols>::fill(const std::string filename, const size_t num_threads) 
 {
     using namespace io;
     
@@ -159,10 +189,7 @@ void Block<Rows, Cols>::fill(const std::string filename, const std::size_t num_t
             // This first loop is actually in parallel
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
                 // Determine the number of iterations this thread must  perform
-                size_t thread_iters = (Rows / threads_to_use)        +  // Each thread gets this many iters
-                                      (idx < (Rows % threads_to_use) ?  // If 'leftover' threads
-                                        1                            :  // Add iter if idx < left over num threads
-                                        0                            ); // Otherwise don't add another thread
+                size_t thread_iters = get_thread_iterations(idx, Rows, threads_to_use);
                 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     size_t row_offset = threads_to_use * it + idx;      // Offset due to row in data
@@ -178,7 +205,7 @@ void Block<Rows, Cols>::fill(const std::string filename, const std::size_t num_t
     mapped_input.close();                                               
 }
 
-template <std::size_t Rows, std::size_t Cols>
+template <size_t Rows, size_t Cols>
 void Block<Rows, Cols>::print() const 
 {
     for (int r = 0; r < Rows; ++r) {
@@ -187,6 +214,59 @@ void Block<Rows, Cols>::print() const
         }   
         std::cout << "\n";
     }
+}
+
+// --------------------------------------------- PRIVATE ----------------------------------------------------
+
+template <size_t Rows, size_t Cols>
+size_t Block<Rows, Cols>::get_thread_iterations(const size_t thread_id  , 
+                                                const size_t total_ops  , 
+                                                const size_t num_threads) const 
+{
+    return (total_ops / num_threads) + 
+            (thread_id < (total_ops % num_threads) ? 1 : 0);
+}
+
+template <size_t Rows, size_t Cols>
+void Block<Rows, Cols>::get_read_info(const size_t num_threads) 
+{
+    // Check that we aren't trying to use more threads than there are rows
+    size_t threads_to_use = (num_threads < Rows ? num_threads : Rows);
+    
+    _read_info.reserve(Rows);                                    // Allocate some space in the vector
+    
+    // Create some threads where each one will get the information of a row
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_to_use),
+        [&](const tbb::blocked_range<size_t>& thread_indices)
+        {
+            // As above, this is a loop is parallelized by tbb
+            for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
+                // Determine the number of iterations for each thread
+                size_t thread_iters = get_thread_iterations(idx, Rows, threads_to_use);
+                
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    size_t read_start = -1, read_end = -1, counter = 0;
+                    
+                    size_t start_offset = (threads_to_use * it + idx);
+                    size_t end_offset   = start_offset + Cols;
+                    
+                    for (auto& read_it = _data.begin() + start_offset; read_it != _data.begin() + end_offset; ++read_it) {
+                        if (read_it->value() != 2 ) {
+                            if (read_start == -1) 
+                                read_start = counter;
+                            else if (read_end == -1)
+                                read_end = counter;
+                        }
+                        ++counter;
+                    }
+                    if (read_end == -1) read_end = read_start;     // Case for a read with only a single element
+                    _read_info.insert(_read_info.begin() + start_offset, Read(read_start, read_end));
+                }
+            }
+        }
+    );
+    
 }
 
 }           // End namespace haplo

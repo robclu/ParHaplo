@@ -71,12 +71,18 @@ BOOST_AUTO_TEST_CASE( canAssignAndGetBlockData )
 BOOST_AUTO_TEST_CASE( canCreateBlockFromInputFile ) 
 { 
     const std::string input_file = "data/test_input_file.txt";
-    haplo::Block<3, 8> block_38(input_file, 8);         // Use 8 threads
+    haplo::Block<10, 7> block_10_7(input_file, 8);         // Use 8 threads
     
-    block_38.print();                                                           
+    block_10_7.print();                                                           
     
     // Check random values
-    BOOST_CHECK( block_38(0, 0) == 0 );
+    BOOST_CHECK( block_10_7(0, 0) == 0 );
+    BOOST_CHECK( block_10_7(0, 1) == 2 );
+    BOOST_CHECK( block_10_7(1, 0) == 1 );
+    BOOST_CHECK( block_10_7(1, 1) == 0 );
+    BOOST_CHECK( block_10_7(2, 2) == 0 );
+    BOOST_CHECK( block_10_7(5, 3) == 0 );
+    BOOST_CHECK( block_10_7(8, 5) == 2 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
