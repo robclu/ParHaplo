@@ -238,7 +238,7 @@ void Block<Rows, Cols>::get_read_info(const size_t num_threads)
     // Check that we aren't trying to use more threads than there are rows
     size_t threads_to_use = (num_threads < Rows ? num_threads : Rows);
     
-    _read_info.reserve(Rows);                                    // Allocate some space in the vector
+    _read_info.resize(Rows);                                    // Allocate some space in the vector
     
     // Create some threads where each one will get the information of a row
     tbb::parallel_for(
@@ -249,29 +249,28 @@ void Block<Rows, Cols>::get_read_info(const size_t num_threads)
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
                 // Determine the number of iterations for each thread
                 size_t thread_iters = get_thread_iterations(idx, Rows, threads_to_use);
-                
+
                 for (size_t it = 0; it < thread_iters; ++it) {
-                    size_t read_start = -1, read_end = -1, counter = 0;
+                    int read_start = -1, read_end = -1, counter = 0;
                     
-                    size_t start_offset = (threads_to_use * it + idx);
+                    size_t start_offset = (threads_to_use * it + idx) * Cols;
                     size_t end_offset   = start_offset + Cols;
                     
-                    for (auto read_it = _data.begin() + start_offset; read_it != _data.begin() + end_offset; ++read_it) {
-                        if (read_it->value() != 2 ) {
-                            if (read_start == -1) 
-                                read_start = counter;
-                            else if (read_end == -1)
+                    for (auto elem = _data.begin() + start_offset; elem != _data.begin() + end_offset; ++elem) {
+                        if (elem->value() != 2 ) {
+                            if (read_start != -1)           // If a start position has been found for the read
                                 read_end = counter;
+                            else                            // If a start position has not been found 
+                                read_start = counter;
                         }
                         ++counter;
                     }
                     if (read_end == -1) read_end = read_start;     // Case for a read with only a single element
-                    _read_info.insert(_read_info.begin() + start_offset, Read(read_start, read_end));
+                    _read_info[it * threads_to_use + idx] =  Read(read_start, read_end);
                 }
             }
         }
     );
-    
 }
 
 }           // End namespace haplo

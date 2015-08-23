@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE( canGetReadInfoCorrectly )
     block_10_7.get_read_info(8);                            // Also use 8 threads
     
     for (auto& read : block_10_7._read_info) {
-        std::cout << read._start << " : " << read._end << " : " << read.length() << "\n";
+        std::cout << read.start() << " : " << read.end() << " : " << read.length() << "\n";
     }
 }
 
