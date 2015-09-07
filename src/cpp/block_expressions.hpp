@@ -60,6 +60,11 @@ public:
     operator Expression const&() const   { return static_cast<const  Expression&>(*this); }
 };
 
+// ----------------------------------------------------------------------------------------------------------
+/// @class  BlockDecomposition 
+/// @brief  Decomposes a block into a smaller block
+// ----------------------------------------------------------------------------------------------------------
+
 }       // End namespace haplo
 
 #endif  // PARAHAPLO_CPP_BLOCK_EXPRESSION_HPP

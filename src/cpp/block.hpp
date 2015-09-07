@@ -14,6 +14,7 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/spirit/include/qi.hpp>
 
+#include <bitset>
 #include <cassert>
 #include <string>
 #include <iostream>
@@ -41,9 +42,10 @@ public:
     using reference         = typename BlockExpression<Block<Rows, Cols>>::reference;
     // ------------------------------------------------------------------------------------------------------
 private:
-    container_type      _data;          //!< Container for the data - just std::vector<T>(Rows * Cols)
+    container_type      _data;                  //!< Container for the data
 public:
-    std::vector<Read>   _read_info;     //!< Vector for holding the information for each read (row)
+    std::bitset<Cols>   _column_info;           //!< Information for if the block are/aren't splittable
+    std::vector<Read>   _read_info;             //!< Vector for holding the information for each read (row)
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Defult constructor, intitlizes the data to empty
     // ------------------------------------------------------------------------------------------------------
@@ -153,7 +155,17 @@ private:
     /// @param[in]  num_threads     The number of threads being used
     /// @return     The total number of iterations for the thread
     // ------------------------------------------------------------------------------------------------------
-    size_t get_thread_iterations(const size_t thread_id, const size_t total_ops, const size_t num_threads) const;
+    size_t get_thread_iterations(const size_t thread_id     , 
+                                 const size_t total_ops     , 
+                                 const size_t num_threads   ) const;
+public:  
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The column information stores all columns as splittable by default since this is the 
+    ///             default initialization of the bitset struct which is being used, so this functions changes
+    ///             all the non-splittable column information in the _column_info struct
+    /// @param[in]  num_threads     The number of threads to use
+    // ------------------------------------------------------------------------------------------------------
+    void find_unsplittable_columns(const size_t num_threads = 1);
 };
 
 // ---------------------------------------- IMPLEMENTATIONS -------------------------------------------------
@@ -267,6 +279,41 @@ void Block<Rows, Cols>::get_read_info(const size_t num_threads)
                     }
                     if (read_end == -1) read_end = read_start;     // Case for a read with only a single element
                     _read_info[it * threads_to_use + idx] =  Read(read_start, read_end);
+                }
+            }
+        }
+    );
+}
+
+template <size_t Rows, size_t Cols>
+void Block<Rows, Cols>::find_unsplittable_columns(const size_t num_threads)
+{
+    // Check that we aren't trying to use more threads than there are columns
+    size_t threads_to_use = (num_threads > Cols ? Cols : num_threads);
+    
+    // Create some threads where each one determines if a column is splittable
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_to_use),
+        [&](const tbb::blocked_range<size_t>& thread_indices) 
+        {
+            for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
+                size_t thread_iters = get_thread_iterations(idx, Cols, threads_to_use);
+                
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    // Go through each of the reads and check if idx lies between the 
+                    // start and the end position of the read, which makes the col not
+                    // splittable. Since bitset default intializes to all 0's, a 0 in the 
+                    // _column_indo array means that a columns is not splittable
+                    size_t  index      = threads_to_use * it + idx;
+                    bool    splittable = true;                                      // Default as splittable
+                    size_t  i          = 0;
+                    while (splittable && i < Rows) {
+                        if (index > _read_info[i].start() && index < _read_info[i].end()) {
+                            _column_info[index] = 1;
+                            splittable          = false;                            // Break while
+                        }
+                        ++i;
+                    }
                 }
             }
         }

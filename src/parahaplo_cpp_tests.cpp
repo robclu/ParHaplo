@@ -21,6 +21,7 @@ BOOST_AUTO_TEST_CASE( canCreateDataTypeAndGetValueForCorrectInput )
     haplo::Data data_zero('0');
     haplo::Data data_one( '1');
     haplo::Data data_dash('-');
+    std::cout << sizeof(data_one) << "\n";
     
     BOOST_CHECK( data_zero.value() == 0 );
     BOOST_CHECK( data_one.value()  == 1 );
@@ -95,6 +96,13 @@ BOOST_AUTO_TEST_CASE( canGetReadInfoCorrectly )
     
     for (auto& read : block_10_7._read_info) {
         std::cout << read.start() << " : " << read.end() << " : " << read.length() << "\n";
+    }
+
+    // Check the splittable columns
+    block_10_7.find_unsplittable_columns(4);
+    
+    for (int i = 0; i < block_10_7._column_info.size(); ++i) {
+        std::cout << block_10_7._column_info[i] << "\n";
     }
 }
 
