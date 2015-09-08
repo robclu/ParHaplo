@@ -9,6 +9,7 @@
 #include "block_expressions.hpp"
 #include "block_exceptions.hpp"
 #include "read.hpp"
+#include "subblock_info.hpp"
 
 #include <tbb/tbb.h>
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -41,11 +42,15 @@ public:
     using value_type        = typename BlockExpression<Block<Rows, Cols>>::value_type;
     using reference         = typename BlockExpression<Block<Rows, Cols>>::reference;
     // ------------------------------------------------------------------------------------------------------
+    using container_subinfo     = std::vector<SubBlockInfo>;
+    using container_read        = std::vector<Read>;
 private:
     container_type      _data;                  //!< Container for the data
+    container_subinfo   _subblock_info;         //!< Information for the unsplittable sub-blocks
 public:
     std::bitset<Cols>   _column_info;           //!< Information for if the block are/aren't splittable
-    std::vector<Read>   _read_info;             //!< Vector for holding the information for each read (row)
+    container_read      _read_info;             //!< Vector for holding the information for each read (row)
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Defult constructor, intitlizes the data to empty
     // ------------------------------------------------------------------------------------------------------
@@ -132,13 +137,24 @@ public:
     inline unsigned int operator()(const int r, const int c) const { return _data[r * Cols + c].value(); } 
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Interface for getting the read information of the block 
+    /// @return     A constant reference to the read info 
+    // ------------------------------------------------------------------------------------------------------
+    container_read const& read_info() const { return _read_info; }
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Interface for gettting the unsplittable sub block information 
+    // ------------------------------------------------------------------------------------------------------
+    container_subinfo const& subblock_info() const { return _subblock_info; }
+    
+private: 
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines the start (forst 0 | 1) and end (last 0 | 1)  positions of each of the reads 
     ///             (rows)
     /// @param[in]  num_threads     The number of thereads to use for getting the row information
     // ------------------------------------------------------------------------------------------------------
     void get_read_info(const size_t num_threads);
 
-private:    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines how many iterations each thread must perform in a given situation. Say for
     ///             example there is a block with 9 rows and we have 4 threads, and each thread does some 
@@ -158,7 +174,7 @@ private:
     size_t get_thread_iterations(const size_t thread_id     , 
                                  const size_t total_ops     , 
                                  const size_t num_threads   ) const;
-public:  
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      The column information stores all columns as splittable by default since this is the 
     ///             default initialization of the bitset struct which is being used, so this functions changes
@@ -166,6 +182,15 @@ public:
     /// @param[in]  num_threads     The number of threads to use
     // ------------------------------------------------------------------------------------------------------
     void find_unsplittable_columns(const size_t num_threads = 1);
+public:    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Creates a list of column infices which are unsplittable, which can then be used by
+    ///             different threads to create filtered (unnecessary data removed) sub-blocks which can be 
+    ///             sovled  with ILP
+    /// @return     A vector of SubBlockInfo (an interface to make the code more readable) which is the
+    ///             information for the splittable column.
+    // ------------------------------------------------------------------------------------------------------
+    void get_subblock_info();
 };
 
 // ---------------------------------------- IMPLEMENTATIONS -------------------------------------------------
@@ -175,7 +200,10 @@ public:
 template <size_t Rows, size_t Cols>
 Block<Rows, Cols>::Block(const std::string filename, size_t num_threads) 
 {
-    fill(filename, num_threads);
+    fill(filename, num_threads);                                    // Fill the block with information
+    get_read_info(num_threads);                                     // Get the read information for the block
+    find_unsplittable_columns(num_threads);                         // Find all the unsplittable columns 
+    get_subblock_info();                                            // Get all the sub-block information
 }
 
 template <size_t Rows, size_t Cols>
@@ -318,6 +346,21 @@ void Block<Rows, Cols>::find_unsplittable_columns(const size_t num_threads)
             }
         }
     );
+}
+
+template <size_t Rows, size_t Cols>
+void Block<Rows, Cols>::get_subblock_info()
+{
+    // The class doesn't intitialize the size of the unsplittable_info
+    // container so we assume 0 (we could clear it here, but that's runtime 
+    // overhead that we don't want, so if this function is only called once
+    // then the behaviour will be as expected)
+    for (int i = 1, start = 0; i < _column_info.size(); ++i) {
+        if (_column_info[i] == 0) {                 // We have found the end, add an element to unsplittable
+            _subblock_info.emplace_back(start, i);
+            start = i;                              // Update the new start
+        }
+    }
 }
 
 }           // End namespace haplo

@@ -21,7 +21,6 @@ BOOST_AUTO_TEST_CASE( canCreateDataTypeAndGetValueForCorrectInput )
     haplo::Data data_zero('0');
     haplo::Data data_one( '1');
     haplo::Data data_dash('-');
-    std::cout << sizeof(data_one) << "\n";
     
     BOOST_CHECK( data_zero.value() == 0 );
     BOOST_CHECK( data_one.value()  == 1 );
@@ -73,10 +72,11 @@ BOOST_AUTO_TEST_CASE( canCreateBlockFromInputFile )
 { 
     const std::string input_file = "data/test_input_file.txt";
     haplo::Block<10, 7> block_10_7(input_file, 8);         // Use 8 threads
+
+    // If you want to see what the block and 
+    // it's info look like, uncomment below
+    // block_10_7.print();                                                           
     
-    block_10_7.print();                                                           
-    
-    // Check random values
     BOOST_CHECK( block_10_7(0, 0) == 0 );
     BOOST_CHECK( block_10_7(0, 1) == 2 );
     BOOST_CHECK( block_10_7(1, 0) == 1 );
@@ -90,20 +90,35 @@ BOOST_AUTO_TEST_CASE( canGetReadInfoCorrectly )
 {
     const std::string input_file = "data/test_input_file.txt";
     haplo::Block<10, 7> block_10_7(input_file, 8);         // Use 8 threads
-    
-    // Get the read info of each of the reads
-    block_10_7.get_read_info(8);                            // Also use 8 threads
-    
-    for (auto& read : block_10_7._read_info) {
-        std::cout << read.start() << " : " << read.end() << " : " << read.length() << "\n";
-    }
 
-    // Check the splittable columns
-    block_10_7.find_unsplittable_columns(4);
+    // Constructor determines read info 
+    // when the input file is given 
     
-    for (int i = 0; i < block_10_7._column_info.size(); ++i) {
-        std::cout << block_10_7._column_info[i] << "\n";
-    }
+    BOOST_CHECK( block_10_7.read_info()[0].start()    == 0 );
+    BOOST_CHECK( block_10_7.read_info()[0].end()      == 0 );
+    BOOST_CHECK( block_10_7.read_info()[0].length()   == 1 );
+    BOOST_CHECK( block_10_7.read_info()[4].start()    == 2 );
+    BOOST_CHECK( block_10_7.read_info()[4].end()      == 3 );
+    BOOST_CHECK( block_10_7.read_info()[4].length()   == 2 ); 
+    BOOST_CHECK( block_10_7.read_info()[8].start()    == 3 );
+    BOOST_CHECK( block_10_7.read_info()[8].end()      == 6 );
+    BOOST_CHECK( block_10_7.read_info()[8].length()   == 4 );
+}
+
+BOOST_AUTO_TEST_CASE( canGetUnsplittableSubBlockInfo )
+{
+    const std::string input_file = "data/test_input_file.txt";
+    haplo::Block<10, 7> block_10_7(input_file, 8);         // Use 8 threads
+
+    // Constructor determines subblock info 
+    // when the input file is given  
+
+    BOOST_CHECK( block_10_7.subblock_info()[0].start() == 0 );    
+    BOOST_CHECK( block_10_7.subblock_info()[0].end()   == 2 );    
+    BOOST_CHECK( block_10_7.subblock_info()[1].start() == 2 );    
+    BOOST_CHECK( block_10_7.subblock_info()[1].end()   == 3 );    
+    BOOST_CHECK( block_10_7.subblock_info()[2].start() == 3 );    
+    BOOST_CHECK( block_10_7.subblock_info()[2].end()   == 6 );    
 }
 
 BOOST_AUTO_TEST_SUITE_END()

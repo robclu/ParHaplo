@@ -29,13 +29,13 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Construct a row, setting the start and the end and determining the length
     // ------------------------------------------------------------------------------------------------------
-    Read(size_t start, size_t end) 
+    Read(int start, int end) 
     : _start(start), _end(end), _length(end - start + 1) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Returns the length of the Read
     // ------------------------------------------------------------------------------------------------------
-    inline size_t length() const { return _length; };
+    inline int length() const { return _length; };
    
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Gets the start index of the read (the first element in a row which is not a gap)
