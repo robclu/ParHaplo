@@ -10,6 +10,7 @@
 #include "block_exceptions.hpp"
 #include "read.hpp"
 #include "subblock_info.hpp"
+#include "util.hpp"
 
 #include <tbb/tbb.h>
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -44,6 +45,10 @@ public:
     // ------------------------------------------------------------------------------------------------------
     using container_subinfo     = std::vector<SubBlockInfo>;
     using container_read        = std::vector<Read>;
+
+    // Incease we want to use a constant expression version    
+    static constexpr size_t num_rows = Rows;
+    static constexpr size_t num_cols = Cols;
 private:
     container_type      _data;                  //!< Container for the data
     container_subinfo   _subblock_info;         //!< Information for the unsplittable sub-blocks
@@ -100,10 +105,22 @@ public:
     void fill(const std::string fileanme, const size_t num_threads = 1);
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief  Gets the size of the block (total number of elements)
-    /// @return The total number of elements in the block
+    /// @brief      Gets the size of the block (total number of elements)
+    /// @return     The total number of elements in the block
     // ------------------------------------------------------------------------------------------------------
     inline size_type size() const { return _data.size(); }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the number of rows in the Block
+    /// @return     The number of rows in the Block 
+    // ------------------------------------------------------------------------------------------------------
+    static constexpr size_type rows() { return Rows; }
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the number of columns in the Block
+    /// @return     The number of columns in the Block 
+    // ------------------------------------------------------------------------------------------------------
+    static constexpr size_type columns() { return Cols; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Assigns a pointer to data to the vector so that we can use the vector as data rather than 
@@ -155,26 +172,6 @@ private:
     // ------------------------------------------------------------------------------------------------------
     void get_read_info(const size_t num_threads);
 
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Determines how many iterations each thread must perform in a given situation. Say for
-    ///             example there is a block with 9 rows and we have 4 threads, and each thread does some 
-    ///             operations on a row, then each thread will need to peform 2 iterations, except for one of
-    ///             the threads, which will need to perform 3. So the iteration mapping for the threads would
-    ///             be:                                                                                     \n\n
-    ///             Thread Id  | Rows to operate on | Iterations                                            \n\n
-    ///             0          | 0, 4, 8            | 3
-    ///             1          | 1, 5               | 2
-    ///             2          | 2, 6               | 2
-    ///             3          | 3, 7               | 2
-    /// @param[in]  thread_id       The thread number 
-    /// @param[in]  total_ops       The total number of operations (9 in the above example)
-    /// @param[in]  num_threads     The number of threads being used
-    /// @return     The total number of iterations for the thread
-    // ------------------------------------------------------------------------------------------------------
-    size_t get_thread_iterations(const size_t thread_id     , 
-                                 const size_t total_ops     , 
-                                 const size_t num_threads   ) const;
-    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      The column information stores all columns as splittable by default since this is the 
     ///             default initialization of the bitset struct which is being used, so this functions changes
@@ -234,7 +231,7 @@ void Block<Rows, Cols>::fill(const std::string filename, const size_t num_thread
             // This first loop is actually in parallel
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
                 // Determine the number of iterations this thread must  perform
-                size_t thread_iters = get_thread_iterations(idx, Rows, threads_to_use);
+                size_t thread_iters = util::get_thread_iterations(idx, Rows, threads_to_use);
                 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     size_t row_offset = threads_to_use * it + idx;      // Offset due to row in data
@@ -264,15 +261,6 @@ void Block<Rows, Cols>::print() const
 // --------------------------------------------- PRIVATE ----------------------------------------------------
 
 template <size_t Rows, size_t Cols>
-size_t Block<Rows, Cols>::get_thread_iterations(const size_t thread_id  , 
-                                                const size_t total_ops  , 
-                                                const size_t num_threads) const 
-{
-    return (total_ops / num_threads) + 
-            (thread_id < (total_ops % num_threads) ? 1 : 0);
-}
-
-template <size_t Rows, size_t Cols>
 void Block<Rows, Cols>::get_read_info(const size_t num_threads) 
 {
     // Check that we aren't trying to use more threads than there are rows
@@ -288,7 +276,7 @@ void Block<Rows, Cols>::get_read_info(const size_t num_threads)
             // As above, this is a loop is parallelized by tbb
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
                 // Determine the number of iterations for each thread
-                size_t thread_iters = get_thread_iterations(idx, Rows, threads_to_use);
+                size_t thread_iters = util::get_thread_iterations(idx, Rows, threads_to_use);
 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     int read_start = -1, read_end = -1, counter = 0;
@@ -325,7 +313,7 @@ void Block<Rows, Cols>::find_unsplittable_columns(const size_t num_threads)
         [&](const tbb::blocked_range<size_t>& thread_indices) 
         {
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
-                size_t thread_iters = get_thread_iterations(idx, Cols, threads_to_use);
+                size_t thread_iters = util::get_thread_iterations(idx, Cols, threads_to_use);
                 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     // Go through each of the reads and check if idx lies between the 

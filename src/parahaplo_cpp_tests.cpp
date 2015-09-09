@@ -7,8 +7,7 @@
 #define BOOST_TEST_MODULE       ParahaploCppTests
 #include <boost/test/unit_test.hpp>
 
-#include "cpp/data.hpp"
-#include "cpp/block.hpp"
+#include "cpp/unsplittable_block.hpp"
 
 #include <iostream>
 
@@ -49,6 +48,20 @@ BOOST_AUTO_TEST_CASE( canCreateABlockOfAnyTypeAnSize )
     
     BOOST_CHECK( block_34.size() == 12 );
     BOOST_CHECK( block_99.size() == 81 );
+}
+
+BOOST_AUTO_TEST_CASE( canGetNumberOfRows )
+{
+    haplo::Block<3, 4> block_34;
+    
+    BOOST_CHECK( block_34.rows() == 3 );
+}
+
+BOOST_AUTO_TEST_CASE( canGetNumberOfColumns )
+{
+    haplo::Block<3, 4> block_34;
+    
+    BOOST_CHECK( block_34.columns() == 4 );
 }
 
 BOOST_AUTO_TEST_CASE( canAssignAndGetBlockData )
@@ -122,3 +135,19 @@ BOOST_AUTO_TEST_CASE( canGetUnsplittableSubBlockInfo )
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+    
+// ----------------------------------- UNSPLITTABLE BLOCK TESTS ---------------------------------------------
+
+BOOST_AUTO_TEST_SUITE( UnsplittableBlockSuite )
+
+BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlock )
+{
+    const std::string input_file = "data/test_input_file.txt";
+    haplo::Block<10, 7> block(input_file, 8);                        // Use 8 threads 
+    
+    // Create an Unsplittable block 
+    haplo::UnsplittableBlock<haplo::Block<10, 7>> unsplittable_block(block);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+    

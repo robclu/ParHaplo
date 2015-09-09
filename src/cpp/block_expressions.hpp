@@ -22,7 +22,7 @@ namespace haplo {
 ///         Expression Templates:                                                                            \n
 ///         Wikipedia: https://en.wikipedia.org/wiki/Expression_templates                                    \n
 ///         Dr. Dobbs: http://www.drdobbs.com/c-expression-templates/184401627
-/// @tapram Expression  The expression (Block, BlockSlice ...)
+/// @tparam Expression  The expression (Block, BlockSlice ...)
 // ----------------------------------------------------------------------------------------------------------
 template <typename Expression>
 class BlockExpression {
