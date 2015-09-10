@@ -151,7 +151,7 @@ public:
     /// @param[in]  c       The column in the block of the data element to get
     /// @return     The value of the element at position [r, c] in the block
     // ------------------------------------------------------------------------------------------------------
-    inline unsigned int operator()(const int r, const int c) const { return _data[r * Cols + c].value(); } 
+    inline uint8_t operator()(const int r, const int c) const { return _data[r * Cols + c].value(); } 
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Interface for getting the read information of the block 
@@ -163,7 +163,12 @@ public:
     /// @brief      Interface for gettting the unsplittable sub block information 
     // ------------------------------------------------------------------------------------------------------
     container_subinfo const& subblock_info() const { return _subblock_info; }
-    
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Returns the element at position i
+    /// @param[in]  i   The index of the element in the data container
+    /// @return     The value of the element at position i in the data container
+    // ------------------------------------------------------------------------------------------------------
 private: 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines the start (forst 0 | 1) and end (last 0 | 1)  positions of each of the reads 

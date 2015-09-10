@@ -39,6 +39,12 @@ public:
     /// @return The index of the last unsplittable column in the main block
     // ------------------------------------------------------------------------------------------------------
     inline int end() const { return _end; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief  Determines the number of columns for the sub-block which uses this sub-block info
+    /// @return The number of columns for the sub-block based on this information
+    // ------------------------------------------------------------------------------------------------------
+    inline int columns() const { return _end - _start + 1; }
 };
 
 }           // End namesapce haplo

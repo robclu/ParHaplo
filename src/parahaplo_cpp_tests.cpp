@@ -147,6 +147,8 @@ BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlock )
     
     // Create an Unsplittable block 
     haplo::UnsplittableBlock<haplo::Block<10, 7>> unsplittable_block(block);
+    
+    unsplittable_block.print();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
