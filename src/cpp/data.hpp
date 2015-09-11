@@ -31,16 +31,22 @@ public:
     Data(const char value);
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Constructor for taking an int -- sets the value
+    /// @param[in]  value   The value of data
+    // ------------------------------------------------------------------------------------------------------
+    Data(const uint8_t value);
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Defines the equality operator for comparing with an int 
     /// @param[in]  rhs     The value to compare with
     // ------------------------------------------------------------------------------------------------------
-    bool operator==(const int& rhs) const { return _value == rhs; }
+    bool operator==(const int& rhs) const { return _value == static_cast<uint8_t>(rhs); }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the value of the data
     /// @return     The value of the data
     // ------------------------------------------------------------------------------------------------------
-    inline unsigned int value() const { return _value; }
+    inline uint8_t value() const { return _value; }
 };
 
 // ------------------------------------------ Implementation ------------------------------------------------
@@ -60,6 +66,11 @@ Data::Data(const char value)
         default:            // Anything else is invalid
             _value = 3;
     }    
+}
+
+Data::Data(const uint8_t value) 
+{
+    _value = value < 3 ? value : 3;
 }
 
 }       // End namespace haplo

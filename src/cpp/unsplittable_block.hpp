@@ -23,7 +23,7 @@ template <typename Expression>
 class UnsplittableBlock : public BlockExpression<UnsplittableBlock<Expression>> {
 public:
     // -------------------------------------- Typedefs ------------------------------------------------------
-    using container_type    = std::vector<haplo::Data>;
+    using container_type    = typename Expression::container_type;
     using size_type         = typename container_type::size_type;
     using value_type        = typename container_type::value_type;           
     using reference         = typename container_type::reference;
@@ -35,7 +35,7 @@ private:
     Expression const&   _expression;        //!< The expression that's the base of this class
     singleton_container _singleton_info;    //!< Array of bools for which rows of _expression are singletons
                                             //!< 1 = not singleton (so we can count the number of not singles)
-    data_container      _data;              //!< Data for the unsplittable block 
+    container_type      _data;              //!< Data for the unsplittable block 
     size_type           _size;              //!< The size of the unsplittable block (number of elements)
     size_type           _cols;              //!< The number of columns
     size_type           _rows;              //!< The number of rows 
@@ -70,11 +70,17 @@ public:
     /// @brief      Gets the number of rows in the UnsplittableBlock 
     /// @return     The number of rows in the UnsplittableBlock
     // ------------------------------------------------------------------------------------------------------
-    size_type rows() const { return _rows; } 
-   // ------------------------------------------------------------------------------------------------------ 
-   /// @brief      Gets the number of rows in the UnsplittableBlock                                          // ------------------------------------------------------------------------------------------------------
-   /// @return     The number of rows in the UnsplittableBlock                                               /// @brief      Prints the UnsplittableBlock
-   // ------------------------------------------------------------------------------------------------------ // ------------------------------------------------------------------------------------------------------
+    size_type rows() const { return _rows; }
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the number of columns in the UnsplittableBlock 
+    /// @return     The number of columns in the UnsplittableBlock
+    // ------------------------------------------------------------------------------------------------------
+    size_type columns() const { return _cols; }  
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Prints the UnsplittableBlock
+    // ------------------------------------------------------------------------------------------------------
     void print() const;
     
 private:
@@ -135,7 +141,7 @@ void UnsplittableBlock<Expression>::print() const
 {
     for (int r = 0; r < _rows; ++r) {
         for (int c = 0; c < _cols; ++c) 
-            std::cout << static_cast<unsigned int>(_data[r * _cols + c]) << " ";
+            std::cout << static_cast<unsigned int>(_data[r * _cols + c].value()) << " ";
         std::cout << "\n";
     }
 }
@@ -166,7 +172,7 @@ void UnsplittableBlock<Expression>::determine_params(const size_t index, const s
                     // Now we need to go through all elements in the row 
                     // of Expression and check of there is only 1 element
                     for (int col = info.start(); col <= info.end() && num_elements < 2; ++col) {
-                        if (_expression(it * threads_to_use + idx, col) != 2) 
+                        if (_expression(it * threads_to_use + idx, col).value() != 2) 
                             ++num_elements;         // Not a gap, so increment num_elements
                     }
                     // If we have found more than a single element then the row needs to be added
@@ -181,7 +187,7 @@ void UnsplittableBlock<Expression>::determine_params(const size_t index, const s
     _rows = std::accumulate(_singleton_info.begin(), _singleton_info.end(), 0);
     _cols = info.columns();
     _size = _rows * info.columns();
-    _data.resize(_size, 0);    
+    _data.resize(_size, static_cast<uint8_t>(0));    
 }
 
 template <typename Expression>
@@ -205,7 +211,7 @@ void UnsplittableBlock<Expression>::fill(const size_t index, const size_t num_th
                     for (size_t col = info.start(); col <= info.end(); ++col) {
                         _data[(it * threads_to_use + idx) * _cols   +               // Row offset
                               (col - info.start())                  ]               // Column offset
-                        = _expression(expression_row, col);                         // Value
+                        = _expression(expression_row, col).value();                 // Value
                     }                  
                 }               
             }

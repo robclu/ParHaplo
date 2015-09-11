@@ -54,7 +54,16 @@ PXX_FLAGS       :=
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: cpp clean_cpp
+.PHONY: cpp clean_cpp asm
+
+asm: CXX_FLAGS += -S -fverbose-asm 
+asm: make_asm
+	
+parahaplo_cpp_tests.s: parahaplo_cpp_tests.cpp
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+	
+make_asm: parahaplo_cpp_tests.s
+	as -alhnd parahaplo_cpp_tests.s > parahaplo_cpp_tests.lst 
 	
 cpp: build_and_run_cpp
 
@@ -73,4 +82,9 @@ build_cpp_tests: parahaplo_cpp_tests.o
 clean_cpp:
 	rm -rf *.o
 	rm -rf $(CXX_EXE) 
+
+clean_asm:
+	rm -rf parahaplo_cpp_tests.s
+	rm -rf parahaplo_cpp_tests.lst
+	rm -rf a.out
 

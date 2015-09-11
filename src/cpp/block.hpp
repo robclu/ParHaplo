@@ -146,14 +146,6 @@ public:
     void print() const;
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets a data element from the Block.
-    /// @param[in]  r       The row in the block of the data element to get
-    /// @param[in]  c       The column in the block of the data element to get
-    /// @return     The value of the element at position [r, c] in the block
-    // ------------------------------------------------------------------------------------------------------
-    inline uint8_t operator()(const int r, const int c) const { return _data[r * Cols + c].value(); } 
-    
-    // ------------------------------------------------------------------------------------------------------
     /// @brief      Interface for getting the read information of the block 
     /// @return     A constant reference to the read info 
     // ------------------------------------------------------------------------------------------------------
@@ -169,6 +161,7 @@ public:
     /// @param[in]  i   The index of the element in the data container
     /// @return     The value of the element at position i in the data container
     // ------------------------------------------------------------------------------------------------------
+    inline value_type operator[](size_type i) const { return _data[i]; }
 private: 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines the start (forst 0 | 1) and end (last 0 | 1)  positions of each of the reads 
@@ -257,7 +250,7 @@ void Block<Rows, Cols>::print() const
 {
     for (int r = 0; r < Rows; ++r) {
         for (int c = 0; c < Cols; ++c) {
-            std::cout << _data[r * Cols + c].value() << " ";
+            std::cout << static_cast<unsigned int>(_data[r * Cols + c].value()) << " ";
         }   
         std::cout << "\n";
     }

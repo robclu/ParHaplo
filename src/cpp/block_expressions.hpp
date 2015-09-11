@@ -58,12 +58,18 @@ public:
     //! @return    A constant reference to the Expression
     // ------------------------------------------------------------------------------------------------------
     operator Expression const&() const   { return static_cast<const  Expression&>(*this); }
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Accesses elements of the block expression 
+    /// @param[in]  row     The row of the element in the expression
+    /// @param[in]  col     The column of the element in the expression
+    // ------------------------------------------------------------------------------------------------------
+    inline value_type operator()(const size_t row, const size_t col) const
+    {
+        Expression const& expr = static_cast<Expression const&>(*this);
+        return expr[expr.columns() * row + col];
+    }
 };
-
-// ----------------------------------------------------------------------------------------------------------
-/// @class  BlockDecomposition 
-/// @brief  Decomposes a block into a smaller block
-// ----------------------------------------------------------------------------------------------------------
 
 }       // End namespace haplo
 

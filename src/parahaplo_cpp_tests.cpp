@@ -85,10 +85,6 @@ BOOST_AUTO_TEST_CASE( canCreateBlockFromInputFile )
 { 
     const std::string input_file = "data/test_input_file.txt";
     haplo::Block<10, 7> block_10_7(input_file, 8);         // Use 8 threads
-
-    // If you want to see what the block and 
-    // it's info look like, uncomment below
-    // block_10_7.print();                                                           
     
     BOOST_CHECK( block_10_7(0, 0) == 0 );
     BOOST_CHECK( block_10_7(0, 1) == 2 );
@@ -146,9 +142,14 @@ BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlock )
     haplo::Block<10, 7> block(input_file, 8);                        // Use 8 threads 
     
     // Create an Unsplittable block 
-    haplo::UnsplittableBlock<haplo::Block<10, 7>> unsplittable_block(block);
+    haplo::UnsplittableBlock<haplo::Block<10, 7>> usb(block);
     
-    unsplittable_block.print();
+    usb.print();
+   
+    uint8_t x = usb(0, 0).value();
+    
+    //BOOST_CHECK( usb[
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()
