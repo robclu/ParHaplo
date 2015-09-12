@@ -11,6 +11,7 @@
 
 #include <bitset>
 #include <numeric>
+#include <unordered_map>
 
 namespace haplo {
     
@@ -30,11 +31,20 @@ public:
     // ------------------------------------------------------------------------------------------------------
     // Define a type alias for a container that keeps info about the singleton rows
     using singleton_container   = std::array<bool, Expression::num_rows>;
-    using data_container        = std::vector<uint8_t>;
+    // Define a type alias for a container for the multiplicities
+    // Key = row index, value = multiplicity
+    using mult_container        = std::unordered_map<uint16_t, uint16_t>;
+    // Define a type alias for a container for duplicates
+    // key = row index, value = found (value is actually irrelevant --
+    // why it is defined to use the smalled possible data type)
+    using dup_container         = std::unordered_map<uint16_t, uint8_t>;
+    
 private:
     Expression const&   _expression;        //!< The expression that's the base of this class
     singleton_container _singleton_info;    //!< Array of bools for which rows of _expression are singletons
                                             //!< 1 = not singleton (so we can count the number of not singles)
+    mult_container      _row_mplicity;      //!< Multiplicities of each of the rows
+    mult_container      _col_mplicity;      //!< Multiplicities of each of the columns
     container_type      _data;              //!< Data for the unsplittable block 
     size_type           _size;              //!< The size of the unsplittable block (number of elements)
     size_type           _cols;              //!< The number of columns
@@ -82,7 +92,14 @@ public:
     /// @brief      Prints the UnsplittableBlock
     // ------------------------------------------------------------------------------------------------------
     void print() const;
-    
+
+    // Public for now -- wil be private 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Removes all duplicate rows and columns from the unsplittable_blocks and determines the 
+    ///             multiplicity of each of the rows and columns in the block
+    /// @param[in]  num_threads     The number of threads to use
+    // ------------------------------------------------------------------------------------------------------
+    void remove_duplicates(const size_t num_threads);
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      First removes all the singleton rows (rows with only 1 value) from the Unsplittable block
@@ -120,6 +137,7 @@ private:
     /// @return     The expresison row
     // ------------------------------------------------------------------------------------------------------
     int row_map(const size_t urow);
+    
 };
 
 // ---------------------------------------- IMPLEMENTATIONS -------------------------------------------------
@@ -132,8 +150,9 @@ UnsplittableBlock<Expression>::UnsplittableBlock(const Expression&  expression  
                                                  const size_t       num_threads )
 : _expression(expression)
 {
-   determine_params(index, num_threads);                    
-   fill(index, num_threads);
+    // This sets the other parameters
+    determine_params(index, num_threads);                    
+    fill(index, num_threads);               // Get the data
 }
 
 template <typename Expression>
@@ -227,6 +246,41 @@ int UnsplittableBlock<Expression>::row_map(const size_t unsplittable_row)
         if (_singleton_info[index++] == 1) ++counter;
     }
     return --index;
+}
+
+template <typename Expression>
+void UnsplittableBlock<Expression>::remove_duplicates(const size_t num_threads)
+{
+    // Create a hashtable of duplicate rows 
+    // Key   = row index, value = irrelevant)
+    // If a row is a duplicate it is added to the container
+    // -- its presence in the container says the it is a duplicate
+    dup_container duplicates;
+   
+    const size_t threads_to_use = num_threads > _rows ? _rows : num_threads;
+    
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_to_use),
+        [&](const tbb::blocked_range<size_t>& thread_indices)
+        {
+            for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
+                size_t thread_iters = util::get_thread_iterations(idx, _rows, threads_to_use);
+                
+                for (uint16_t it = 0; it < thread_iters; ++it) {
+                    uint16_t current_row = util::thread_row(idx, threads_to_use, it);
+                    // Check if this thread is a duplicate (already been found by another thread)
+                    if (duplicates.find(current_row) != duplicates.end()) {
+                        // Row is a duplicate so we do nothing
+                    } else {
+                        // Not a duplicate so we must look for duplicates for each of the remaining rows
+                        for (uint8_t row = current_row; row < _rows; ++row) {
+                            
+                        }
+                    }
+                }
+            }
+        }
+    );
 }
 
 }       // End namespace haplo
