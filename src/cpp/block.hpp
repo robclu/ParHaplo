@@ -8,9 +8,9 @@
 
 #include "block_expressions.hpp"
 #include "block_exceptions.hpp"
+#include "operations.hpp"
 #include "read.hpp"
 #include "subblock_info.hpp"
-#include "util.hpp"
 
 #include <tbb/tbb.h>
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -229,7 +229,7 @@ void Block<Rows, Cols>::fill(const std::string filename, const size_t num_thread
             // This first loop is actually in parallel
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
                 // Determine the number of iterations this thread must  perform
-                size_t thread_iters = util::get_thread_iterations(idx, Rows, threads_to_use);
+                size_t thread_iters = ops::get_thread_iterations(idx, Rows, threads_to_use);
                 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     size_t row_offset = threads_to_use * it + idx;      // Offset due to row in data
@@ -274,7 +274,7 @@ void Block<Rows, Cols>::get_read_info(const size_t num_threads)
             // As above, this is a loop is parallelized by tbb
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
                 // Determine the number of iterations for each thread
-                size_t thread_iters = util::get_thread_iterations(idx, Rows, threads_to_use);
+                size_t thread_iters = ops::get_thread_iterations(idx, Rows, threads_to_use);
 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     int read_start = -1, read_end = -1, counter = 0;
@@ -311,7 +311,7 @@ void Block<Rows, Cols>::find_unsplittable_columns(const size_t num_threads)
         [&](const tbb::blocked_range<size_t>& thread_indices) 
         {
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
-                size_t thread_iters = util::get_thread_iterations(idx, Cols, threads_to_use);
+                size_t thread_iters = ops::get_thread_iterations(idx, Cols, threads_to_use);
                 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     // Go through each of the reads and check if idx lies between the 

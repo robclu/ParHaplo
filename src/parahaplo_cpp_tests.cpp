@@ -37,8 +37,47 @@ BOOST_AUTO_TEST_CASE( canCreateDataTypeAndGetValueForIncorrectInput )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_SUITE( BlockOperations )
+
+BOOST_AUTO_TEST_CASE( canDetermineIfTwoDataRowsAreEqual )
+{
+    // Create a vectors (rows) of data 
+    std::vector<haplo::Data> rows{ '1', '0', '1', '-', '-',
+                                   '1', '0', '1', '-', '-' };
+
+    size_t stride       = 5,                // 5 elements between the start of each row
+           row_length   = 5;                // The number of elements in each row
+    
+    // Create an instance of the checking function for rows
+    haplo::EqualityChecker<haplo::check::ROWS> checker;
+    
+    bool rows_equal = checker(&rows[0], 0, 1, row_length, stride);
+    
+    BOOST_CHECK( rows_equal == true );
+}
+
+BOOST_AUTO_TEST_CASE( canDetermineIfTwoDataColumnsAreEqual )
+{
+    // Create data 4 rows and 2 columns
+    std::vector<haplo::Data> data{ '1', '1', 
+                                   '1', '1', 
+                                   '-', '-',
+                                   '0', '0'};
+    
+    size_t stride     = 2,          // Number of columns in data 
+           col_length = 4;          // Number of elements in the columns
+   
+    haplo::EqualityChecker<haplo::check::COLUMNS> checker;
+
+    bool columns_equal = checker(&data[0], 0, 1, col_length, stride);
+    
+    BOOST_CHECK( columns_equal == true );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
 // ---------------------------------------- BLOCK TESTS -----------------------------------------------------
-// 
+
 BOOST_AUTO_TEST_SUITE( BlockTestSuite )
     
 BOOST_AUTO_TEST_CASE( canCreateABlockOfAnyTypeAnSize )
@@ -136,20 +175,34 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( UnsplittableBlockSuite )
 
-BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlock )
+BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities )
 {
-    const std::string input_file = "data/test_input_file.txt";
-    haplo::Block<10, 7> block(input_file, 8);                        // Use 8 threads 
+    using block_type = haplo::Block<13, 7>;
+    
+    const std::string input_file = "data/test_input_file_duplicate_rows.txt";
+    block_type block(input_file, 8);                        // Use 8 threads 
     
     // Create an Unsplittable block 
-    haplo::UnsplittableBlock<haplo::Block<10, 7>> usb(block);
+    haplo::UnsplittableBlock<block_type> usb(block);
     
-    usb.print();
-   
-    uint8_t x = usb(0, 0).value();
-    
-    //BOOST_CHECK( usb[
+    BOOST_CHECK( usb.row_multiplicity(0) == 2 );
+    BOOST_CHECK( usb.row_multiplicity(2) == 2 );
+    BOOST_CHECK( usb.row_multiplicity(4) == 1 );
+}
 
+BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineColumnMultiplicities )
+{
+    using block_type = haplo::Block<13, 9>;
+    
+    const std::string input_file = "data/test_input_file_duplicate_cols.txt";
+    block_type block(input_file, 8);                        // Use 8 threads 
+    
+    // Create an Unsplittable block 
+    haplo::UnsplittableBlock<block_type> usb(block);
+    
+    BOOST_CHECK( usb.col_multiplicity(0) == 2 );
+    BOOST_CHECK( usb.col_multiplicity(2) == 2 );
+    BOOST_CHECK( usb.col_multiplicity(4) == 1 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

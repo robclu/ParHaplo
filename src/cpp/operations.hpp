@@ -1,13 +1,12 @@
 // ----------------------------------------------------------------------------------------------------------
-/// @file   util.hpp
-/// @brief  Header file for utility functions for parahaplo
+/// @file   Header file for parahaplo cpp operations
 // ----------------------------------------------------------------------------------------------------------
 
-#ifndef PARAHAPLO_CPP_UTIL_HPP
-#define PARAHAPLO_CPP_UTIL_HPP
+#ifndef PARAHAPLO_CPP_OPERATIONS_HPP
+#define PARAHAPLO_CPP_OPERATIONS_HPP
 
 namespace haplo {
-namespace util  {
+namespace ops   {
 
 // ----------------------------------------------------------------------------------------------------------
 /// @brief      Determines how many iterations each thread must perform in a given situation. Say for
@@ -34,21 +33,22 @@ inline size_t get_thread_iterations(const size_t thread_id  ,
 }
 
 // ----------------------------------------------------------------------------------------------------------
-/// @brief      Determines the row when assigning threads to rows -- assuming that all threads in the group
-///             are assigned a row of the dat and then if the thread performs multiple iterations its assigned
-///             a thead to operator on data which is the number of threads in the group ahead of its previous
-///             data. 
+/// @brief      Determines a mapping when assigning threads to rows or columns -- assuming that all threads in 
+///             the group are assigned a row/col of the data and then if the thread performs multiple 
+///             iterations it's assigned a thead to operator on data which has an index the number of threads 
+///             in the thread group ahead of its previous data. 
 /// @param[in]  thread_idx  The index of the thread in the thread group
-/// @param[in]  num_threds  The total number of threads in the thread group
+/// @param[in]  num_threads The total number of threads in the thread group
 /// @param[in]  thread_it   The iteration of the thread
-/// @return     The rows index for the given thread id based on its iteration and the number of threads used
+/// @return     The row/col index for the given thread id based on its iteration and the number of threads 
+///             used
 // ----------------------------------------------------------------------------------------------------------
-inline size_t thread_row(const size_t thread_idx, const size_t num_threads, const size_t thread_it) 
+inline size_t thread_map(const size_t thread_idx, const size_t num_threads, const size_t thread_it) 
 {
     return thread_it * num_threads + thread_idx;
 }
 
-}           // End namespace util
+}           // End namespace ops
 }           // End namespace haplo
 
-#endif      // PARAHAPLO_CPP_UTIL_HPP
+#endif      // PARAHAPLO_CPP_BLOCK_OPERATIONS_HPP

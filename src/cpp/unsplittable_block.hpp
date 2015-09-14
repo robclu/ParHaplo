@@ -6,12 +6,14 @@
 #define PARHAPLO_CPP_UNSPLITTABLE_BLOCK_HPP
 
 #include "block.hpp"
+#include "equality_checker.hpp"
 
-#include <tbb/atomic.h>
+#include <tbb/concurrent_unordered_map.h>
 
 #include <bitset>
 #include <numeric>
-#include <unordered_map>
+#include <iomanip>
+#include <ios>
 
 namespace haplo {
     
@@ -31,20 +33,16 @@ public:
     // ------------------------------------------------------------------------------------------------------
     // Define a type alias for a container that keeps info about the singleton rows
     using singleton_container   = std::array<bool, Expression::num_rows>;
-    // Define a type alias for a container for the multiplicities
-    // Key = row index, value = multiplicity
-    using mult_container        = std::unordered_map<uint16_t, uint16_t>;
-    // Define a type alias for a container for duplicates
-    // key = row index, value = found (value is actually irrelevant --
-    // why it is defined to use the smalled possible data type)
-    using dup_container         = std::unordered_map<uint16_t, uint8_t>;
+    // Define a type alias for a container for a concurrent unordered_map for 
+    // storing duplicate rows and columns, and the multiplicities
+    using concurrent_map        = tbb::concurrent_unordered_map<uint16_t, uint16_t>;
     
 private:
     Expression const&   _expression;        //!< The expression that's the base of this class
     singleton_container _singleton_info;    //!< Array of bools for which rows of _expression are singletons
                                             //!< 1 = not singleton (so we can count the number of not singles)
-    mult_container      _row_mplicity;      //!< Multiplicities of each of the rows
-    mult_container      _col_mplicity;      //!< Multiplicities of each of the columns
+    concurrent_map      _row_mplicity;      //!< Multiplicities of each of the rows
+    concurrent_map      _col_mplicity;      //!< Multiplicities of each of the columns
     container_type      _data;              //!< Data for the unsplittable block 
     size_type           _size;              //!< The size of the unsplittable block (number of elements)
     size_type           _cols;              //!< The number of columns
@@ -87,20 +85,50 @@ public:
     /// @return     The number of columns in the UnsplittableBlock
     // ------------------------------------------------------------------------------------------------------
     size_type columns() const { return _cols; }  
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the multiplicity of row i, if it has a multiplicity, otherwise returns 0
+    /// @return     The multiplicity of row i
+    // ------------------------------------------------------------------------------------------------------
+    const uint16_t& row_multiplicity(const uint16_t i) const 
+    { 
+        return _row_mplicity.find(i) != _row_mplicity.end() ? _row_mplicity.at(i) : 0; 
+    }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the multiplicity of column i, if it has a multiplicity, otherwise returns 0
+    /// @return     The multiplicity of column i
+    // ------------------------------------------------------------------------------------------------------
+    const uint16_t& col_multiplicity(const uint16_t i) const 
+    { 
+        return _col_mplicity.find(i) != _col_mplicity.end() ? _col_mplicity.at(i) : 0; 
+    }
+    
+    // -------------------------------------- DEBUGGING FUNCTIONS -------------------------------------------
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Prints the UnsplittableBlock
     // ------------------------------------------------------------------------------------------------------
     void print() const;
-
-    // Public for now -- wil be private 
+    
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Removes all duplicate rows and columns from the unsplittable_blocks and determines the 
-    ///             multiplicity of each of the rows and columns in the block
-    /// @param[in]  num_threads     The number of threads to use
+    /// @brief      Prints the multiplicities of the non-duplicate rows in the unsplittable block
     // ------------------------------------------------------------------------------------------------------
-    void remove_duplicates(const size_t num_threads);
+    void print_row_multiplicities() const;
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Prints the multiplicities of the non-duplicate columns in the unsplittable block
+    // ------------------------------------------------------------------------------------------------------
+    void print_col_multiplicities() const;
 private:
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Removes all duplicate columns or rows
+    /// @param[in]  num_threads     The number of threads to use
+    /// @tparam     Checker         The fuctor which checks either row or column equivalence
+    // ------------------------------------------------------------------------------------------------------
+    template <typename Checker>
+    void remove_duplicates(const size_t num_threads, Checker checker);
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      First removes all the singleton rows (rows with only 1 value) from the Unsplittable block
     ///             from which the number of rows in the unsplittable block, and hence the total size of the
@@ -150,9 +178,14 @@ UnsplittableBlock<Expression>::UnsplittableBlock(const Expression&  expression  
                                                  const size_t       num_threads )
 : _expression(expression)
 {
-    // This sets the other parameters
-    determine_params(index, num_threads);                    
-    fill(index, num_threads);               // Get the data
+    // Create row and column equivalence checker functors
+    EqualityChecker<check::ROWS>    row_checker;
+    EqualityChecker<check::COLUMNS> col_checker;
+    
+    determine_params(index, num_threads);           // Set the internal parameters             
+    fill(index, num_threads);                       // Get the data
+    remove_duplicates(num_threads, row_checker);    // Remove all duplicate rows
+    remove_duplicates(num_threads, col_checker);    // Remove all duplicate columns
 }
 
 template <typename Expression>
@@ -162,6 +195,32 @@ void UnsplittableBlock<Expression>::print() const
         for (int c = 0; c < _cols; ++c) 
             std::cout << static_cast<unsigned int>(_data[r * _cols + c].value()) << " ";
         std::cout << "\n";
+    }
+}
+
+template <typename Expression>
+void UnsplittableBlock<Expression>::print_row_multiplicities() const 
+{
+    std::cout << "\nPrinting row multiplicities for unsplittable block:\n";
+    std::cout << std::left << std::setw(12) << "Row ID" << std::setw(12) << "Multiplicity\n";
+    std::cout << "------------------------\n";
+    for (size_t i = 0; i < _rows; ++i) {
+        if (_row_mplicity.find(i) != _row_mplicity.end())
+            std::cout   << std::left        <<  std::setw(12)                                   << i  
+                        << std::setw(12)    <<  static_cast<unsigned int>(_row_mplicity.at(i))  << "\n";
+    }
+}
+
+template <typename Expression>
+void UnsplittableBlock<Expression>::print_col_multiplicities() const 
+{
+    std::cout << "\nPrinting col multiplicities for unsplittable block:\n";
+    std::cout << std::left << std::setw(12) << "Col ID" << std::setw(12) << "Multiplicity\n";
+    std::cout << "------------------------\n";
+    for (size_t i = 0; i < _cols; ++i) {
+        if (_col_mplicity.find(i) != _col_mplicity.end())
+            std::cout   << std::left        <<  std::setw(12)                                   << i  
+                        << std::setw(12)    <<  static_cast<unsigned int>(_col_mplicity.at(i))  << "\n";
     }
 }
 // ------------------------------------------ PRIVATE -------------------------------------------------------
@@ -184,7 +243,7 @@ void UnsplittableBlock<Expression>::determine_params(const size_t index, const s
         [&](const tbb::blocked_range<size_t>& thread_indices) 
         {
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
-                size_t thread_iters = util::get_thread_iterations(idx, rows, threads_to_use);
+                size_t thread_iters = ops::get_thread_iterations(idx, rows, threads_to_use);
                 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     size_t num_elements = 0;
@@ -223,7 +282,7 @@ void UnsplittableBlock<Expression>::fill(const size_t index, const size_t num_th
         [&](const tbb::blocked_range<size_t>& thread_indices)
         {
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
-                size_t thread_iters = util::get_thread_iterations(idx, _rows, threads_to_use);
+                size_t thread_iters = ops::get_thread_iterations(idx, _rows, threads_to_use);
                 
                 for (size_t it = 0; it < thread_iters; ++it) {
                     int expression_row = row_map(it * threads_to_use + idx);
@@ -247,35 +306,62 @@ int UnsplittableBlock<Expression>::row_map(const size_t unsplittable_row)
     }
     return --index;
 }
-
-template <typename Expression>
-void UnsplittableBlock<Expression>::remove_duplicates(const size_t num_threads)
+    
+template <typename Expression> template <typename Checker>
+void UnsplittableBlock<Expression>::remove_duplicates(const size_t num_threads, Checker checker)
 {
-    // Create a hashtable of duplicate rows 
-    // Key   = row index, value = irrelevant)
-    // If a row is a duplicate it is added to the container
-    // -- its presence in the container says the it is a duplicate
-    dup_container duplicates;
+    // This can check either row or column equivalence, the following 
+    // variables are defined:
+    // elements : This is the total number of elements for comparison, so
+    //            if rows are beinf checked then elements = number of columns
+    //            since for 2 rows, each corresponding column must be check, 
+    //            and vice versa for columns
+    // indexes  : This is the total number of rows or columns (an index) to check,
+    //            if columns are being checked then indexes = _cols and if rows
+    //            are being checked the  indexes = _rows
+
+    // Create an unordered map and use the index of a duplicate column
+    // as the key, and the column of which it is a duplicate as the value
+    concurrent_map duplicates;
    
-    const size_t threads_to_use = num_threads > _rows ? _rows : num_threads;
+    // Set the number of elements for each comparison, the total number of comparisons
+    // (indexes), stride and the total number of threads to use depending on if column
+    // or row duplicates are being checked
+    const size_t elements       = Checker::type == check::ROWS ? _cols : _rows;
+    const size_t indexes        = Checker::type == check::ROWS ? _rows : _cols;
+    const size_t stride         = _cols;    
+    const size_t threads_to_use = num_threads > indexes ? indexes : num_threads;
     
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_to_use),
         [&](const tbb::blocked_range<size_t>& thread_indices)
         {
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
-                size_t thread_iters = util::get_thread_iterations(idx, _rows, threads_to_use);
-                
+                size_t thread_iters = ops::get_thread_iterations(idx, indexes, threads_to_use);
+            
                 for (uint16_t it = 0; it < thread_iters; ++it) {
-                    uint16_t current_row = util::thread_row(idx, threads_to_use, it);
+                    uint16_t current_idx                = ops::thread_map(idx, threads_to_use, it);
+                    uint16_t current_idx_multiplicity   = 1;
                     // Check if this thread is a duplicate (already been found by another thread)
-                    if (duplicates.find(current_row) != duplicates.end()) {
-                        // Row is a duplicate so we do nothing
-                    } else {
-                        // Not a duplicate so we must look for duplicates for each of the remaining rows
-                        for (uint8_t row = current_row; row < _rows; ++row) {
-                            
+                    if (duplicates.find(current_idx) == duplicates.end()) {
+                        // Not a duplicate so we must look for duplicates for each of the remaining rows/cols
+                        for (uint8_t other_idx = current_idx + 1; other_idx < indexes; ++other_idx) {
+                            // Check if the rows/columns are equal
+                            if (checker(&_data[0], current_idx, other_idx, elements, stride)) {
+                                // Add that other_idx (a row or column ahead of current_idx) 
+                                // is a duplicate of current_idx, and use other_idx as a key
+                                // so that when it comes to that idx, no work is done
+                                duplicates[other_idx] = current_idx;
+                                // Add to the multiplicity of the current_idx as duplicate found.
+                                // Use the temp variable since it's almost definitely faster to write
+                                // to the concurrent container once rather than on each iteration
+                                ++current_idx_multiplicity;
+                            }
                         }
+                        // Write the multiplicity of the idx to the concurrent row or column container
+                        Checker::type == check::ROWS 
+                                       ? _row_mplicity[current_idx] = current_idx_multiplicity
+                                       : _col_mplicity[current_idx] = current_idx_multiplicity;
                     }
                 }
             }
