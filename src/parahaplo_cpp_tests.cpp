@@ -76,6 +76,60 @@ BOOST_AUTO_TEST_CASE( canDetermineIfTwoDataColumnsAreEqual )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+// ------------------------------------ BINARY CONTAINER TESTS ----------------------------------------------
+
+BOOST_AUTO_TEST_SUITE( BinaryContainerTestSuite )
+    
+BOOST_AUTO_TEST_CASE( canCreateBinaryContainerAndModifyValues )
+{
+    haplo::BinaryContainer container;
+    
+    BOOST_CHECK( container.get(0) == 0 );
+    
+    // Modify the value of the second bit
+    container.set(1, 1);
+    
+    BOOST_CHECK( container.get(1) == 1 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+   
+// ---------------------------------------- BNB VARIABLE TESTS ----------------------------------------------
+
+BOOST_AUTO_TEST_SUITE( BnbVariableTestSuite )
+    
+BOOST_AUTO_TEST_CASE( canCreateAndModify1DVariableArray )
+{
+    // 10 elements 
+    haplo::BnbVariable<1> x(10);
+    
+    x.set(4, 0);
+    
+    BOOST_CHECK( x.get(4) == 0 );
+    
+    // Modify the value of the second bit
+    x.set(4, 1);
+    
+    BOOST_CHECK( x.get(4) == 1 );
+}
+
+BOOST_AUTO_TEST_CASE( canCreateAndModify2DVariableArray )
+{
+    // 10 elements by 10 elements
+    haplo::BnbVariable<2> t(10, 10);
+    
+    t.set(2, 1, 0);
+    
+    BOOST_CHECK( t.get(2, 1) == 0 );
+    
+    // Modify the value of the second bit
+    t.set(2, 1, 1);
+    
+    BOOST_CHECK( t.get(2, 1) == 1 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+    
 // ---------------------------------------- BLOCK TESTS -----------------------------------------------------
 
 BOOST_AUTO_TEST_SUITE( BlockTestSuite )

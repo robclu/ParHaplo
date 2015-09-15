@@ -7,6 +7,7 @@
 
 #include "block.hpp"
 #include "equality_checker.hpp"
+#include "branch_and_bound_variables.hpp"
 
 #include <tbb/concurrent_unordered_map.h>
 
@@ -16,7 +17,7 @@
 #include <ios>
 
 namespace haplo {
-    
+   
 // ----------------------------------------------------------------------------------------------------------
 /// @class  UnsplittableBlock
 /// @brief  A block which cannot be split
@@ -103,6 +104,12 @@ public:
     { 
         return _col_mplicity.find(i) != _col_mplicity.end() ? _col_mplicity.at(i) : 0; 
     }
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Solves the haplotypes of the unsplittable block using the brancha nd ound algorithm
+    /// @param[in]  usplit_block    The unsplittable block to solve the haplotype from
+    // ------------------------------------------------------------------------------------------------------
+    void solve_haplotype(const size_t num_threads);
     
     // -------------------------------------- DEBUGGING FUNCTIONS -------------------------------------------
     
@@ -363,6 +370,30 @@ void UnsplittableBlock<Expression>::remove_duplicates(const size_t num_threads, 
                                        ? _row_mplicity[current_idx] = current_idx_multiplicity
                                        : _col_mplicity[current_idx] = current_idx_multiplicity;
                     }
+                }   // End iterations for specific thread
+            }       // End all thread instances
+        }           // End parallel lambda
+    );
+}
+
+template <typename Expression>
+void UnsplittableBlock<Expression>::solve_haplotype(const size_t num_threads)
+{
+    // Doing the parallelization over the rows (outer loop in the mathematical problem description)
+    // so check if the specified number of threads to use is greater than the number of rows 
+    const size_t elements       = _row_mplicity.size();
+    const size_t threads_to_use = num_threads > elements ? elements : num_threads;
+    
+    // Create the branch and bound variables 
+    
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_to_use),
+        [&](const tbb::blocked_range<size_t>& thread_indices) 
+        {
+            for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
+                size_t thread_iters = ops::get_thread_iterations(idx, elements, threads_to_use);
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    
                 }
             }
         }
