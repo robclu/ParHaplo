@@ -7,9 +7,21 @@
 #define BOOST_TEST_MODULE       ParahaploCppTests
 #include <boost/test/unit_test.hpp>
 
+#include "cpp/tree.hpp"
 #include "cpp/unsplittable_block.hpp"
 
 #include <iostream>
+
+// ----------------------------------------- TREE TESTS -----------------------------------------------------
+
+BOOST_AUTO_TEST_SUITE( TreeTestSuite )
+    
+BOOST_AUTO_TEST_CASE( canCreateCpuTree )
+{
+    haplo::Tree<haplo::Device::CPU> cpu_tree;
+}
+
+BOOST_AUTO_TEST_SUITE_END()
 
 // ------------------------------------------ DATA TESTS ----------------------------------------------------
 

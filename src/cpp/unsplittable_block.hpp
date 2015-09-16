@@ -385,7 +385,8 @@ void UnsplittableBlock<Expression>::solve_haplotype(const size_t num_threads)
     const size_t threads_to_use = num_threads > elements ? elements : num_threads;
     
     // Create the branch and bound variables 
-    
+
+    // Create trees
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_to_use),
         [&](const tbb::blocked_range<size_t>& thread_indices) 
