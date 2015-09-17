@@ -24,7 +24,7 @@ public:
     // ------------------------------------------ ALIASES ---------------------------------------------------
     using block_type        = Implementation;
     using reference_type    = typename block_type::reference_type;
-    using value_type        = typename block_type::value_type;
+    using data_type         = typename block_type::data_type;
     using read_type         = typename block_type::read_type;
     using subinfo_type      = typename block_type::subinfo_type;
     // ------------------------------------------------------------------------------------------------------

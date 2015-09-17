@@ -8,6 +8,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include "block.hpp"
+#include "usplit_block.hpp"
 
 #include <iostream>
 
@@ -15,7 +16,8 @@ using device = haplo::Device;
 
 // ---------------------------------------------- INPUT FILES -----------------------------------------------
 
-constexpr char* input_simple = "data/test_input_file.txt";
+constexpr char* input_simple    = "data/test_input_file.txt";
+constexpr char* input_dup_rows  = "data/test_input_file_duplicate_rows.txt";
 
 // ----------------------------------------- BLOCK TESTS -----------------------------------------------------
 
@@ -79,3 +81,19 @@ BOOST_AUTO_TEST_CASE( canGetUnsplittableSubBlockInfo )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+// ----------------------------------- UNSPLITTABLE BLOCK TESTS ---------------------------------------------
+
+BOOST_AUTO_TEST_SUITE( UnsplittableBlockSuite )
+
+BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities )
+{
+    using block_type = haplo::Block<10, 7, 8, device::CPU>;
+    block_type cpu_block(input_dup_rows); 
+    haplo::UnsplittableBlockImplementation<device::CPU, block_type> usplit_block(cpu_block, 0); 
+    
+    //BOOST_CHECK( usb.row_multiplicity(0) == 2 );
+    //BOOST_CHECK( usb.row_multiplicity(2) == 2 );
+    //BOOST_CHECK( usb.row_multiplicity(4) == 1 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
