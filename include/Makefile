@@ -82,7 +82,7 @@ clean:
 	rm -rf $(CXX_EXE) 
 
 clean_asm:
-	rm -rf parahaplo_cpp_tests.s
-	rm -rf parahaplo_cpp_tests.lst
+	rm -rf parahaplo_tests.s
+	rm -rf parahaplo_tests.lst
 	rm -rf a.out
 
