@@ -87,13 +87,21 @@ BOOST_AUTO_TEST_SUITE( UnsplittableBlockSuite )
 
 BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities )
 {
-    using block_type = haplo::Block<10, 7, 8, device::CPU>;
+    using block_type = haplo::Block<14, 7, 8, device::CPU>;
     block_type cpu_block(input_dup_rows); 
-    haplo::UnsplittableBlockImplementation<device::CPU, block_type> usplit_block(cpu_block, 0); 
     
-    //BOOST_CHECK( usb.row_multiplicity(0) == 2 );
-    //BOOST_CHECK( usb.row_multiplicity(2) == 2 );
-    //BOOST_CHECK( usb.row_multiplicity(4) == 1 );
+    // By default the unplittable block inherits the device type and the number of 
+    // cores to use from the block it uses (as is created below), but we could specify 
+    // the device type and number of cores explicitly as template parameters, such as
+    // 
+    // haplo::UnsplittableBlock<block_type, Device::GPU, 1000>
+    // 
+    // To use a GPU with 1000 cores
+    haplo::UnsplittableBlock<block_type> usplit_block(cpu_block, 0); 
+
+    BOOST_CHECK( usplit_block.row_multiplicity(0) == 2 );
+    BOOST_CHECK( usplit_block.row_multiplicity(2) == 3 );
+    BOOST_CHECK( usplit_block.row_multiplicity(4) == 1 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

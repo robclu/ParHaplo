@@ -27,6 +27,7 @@ public:
     using data_type         = typename block_type::data_type;
     using read_type         = typename block_type::read_type;
     using subinfo_type      = typename block_type::subinfo_type;
+    static constexpr Device device_type = Implementation::device_type;
     // ------------------------------------------------------------------------------------------------------
     
     // ------------------------------------------------------------------------------------------------------

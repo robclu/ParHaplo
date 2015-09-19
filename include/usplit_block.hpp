@@ -10,11 +10,10 @@
 
 namespace haplo {
 
-class Void {};
-
 // Put and type aliases for unsplittable blocks here
-template <Device DeviceType, typename BaseBlock = Void>
-using UnsplittableBlock = UnsplittableBlockImplementation<DeviceType, BaseBlock>;
+template <typename BaseBlock, Device DeviceType = BaseBlock::device_type, size_t Cores = BaseBlock::num_cores()>
+using UnsplittableBlock = UnsplittableBlockImplementation<BaseBlock, DeviceType, Cores>;
+
 
 }
 

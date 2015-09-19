@@ -37,6 +37,7 @@ public:
     using colinfo_container = std::bitset<Cols>;
     using reference_type    = data_type&;
     using value_type        = data_type;
+    static constexpr Device device_type = Device::CPU;
     // ------------------------------------------------------------------------------------------------------
 private:
     data_container      _data;              //!< The data for the block

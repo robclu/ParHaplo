@@ -20,7 +20,6 @@ namespace haplo{
 // ----------------------------------------------------------------------------------------------------------
 template <typename Implementation>
 class UnsplittableBlockInterface : Implementation {
-    
 };
 
 // ----------------------------------------------------------------------------------------------------------
@@ -29,8 +28,11 @@ class UnsplittableBlockInterface : Implementation {
 ///             implementations
 /// @tparam     DeviceType      The type of device which is used -- CPU, GPU or PHI
 /// @tparam     BaseBlock       The block which is the base of the unsplittable block 
+/// @tparam     DeviceType      The type of device which is used -- CPU, GPU or PHI
+/// @param      Cores           The number of cores to use for the unsplittable block -- defaults to use the
+///             same number of cores that the base block uses
 // ----------------------------------------------------------------------------------------------------------
-template <Device DeviceType, typename BaseBlock>
+template <typename BaseBlock, Device DeviceType = BaseBlock::device_type, size_t Cores = BaseBlock::num_cores()>
 class UnsplittableBlockImplementation;
         
 }               // End namespace haplo

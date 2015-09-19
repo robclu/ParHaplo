@@ -251,6 +251,8 @@ BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities 
     // Create an Unsplittable block 
     haplo::UnsplittableBlock<block_type> usb(block);
     
+    usb.print();
+    
     BOOST_CHECK( usb.row_multiplicity(0) == 2 );
     BOOST_CHECK( usb.row_multiplicity(2) == 2 );
     BOOST_CHECK( usb.row_multiplicity(4) == 1 );
