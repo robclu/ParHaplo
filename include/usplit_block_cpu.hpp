@@ -22,7 +22,8 @@ class UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores> : BaseBlock
 public:
     // --------------------------------------- ALIAS'S ------------------------------------------------------
     using base_type         = BaseBlock;
-    using data_container    = std::vector<typename base_type::data_type>;
+    using data_type         = typename base_type::data_type;
+    using data_container    = std::vector<data_type>;
     using subinfo_type      = typename base_type::subinfo_type;
     using ston_container    = typename std::array<bool, base_type::rows()>;
     using concurrent_umap   = tbb::concurrent_unordered_map<short, short>;
@@ -59,8 +60,6 @@ public:
         return _row_mplicities.find(i) != _row_mplicities.end() ? _row_mplicities.at(i) : 0; 
     }
     
-    const concurrent_umap& map() const { return _row_mplicities; }
-    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the multiplicity of column i, if it has a multiplicity, otherwise returns 0
     /// @return     The multiplicity of column i
@@ -69,6 +68,14 @@ public:
     { 
         return _col_mplicities.find(i) != _col_mplicities.end() ? _col_mplicities.at(i) : 0; 
     }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Access to the elements of the unsplittable block
+    /// @param[in]  row     The row of the element in the unsplitatble block to get
+    /// @param[in]  col     The column of the element in the unsplittable block to get
+    /// @return     The value of the element at position (row, col)
+    // ------------------------------------------------------------------------------------------------------
+    data_type operator()(short row, short col) const { return _data[row * _cols + col]; }
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      First removes all the singleton rows (rows with only 1 value) from the unsplittable block
@@ -298,6 +305,39 @@ void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::remove_dupl
     );
 }
 
-}               // End namespace haplo
+/*
+template <typename BaseBlock, size_t Cores>
+void UnsplittableBlock<BaseBlock, device::CPU, Cores>::solve_haplotype()
+{
+    // Doing the parallelization over the rows (outer loop in the mathematical problem description)
+    // so check if the specified number of threads to use is greater than the number of rows 
+    const size_t elements       = _row_mplicity.size();
+    const size_t threads_to_use = num_threads > elements ? elements : num_threads;
+ 
+    // Define extra cores here 
 
+    // Create the branch and bound variables 
+
+    // Create trees
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_to_use),
+        [&](const tbb::blocked_range<size_t>& thread_indices) 
+        {
+            for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
+                size_t thread_iters = ops::get_thread_iterations(idx, elements, threads_to_use);
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    // Define and index for the thread
+                    size_t thread_idx = ops::thread_map(idx, threads_to_use, it);
+                    // If this thread_idx has a row multiplicity (i.e is not a duplicate)
+                    if (_row_mplicities.find(thread_idx) != _row_mplicities.end()) {
+                        
+                    }
+                    
+                }
+            }
+        }
+    );
+}
+*/
+}               // End namespace haplo
 #endif          // PARAHAPLO_USPLIT_BLOCK_IMPLEMENTATION_CPU_HPP

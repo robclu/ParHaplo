@@ -8,7 +8,9 @@
 #include <boost/test/unit_test.hpp>
 
 #include "block.hpp"
+#include "node.hpp"
 #include "usplit_block.hpp"
+#include "variables.hpp"
 
 #include <iostream>
 
@@ -84,8 +86,8 @@ BOOST_AUTO_TEST_SUITE_END()
 // ----------------------------------- UNSPLITTABLE BLOCK TESTS ---------------------------------------------
 
 BOOST_AUTO_TEST_SUITE( UnsplittableBlockSuite )
-
-BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities )
+    
+BOOST_AUTO_TEST_CASE( canCreateUnplittabelBlockAndAccessElements ) 
 {
     using block_type = haplo::Block<14, 7, 8, device::CPU>;
     block_type cpu_block(input_dup_rows); 
@@ -97,11 +99,81 @@ BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities 
     // haplo::UnsplittableBlock<block_type, Device::GPU, 1000>
     // 
     // To use a GPU with 1000 cores
+    haplo::UnsplittableBlock<block_type> usplit_block(cpu_block, 0);  
+    
+    BOOST_CHECK( usplit_block(0, 0) == 1 );
+    BOOST_CHECK( usplit_block(0, 1) == 0 );
+    BOOST_CHECK( usplit_block(0, 2) == 2 );
+    BOOST_CHECK( usplit_block(1, 0) == 1 );
+    BOOST_CHECK( usplit_block(1, 1) == 0 );
+    BOOST_CHECK( usplit_block(1, 2) == 2 );
+    BOOST_CHECK( usplit_block(2, 0) == 0 );
+    BOOST_CHECK( usplit_block(3, 0) == 0 );
+    BOOST_CHECK( usplit_block(4, 0) == 0 );
+    BOOST_CHECK( usplit_block(5, 1) == 0 );
+}
+
+BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities )
+{
+    using block_type = haplo::Block<14, 7, 8, device::CPU>;
+    block_type cpu_block(input_dup_rows); 
+    
     haplo::UnsplittableBlock<block_type> usplit_block(cpu_block, 0); 
 
     BOOST_CHECK( usplit_block.row_multiplicity(0) == 2 );
     BOOST_CHECK( usplit_block.row_multiplicity(2) == 3 );
     BOOST_CHECK( usplit_block.row_multiplicity(4) == 1 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+    
+// ------------------------------------------------- NODE TESTS ---------------------------------------------
+
+BOOST_AUTO_TEST_SUITE( NodeSuite )
+
+BOOST_AUTO_TEST_CASE( canCreateANode )
+{
+    haplo::Node node_correct1(  0, 0, 0, 0 );
+    haplo::Node node_correct2(  0, 0, 1, 1 );
+    haplo::Node node_incorrect( 0, 0, 2, 2 );
+    
+    BOOST_CHECK( node_correct1.x_value() == 0 );
+    BOOST_CHECK( node_correct1.y_value() == 0 );
+    BOOST_CHECK( node_correct2.x_value() == 1 );
+    BOOST_CHECK( node_correct2.y_value() == 1 );
+    BOOST_CHECK( node_incorrect.x_value() == 0 );
+    BOOST_CHECK( node_incorrect.y_value() == 0 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+    
+// -------------------------------------------- VARIABLES TESTS ---------------------------------------------
+
+BOOST_AUTO_TEST_SUITE( VariablesSuite )
+
+BOOST_AUTO_TEST_CASE( canCreateABinaryContainerAndSetElementANode )
+{
+    haplo::BinaryContainer bit_array;
+    
+    bit_array.set(4, 1); 
+    bit_array.set(3, 1); 
+    bit_array.set(0, 1); 
+    
+    BOOST_CHECK( bit_array[0] == 1 );
+    BOOST_CHECK( bit_array[1] == 0 );
+    BOOST_CHECK( bit_array[3] == 1 );
+    BOOST_CHECK( bit_array[4] == 1 );
+}
+
+BOOST_AUTO_TEST_CASE( canCreateOneDimensionalBranchAndBoundVariable )
+{
+    // 14 elements -- or 16 bits (pads to nearest 8 bits)
+    haplo::BnbVariable<1> one_dim_variable(14);
+    
+    // Set element (bit) 2 to 1
+    one_dim_variable.set(2, 1);
+ 
+    BOOST_CHECK( one_dim_variable(2) == 1 );   
 }
 
 BOOST_AUTO_TEST_SUITE_END()
