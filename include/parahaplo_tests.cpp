@@ -125,6 +125,18 @@ BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities 
     BOOST_CHECK( usplit_block.row_multiplicity(4) == 1 );
 }
 
+// Put column tests
+
+BOOST_AUTO_TEST_CASE( canSolveHaplotypeForUnsplittableBlock )
+{
+    using block_type = haplo::Block<14, 7, 8, device::CPU>;
+    block_type cpu_block(input_dup_rows);
+    
+    haplo::UnsplittableBlock<block_type> ublock(cpu_block, 0);
+    
+    ublock.solve_haplotype();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
     
 // ------------------------------------------------- NODE TESTS ---------------------------------------------
@@ -135,7 +147,12 @@ BOOST_AUTO_TEST_CASE( canCreateANode )
 {
     haplo::Node node_correct1(  0, 0, 0, 0 );
     haplo::Node node_correct2(  0, 0, 1, 1 );
+    haplo::Node node_correct3(  0, 0, 0, 1 );
     haplo::Node node_incorrect( 0, 0, 2, 2 );
+    
+    std::cout << "C: " << static_cast<unsigned>(node_correct1.score_one()) << "\n";
+    std::cout << "C: " << static_cast<unsigned>(node_correct2.score_one()) << "\n";
+    std::cout << "C: " << static_cast<unsigned>(node_correct3.score_one()) << "\n";
     
     BOOST_CHECK( node_correct1.x_value() == 0 );
     BOOST_CHECK( node_correct1.y_value() == 0 );

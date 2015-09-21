@@ -7,6 +7,7 @@
 
 #include "block_interface.hpp"
 #include "equality_checker.hpp"
+#include "tree_cpu.hpp"
 #include "usplit_block_interface.hpp"
 
 #include <tbb/concurrent_unordered_map.h>
@@ -68,7 +69,12 @@ public:
     { 
         return _col_mplicities.find(i) != _col_mplicities.end() ? _col_mplicities.at(i) : 0; 
     }
-    
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Solves the unsplittable block for the haplotype
+    // ------------------------------------------------------------------------------------------------------
+    void solve_haplotype();
+        
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Access to the elements of the unsplittable block
     /// @param[in]  row     The row of the element in the unsplitatble block to get
@@ -136,6 +142,49 @@ UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::UnsplittableBloc
     
     remove_duplicates(row_checker);    // Remove all duplicate rows
     remove_duplicates(col_checker);    // Remove all duplicate columns
+}
+
+template <typename BaseBlock, size_t Cores>
+void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::solve_haplotype()
+{
+    // Doing the parallelization over the rows (outer loop in the mathematical problem description)
+    // or y variables, so check if the number of threads to use is greater than the number of rows 
+    const size_t y_variables        = _row_mplicities.size();
+    const size_t x_variables        = _col_mplicities.size();
+    const size_t threads_to_use     = Cores > y_variables ? y_variables : Cores;
+
+    // Create trees to do the search each y variable has 2 possibilities and for each of the y
+    // variables the are 2^{N + 1} possibilities for the x variables. The y variables are used 
+    // as the tree roots and then the tree is searched by branching the x variables. The bounding 
+    // operator reduces the 2^{N-1} possible branches to 2N. So the total possible branches
+    // (combinations) is 2^{M + N + 1}, of which only N*2^{M} searches are done. So create M
+    // trees wiht N nodes each
+    std::vector<Tree<Device::CPU>> trees; 
+    trees.reserve(2 * y_variables);                                     // Reserve space for the trees
+    for (size_t y_index = 0; y_index < y_variables; ++y_index) {        // Initialize the trees
+        trees.emplace_back(y_index, 0,  x_variables);
+        trees.emplace_back(y_index, 1,  x_variables);
+    }
+
+    // Create trees
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_to_use),
+        [&](const tbb::blocked_range<size_t>& thread_indices) 
+        {
+            for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
+                size_t thread_iters = ops::get_thread_iterations(idx, y_variables, threads_to_use);
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    // Define and index for the thread
+                    size_t thread_idx = ops::thread_map(idx, threads_to_use, it);
+                    // If this thread_idx has a row multiplicity (i.e is not a duplicate)
+                    if (_row_mplicities.find(thread_idx) != _row_mplicities.end()) {
+                        
+                    }
+                    
+                }
+            }
+        }
+    );
 }
 
 // ------------------------------------------- PRIVATE ------------------------------------------------------
@@ -305,39 +354,5 @@ void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::remove_dupl
     );
 }
 
-/*
-template <typename BaseBlock, size_t Cores>
-void UnsplittableBlock<BaseBlock, device::CPU, Cores>::solve_haplotype()
-{
-    // Doing the parallelization over the rows (outer loop in the mathematical problem description)
-    // so check if the specified number of threads to use is greater than the number of rows 
-    const size_t elements       = _row_mplicity.size();
-    const size_t threads_to_use = num_threads > elements ? elements : num_threads;
- 
-    // Define extra cores here 
-
-    // Create the branch and bound variables 
-
-    // Create trees
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads_to_use),
-        [&](const tbb::blocked_range<size_t>& thread_indices) 
-        {
-            for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
-                size_t thread_iters = ops::get_thread_iterations(idx, elements, threads_to_use);
-                for (size_t it = 0; it < thread_iters; ++it) {
-                    // Define and index for the thread
-                    size_t thread_idx = ops::thread_map(idx, threads_to_use, it);
-                    // If this thread_idx has a row multiplicity (i.e is not a duplicate)
-                    if (_row_mplicities.find(thread_idx) != _row_mplicities.end()) {
-                        
-                    }
-                    
-                }
-            }
-        }
-    );
-}
-*/
 }               // End namespace haplo
 #endif          // PARAHAPLO_USPLIT_BLOCK_IMPLEMENTATION_CPU_HPP
