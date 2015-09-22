@@ -52,8 +52,10 @@ PXX_FLAGS       :=
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: tests clean asm
+.PHONY: all tests clean asm
 
+all: tests
+	
 asm: CXX_FLAGS += -S -fverbose-asm 
 asm: make_asm
 	

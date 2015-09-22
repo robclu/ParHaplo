@@ -14,6 +14,7 @@
 #include <atomic>
 #include <bitset>
 #include <numeric>
+#include <utility>
 
 namespace haplo {
 
@@ -28,11 +29,14 @@ public:
     using subinfo_type      = typename base_type::subinfo_type;
     using ston_container    = typename std::array<bool, base_type::rows()>;
     using concurrent_umap   = tbb::concurrent_unordered_map<short, short>;
+    using index_umap        = tbb::concurrent_unordered_map<short, std::pair<short, short>>;
 private:
     data_container  _data;              //!< Data for the unsplittable block
     ston_container  _singleton_info;    //!< Which rows are singletons and which are not
     concurrent_umap _row_mplicities;    //!< Multiplicity of all non-duplicate rows
     concurrent_umap _col_mplicities;    //!< Multiplicity of all non-duplicate columns
+    index_umap      _row_params;        //!< Map for row indices mapping to the duplicates and the multiplicites
+    index_umap      _col_params;        //!< Map for col indices mapping to the duplicates and the multiplicites
     size_t          _index;             //!< The index of the unsplittable block in the base block
     size_t          _size;              //!< The size -- total number of elements -- in the unsplittable block
     size_t          _rows;              //!< The number of rows in the unsplittable block
@@ -58,7 +62,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     short row_multiplicity(const short i) const 
     { 
-        return _row_mplicities.find(i) != _row_mplicities.end() ? _row_mplicities.at(i) : 0; 
+        return _row_params.find(i) != _row_params.end() ? _row_params.at(i).second : 99; 
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -67,7 +71,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     short col_multiplicity(const short i) const 
     { 
-        return _col_mplicities.find(i) != _col_mplicities.end() ? _col_mplicities.at(i) : 0; 
+        return _col_params.find(i) != _col_params.end() ? _col_params.at(i).second :99; 
     }
    
     // ------------------------------------------------------------------------------------------------------
@@ -76,12 +80,20 @@ public:
     void solve_haplotype();
         
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Access to the elements of the unsplittable block
+    /// @brief      Access to the elements of the unsplittable block after row/duplicate removal
     /// @param[in]  row     The row of the element in the unsplitatble block to get
     /// @param[in]  col     The column of the element in the unsplittable block to get
-    /// @return     The value of the element at position (row, col)
+    /// @return     The value of the element at position (row, col) without duplicates
     // ------------------------------------------------------------------------------------------------------
-    data_type operator()(short row, short col) const { return _data[row * _cols + col]; }
+    haplo::Data operator()(const short row, const short col) const;
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Access to the elements of the unsplittable block before row/duplicate removal
+    /// @param[in]  row     The row of the element in the unsplitatble block to get
+    /// @param[in]  col     The column of the element in the unsplittable block to get
+    /// @return     The value of the element at position (row, col) with duplicates
+    // ------------------------------------------------------------------------------------------------------
+    data_type at(const short row, const short col) const { return _data[row * _cols + col]; }    
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      First removes all the singleton rows (rows with only 1 value) from the unsplittable block
@@ -149,35 +161,42 @@ void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::solve_haplo
 {
     // Doing the parallelization over the rows (outer loop in the mathematical problem description)
     // or y variables, so check if the number of threads to use is greater than the number of rows 
-    const size_t y_variables        = _row_mplicities.size();
-    const size_t x_variables        = _col_mplicities.size();
+    const size_t y_variables        = _row_params.size();
+    const size_t x_variables        = _col_params.size();
     const size_t threads_to_use     = Cores > y_variables ? y_variables : Cores;
 
-    // Create trees to do the search each y variable has 2 possibilities and for each of the y
+    // Create trees to do the search. Each y variable has 2 possibilities and for each of the y
     // variables the are 2^{N + 1} possibilities for the x variables. The y variables are used 
-    // as the tree roots and then the tree is searched by branching the x variables. The bounding 
-    // operator reduces the 2^{N-1} possible branches to 2N. So the total possible branches
-    // (combinations) is 2^{M + N + 1}, of which only N*2^{M} searches are done. So create M
-    // trees wiht N nodes each
+    // as the tree roots and then the tree is searched by branching the x variables, to find the 
+    // optimal x variables for a given y variable. The bounding operator reduces the 2^{N-1} possible 
+    // branches for each y variable to 2N. So the total possible branches is 2^{M + N + 1}, of which 
+    // only N*2^{M} searches are done. The 2M y variables are then compared, which can be done in log2M 
+    // time. So create the 2M trees
     std::vector<Tree<Device::CPU>> trees; 
     trees.reserve(2 * y_variables);                                     // Reserve space for the trees
+    
     for (size_t y_index = 0; y_index < y_variables; ++y_index) {        // Initialize the trees
         trees.emplace_back(y_index, 0,  x_variables);
         trees.emplace_back(y_index, 1,  x_variables);
     }
 
-    // Create trees
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_to_use),
         [&](const tbb::blocked_range<size_t>& thread_indices) 
         {
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
-                size_t thread_iters = ops::get_thread_iterations(idx, y_variables, threads_to_use);
+                size_t thread_iters = ops::get_thread_iterations(idx, _rows, threads_to_use);
                 for (size_t it = 0; it < thread_iters; ++it) {
                     // Define and index for the thread
                     size_t thread_idx = ops::thread_map(idx, threads_to_use, it);
+                    
+                    // Solve the tree for the optimal values given the tree root index and value
+                    trees[thread_idx].solve(*this);
+                    
                     // If this thread_idx has a row multiplicity (i.e is not a duplicate)
                     if (_row_mplicities.find(thread_idx) != _row_mplicities.end()) {
+                        // Solve the bost solution for the tree given this index, and the next
+                        //trees[
                         
                     }
                     
@@ -185,6 +204,17 @@ void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::solve_haplo
             }
         }
     );
+    
+    for (const auto & tree : trees) tree.print();
+}
+
+template <typename BaseBlock, size_t Cores>
+haplo::Data UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::operator()(const short row,
+                                                                                       const short col) const
+{
+   // Check that the row and column is valid
+   if (_row_params.count(row) && _col_params.count(col))
+       return _data[_row_params.at(row).second * _cols + _col_params.at(col).second];
 }
 
 // ------------------------------------------- PRIVATE ------------------------------------------------------
@@ -307,6 +337,11 @@ void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::remove_dupl
     // compared to row 2 before row 2 can compare with rows 3->N, which allows duplicates to be skipped
     std::vector<tbb::atomic<short>> start_conditions(comparisons);
     
+    // Linear index for mapping which allows an unordered map with keys as the index values to be used,
+    // where the values are then a pair with the non-linear index as the first value and the multiplicity
+    // as the other
+    tbb::atomic<short> map_size = 0;
+    
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_to_use),
         [&](const tbb::blocked_range<size_t>& thread_indices)
@@ -314,13 +349,19 @@ void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::remove_dupl
             for (size_t idx = thread_indices.begin(); idx != thread_indices.end(); ++idx) {
                 size_t thread_iters = ops::get_thread_iterations(idx, comparisons, threads_to_use);
                 for (size_t it = 0; it < thread_iters; ++it) {
-                    size_t current_idx                = ops::thread_map(idx, threads_to_use, it);
-                    size_t current_idx_multiplicity   = 1;
+                    size_t current_idx      = ops::thread_map(idx, threads_to_use, it);
+                    size_t multiplicity     = 1;
+                    
                     // Wait for the start condition to be set for this thread
                     while (current_idx > 0  && start_conditions[current_idx] < current_idx) {}
+                    
                     // Check if this thread is a duplicate (already been found by another thread)
                     if (duplicates.find(current_idx) == duplicates.end()) {
+                        // Set the index in the parameter map, which will have indices from 0 -> num non dups
+                        // rather than 0 -> total with dups, so we can then iterate over the non dup rows/cols
+                        short map_index = map_size; map_size.fetch_and_add(1);
                         size_t duplicates_found = 1;
+                        
                         // Not a duplicate so we must look for duplicates for each of the remaining rows/cols
                         for (size_t other_idx = current_idx + 1; other_idx < comparisons; ++other_idx) {
                             // Check if the rows/columns are equal
@@ -332,7 +373,7 @@ void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::remove_dupl
                                 // Add to the multiplicity of the current_idx as a duplicate was found.
                                 // Use a temp variable since it's almost definitely faster to write to
                                 // the concurrent container once at the end rather than on each iteration
-                                ++current_idx_multiplicity;
+                                ++multiplicity;
                                 // Since other_idx will not check through the threads ahead of it because 
                                 // it is a duplicate, increment duplicates_found to tell all other threads
                                 // that this duplicate thread has done all it's comparisons
@@ -343,10 +384,18 @@ void UnsplittableBlockImplementation<BaseBlock, Device::CPU, Cores>::remove_dupl
                                 start_conditions[other_idx] += duplicates_found;
                             }
                         }
-                        // Write the multiplicity of the idx to the concurrent container as looping is over
+                        
+                        // Add the parameters (multiplicity and index of the row/column) to the appropriate
+                        // map
+                        // Create a pair with for the row parameter with the first value as the row index
+                        // and teh second value as the multiplicity of the row
+                        auto param = std::make_pair(static_cast<short>(current_idx), 
+                                                    static_cast<short>(multiplicity));
+                        // Add the parameter to the appropriate container
                         Checker::type == check::ROWS 
-                                       ? _row_mplicities[current_idx] = current_idx_multiplicity
-                                       : _col_mplicities[current_idx] = current_idx_multiplicity;
+                                       ? _row_params[map_index] = param
+                                       : _col_params[map_index] = param;
+                        
                     }  
                 }   // End iterations for specific thread
             }       // End all thread instances

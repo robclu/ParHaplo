@@ -101,16 +101,16 @@ BOOST_AUTO_TEST_CASE( canCreateUnplittabelBlockAndAccessElements )
     // To use a GPU with 1000 cores
     haplo::UnsplittableBlock<block_type> usplit_block(cpu_block, 0);  
     
-    BOOST_CHECK( usplit_block(0, 0) == 1 );
-    BOOST_CHECK( usplit_block(0, 1) == 0 );
-    BOOST_CHECK( usplit_block(0, 2) == 2 );
-    BOOST_CHECK( usplit_block(1, 0) == 1 );
-    BOOST_CHECK( usplit_block(1, 1) == 0 );
-    BOOST_CHECK( usplit_block(1, 2) == 2 );
-    BOOST_CHECK( usplit_block(2, 0) == 0 );
-    BOOST_CHECK( usplit_block(3, 0) == 0 );
-    BOOST_CHECK( usplit_block(4, 0) == 0 );
-    BOOST_CHECK( usplit_block(5, 1) == 0 );
+    BOOST_CHECK( usplit_block.at(0, 0) == 1 );
+    BOOST_CHECK( usplit_block.at(0, 1) == 0 );
+    BOOST_CHECK( usplit_block.at(0, 2) == 2 );
+    BOOST_CHECK( usplit_block.at(1, 0) == 1 );
+    BOOST_CHECK( usplit_block.at(1, 1) == 0 );
+    BOOST_CHECK( usplit_block.at(1, 2) == 2 );
+    BOOST_CHECK( usplit_block.at(2, 0) == 0 );
+    BOOST_CHECK( usplit_block.at(3, 0) == 0 );
+    BOOST_CHECK( usplit_block.at(4, 0) == 0 );
+    BOOST_CHECK( usplit_block.at(5, 1) == 0 );
 }
 
 BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities )
@@ -121,11 +121,11 @@ BOOST_AUTO_TEST_CASE( canCreateAnUnsplittableBlockAndDetermineRowMultiplicities 
     haplo::UnsplittableBlock<block_type> usplit_block(cpu_block, 0); 
 
     BOOST_CHECK( usplit_block.row_multiplicity(0) == 2 );
-    BOOST_CHECK( usplit_block.row_multiplicity(2) == 3 );
-    BOOST_CHECK( usplit_block.row_multiplicity(4) == 1 );
+    BOOST_CHECK( usplit_block.row_multiplicity(1) == 3 );
+    BOOST_CHECK( usplit_block.row_multiplicity(2) == 1 );
 }
 
-// Put column tests
+// TODO: Add column tests
 
 BOOST_AUTO_TEST_CASE( canSolveHaplotypeForUnsplittableBlock )
 {
@@ -149,10 +149,6 @@ BOOST_AUTO_TEST_CASE( canCreateANode )
     haplo::Node node_correct2(  0, 0, 1, 1 );
     haplo::Node node_correct3(  0, 0, 0, 1 );
     haplo::Node node_incorrect( 0, 0, 2, 2 );
-    
-    std::cout << "C: " << static_cast<unsigned>(node_correct1.score_one()) << "\n";
-    std::cout << "C: " << static_cast<unsigned>(node_correct2.score_one()) << "\n";
-    std::cout << "C: " << static_cast<unsigned>(node_correct3.score_one()) << "\n";
     
     BOOST_CHECK( node_correct1.x_value() == 0 );
     BOOST_CHECK( node_correct1.y_value() == 0 );

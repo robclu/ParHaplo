@@ -83,6 +83,25 @@ public:
     /// @return     The value of the y variable
     // ------------------------------------------------------------------------------------------------------
     inline uint8_t y_value() const { return _y_value; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of the x variable
+    /// @return     The index of the x variable
+    // ------------------------------------------------------------------------------------------------------
+    inline uint8_t x_index() const { return _x_index; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of the y variable
+    /// @return     The index of the y variable
+    // ------------------------------------------------------------------------------------------------------
+    inline uint8_t y_index() const { return _y_index; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Computes the score of the node based on the score function which must be used
+    /// @param[in]  function    Which function to use
+    /// @return     The score of the node
+    // ------------------------------------------------------------------------------------------------------
+    inline uint8_t score(uint8_t function) { return function == 0 ? score_zero() : score_one(); }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Computes the score of the node based on the x and y value using the first computation 
