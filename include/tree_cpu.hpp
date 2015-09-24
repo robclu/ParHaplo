@@ -106,6 +106,23 @@ void Tree<Device::CPU>::print() const
     }
 }
 
+// Function that, for the found x and y variables, calculates the MEC score of a column using rows 0 to n
+template <typename BlockType, size_t Cores>
+short col_mec_score(const short col, const short end_row, const BlockType& block)
+{
+}
+
+// Function that, for the found x and y variables, calculates the MEC score of a row using columns 0 to n
+template <typename BlockType, size_t Cores>
+short row_mec_score(const short row, const short col_end, const BlockType& block)
+{
+    // Set the number of threads to use
+   
+    // Create thereads
+    
+    //
+}
+
 }           // End namespace haplo
     
 #endif      // PARAHAPLO_TREE_HPP
