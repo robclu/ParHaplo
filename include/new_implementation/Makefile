@@ -44,7 +44,7 @@ CXX_LDIR  	    :=
 # 		--compiler-options -Wall                                                       #
 ########################################################################################
 
-CXX_FLAGS 		:= -std=c++11 -w -g
+CXX_FLAGS 		:= -std=c++11 -Wall -O3
 NXX_FLAGS       := -arch=sm_30
 PXX_FLAGS       :=
 
@@ -52,18 +52,9 @@ PXX_FLAGS       :=
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: all tests clean asm
+.PHONY: all tests clean
 
 all: tests
-	
-asm: CXX_FLAGS += -S -fverbose-asm 
-asm: make_asm
-	
-parahaplo_tests.s: parahaplo_tests.cpp
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-	
-make_asm: parahaplo_tests.s
-	as -alhnd parahaplo_tests.s > parahaplo_tests.lst 
 	
 tests: build_and_run
 
@@ -73,18 +64,13 @@ build_and_run: build_tests
 	
 build: build_tests
 	
-parahaplo_tests.o: parahaplo_tests.cpp 
+small_container_tests.o: small_container_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
-build_tests: parahaplo_tests.o 
+build_tests: small_container_tests.o tests.o
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 	
 clean:
 	rm -rf *.o
 	rm -rf $(CXX_EXE) 
-
-clean_asm:
-	rm -rf parahaplo_tests.s
-	rm -rf parahaplo_tests.lst
-	rm -rf a.out
 
