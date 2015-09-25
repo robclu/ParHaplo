@@ -9,7 +9,7 @@
 #endif
 #include <boost/test/unit_test.hpp>
 
-#include "small_containers.hpp"
+#include "../small_containers.hpp"
 
 
 BOOST_AUTO_TEST_SUITE( BinaryContainerSuite )

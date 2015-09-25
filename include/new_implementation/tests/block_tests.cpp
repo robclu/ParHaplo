@@ -9,7 +9,7 @@
 #endif
 #include <boost/test/unit_test.hpp>
 
-#include "block.hpp"
+#include "../block.hpp"
 
 constexpr char* input_file = "input.txt";
 

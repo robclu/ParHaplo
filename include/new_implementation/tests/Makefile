@@ -2,7 +2,7 @@
 #				 	                EXECUTABLE NAME 	                               #
 ########################################################################################
 
-CXX_EXE 		:= parahaplo_test_suite
+CXX_EXE 		:= parahaplo_tests
 
 ########################################################################################
 #                                   INSTALL DIRECTORY                                  #
@@ -52,15 +52,13 @@ PXX_FLAGS       :=
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: all tests clean
+.PHONY: all container_tests block_tests clean
 
-all: tests
-	
-tests: build_and_run
+all: build_and_run
 
 build_and_run: build_tests
-	rm -rf *.o
 	./$(CXX_EXE) --log_level=test_suite
+	rm -rf *.o
 	
 build: build_tests
 
@@ -70,8 +68,19 @@ small_container_tests.o: small_container_tests.cpp
 block_tests.o: block_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
+tests.o: tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
 build_tests: small_container_tests.o block_tests.o tests.o
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
+
+container_tests: CXX_FLAGS += -DSTAND_ALONE
+container_tests: small_container_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
+	
+block_tests: CXX_FLAGS += -DSTAND_ALONE
+block_tests: block_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 	
 clean:
 	rm -rf *.o
