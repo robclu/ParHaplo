@@ -23,7 +23,8 @@ BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith1BitPerElement )
     elements.set(1, 1);
     elements.set(2, 1);
     elements.set(7, 1);
-    elements.set(9, 1);
+    elements.set(9, 1);    
+    elements.set(3, 0);
     
     BOOST_CHECK( elements.get(1) == 1 );
     BOOST_CHECK( elements.get(2) == 1 );
@@ -45,6 +46,7 @@ BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith2BitsPerElement )
     elements.set(3 , 2);
     elements.set(7 , 1);
     elements.set(14, 3);
+    elements.set(8 , 0);
     
     BOOST_CHECK( elements.get(1)  == 1 );
     BOOST_CHECK( elements.get(2)  == 0 );

@@ -1,0 +1,58 @@
+g++  -I/home/joker/Builds/intel-tbb-4.3.6/include -std=c++11 -Wall -O3 -o small_container_tests.o -c small_container_tests.cpp
+g++  -I/home/joker/Builds/intel-tbb-4.3.6/include -std=c++11 -Wall -O3 -o block_tests.o -c block_tests.cpp
+g++  -I/home/joker/Builds/intel-tbb-4.3.6/include -std=c++11 -Wall -O3 -o tests.o -c tests.cpp
+g++  -o parahaplo_tests small_container_tests.o block_tests.o tests.o  -lboost_unit_test_framework -lboost_iostreams -lm -Wl,-rpath,` -L` -ltbb	
+./parahaplo_tests --log_level=test_suite
+Running 3 test cases...
+Entering test suite "ParahaploTests"
+Entering test suite "BinaryContainerSuite"
+Entering test case "canCreateBinaryContainerWith1BitPerElement"
+Leaving test case "canCreateBinaryContainerWith1BitPerElement"; testing time: 180mks
+Entering test case "canCreateBinaryContainerWith2BitsPerElement"
+Leaving test case "canCreateBinaryContainerWith2BitsPerElement"; testing time: 152mks
+Leaving test suite "BinaryContainerSuite"
+Entering test suite "BlockSuite"
+Entering test case "canCreateABlock"
+1 
+0 1 
+1 0 1 
+0 1 
+0 1 
+1 1 
+1 1 
+0 0 
+0 1 1 
+0 1 0 
+Leaving test case "canCreateABlock"; testing time: 248mks
+Leaving test suite "BlockSuite"
+Leaving test suite "ParahaploTests"
+rm -rf *.o
+g++  -I/home/joker/Builds/intel-tbb-4.3.6/include -std=c++11 -Wall -O3 -o small_container_tests.o -c small_container_tests.cpp
+g++  -I/home/joker/Builds/intel-tbb-4.3.6/include -std=c++11 -Wall -O3 -o block_tests.o -c block_tests.cpp
+g++  -I/home/joker/Builds/intel-tbb-4.3.6/include -std=c++11 -Wall -O3 -o tests.o -c tests.cpp
+g++  -o parahaplo_tests small_container_tests.o block_tests.o tests.o  -lboost_unit_test_framework -lboost_iostreams -lm -Wl,-rpath,` -L` -ltbb	
+./parahaplo_tests --log_level=test_suite
+Running 3 test cases...
+Entering test suite "ParahaploTests"
+Entering test suite "BinaryContainerSuite"
+Entering test case "canCreateBinaryContainerWith1BitPerElement"
+Leaving test case "canCreateBinaryContainerWith1BitPerElement"; testing time: 179mks
+Entering test case "canCreateBinaryContainerWith2BitsPerElement"
+Leaving test case "canCreateBinaryContainerWith2BitsPerElement"; testing time: 152mks
+Leaving test suite "BinaryContainerSuite"
+Entering test suite "BlockSuite"
+Entering test case "canCreateABlock"
+sm 0 
+1 sw 0 
+sm 0 sm 0 sm 0 
+sm 0 1 
+sm 0 1 
+1 sw 0 
+1 1 
+sm 0 sm 0 
+sm 0 1 sm 0 
+sm 0 sm 0 sm 0 
+Leaving test case "canCreateABlock"; testing time: 243mks
+Leaving test suite "BlockSuite"
+Leaving test suite "ParahaploTests"
+rm -rf *.o

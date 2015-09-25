@@ -18,6 +18,11 @@
 #include <vector>
 
 namespace haplo {
+
+// Define some HEX values for the 8 bits comparisons
+#define ZERO 0x00
+#define ONE  0x01
+#define TWO  0x02
     
 namespace io = boost::iostreams;
 using namespace io;
@@ -34,10 +39,20 @@ template <size_t R, size_t C, size_t THI = 1, size_t THJ = 1>
 class Block {
 public:
     // ----------------------------------------- TYPES ALIAS'S ----------------------------------------------
-    using data_container = BinaryContainer<R * C, 2>;   // R*C Elements, 2 bits per element
+    using data_container        = BinaryContainer<R * C, 2>;    // R*C Elements, 2 bits per element
+    using binary_matrix         = BinaryContainer<R * C, 1>;    // A matrix of bits for each element
+    using binary_container      = BinaryContainer<C>;           // Just a container of bits
+    using row_info_container    = std::array<int, R * 2>;       // Start of row reads
     // ------------------------------------------------------------------------------------------------------
 private:
-    data_container  _data;                  //!< Container for { '0' | '1' | '-' } data variables
+    data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
+    binary_container    _haplotype;             //!< The binary bits which represent the haplotype
+    binary_container    _alignment;             //!< The binary bits which represent the alignment of the 
+                                                //!< reads to the haplotype                        
+    binary_matrix       _pre_haplotypes;        //!< Potential haplotypes determined by looking at only the 
+                                                //!< data from 1 row -- from which the optimal solution is
+                                                //!< found
+    row_info_container  _row_info;              //!< Information about the start and end positions of the row
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to fill the block with data from the input file
@@ -51,13 +66,32 @@ public:
     /// @param[in]  col_idx     The index of the column for the element
     // ------------------------------------------------------------------------------------------------------
     byte operator()(size_t row_idx, size_t col_idx) const { return _data.get(row_idx * C + col_idx); }
+    
 private:
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Updates the row parameters -- the best value for an element, and the start and end indices
+    ///             of the row
+    /// @param[in]  row_idx         The index of the row to update
+    /// @param[in]  col_idx         The index of the column in the row 
+    /// @param[in]  start_idx       The start index of the row (forst non-gap element)
+    /// @param[in]  end_idx         The end index of the row (last non-gap element)
+    // ------------------------------------------------------------------------------------------------------
+    void update_row_params(size_t row_idx, size_t col_idx, int& start_idx, int& end_idx);
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Fills the block with data from the input file
     /// @param[in]  data_file   The file to get the data from 
     // ------------------------------------------------------------------------------------------------------
     void fill(const char* data_file);
     
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Filers out the best possible solutions for each of the rows
+    // ------------------------------------------------------------------------------------------------------
+    void filter(); 
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Sets the parameters for a potential solutions determined from a single row
+    /// @param[in]
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Processes the data from the file, converting the chars into 2-bit values
     /// @param[in]  row     The row in the data matrix to fill
@@ -76,6 +110,7 @@ template <size_t R, size_t C, size_t THI, size_t THJ>
 Block<R, C, THI, THJ>::Block(const char* data_file)
 {
     fill(data_file);
+    filter();
 }
 
 // ------------------------------------------------- PRIVATE ------------------------------------------------
@@ -101,6 +136,26 @@ void Block<R, C, THI, THJ>::fill(const char* data_file)
     for (tokenizer::iterator line = lines.begin(); line != lines.end(); ++line) process_data(row++, line);
 }
 
+template <size_t R, size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::filter()
+{
+    // Create a container for the y values
+    int start_index     = -1;           // The start index (column) of the first non gap in a read
+    int end_index       =  0;           // The end index (column) of the last non gap in the read
+    
+    for (size_t i = 0; i < R; ++i) {
+        for (size_t j = 0; j < C; ++j) {
+            size_t  element_idx  = i * C + j;           // Offset in memory of this element
+            
+            update_row_params(i, j, start_index, end_index);           
+        }
+        std::cout << " : " << start_index << " " << end_index;
+        _row_info[i] = start_index; _row_info[i + 1] = end_index;       // Set index values
+        start_index = -1; end_index = 0;                                // Clear index values
+        std::cout << "\n";
+    }
+}
+
 template <size_t R, size_t C, size_t THI, size_t THJ> template <typename TP>
 void Block<R, C, THI, THJ>::process_data(size_t row, TP tp) 
 {
@@ -120,19 +175,47 @@ void Block<R, C, THI, THJ>::process_data(size_t row, TP tp)
         // we know that it only has 1 element, so convert to char
         switch (e[0]) {
             case '0':
-                _data.set(row_offset + column, 0);
+                _data.set(row_offset + column, ZERO);
                 break;
             case '1':
-                _data.set(row_offset + column, 1);
+                _data.set(row_offset + column, ONE);
                 break;
             case '-':
-                _data.set(row_offset + column, 2);
+                _data.set(row_offset + column, TWO);
                 break;
             default:
                 std::cerr << "Error reading input data - exiting =(\n";
                 exit(1);
         } ++column;
     }
+}
+
+template <size_t R, size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::update_row_params(size_t row_idx, size_t col_idx, int& start_index, int& end_index)
+{
+    size_t  element_idx = row_idx * C + col_idx;    
+    byte    value       = _data.get(element_idx);
+    
+    if (value < TWO && start_index == -1) {
+        start_index = col_idx;
+        _alignment.set(row_idx, value == ZERO ? ONE : ZERO);
+        _pre_haplotypes.set(element_idx, 0);
+        std::cout << static_cast<unsigned>(_pre_haplotypes.get(element_idx)) << " ";
+    } else if (value == ZERO && start_index >= 0) {
+        end_index = col_idx;
+        (_alignment.get(row_idx) == ONE)            ?
+            _pre_haplotypes.set(element_idx, ZERO)  :
+            _pre_haplotypes.set(element_idx, ONE )  ;
+        std::cout << static_cast<unsigned>(_pre_haplotypes.get(element_idx)) << " ";
+    } else if (value == ONE && start_index >= 0) {
+        end_index = col_idx;
+        (_alignment.get(row_idx) == ONE)             ?
+            _pre_haplotypes.set(element_idx, ONE )   :
+            _pre_haplotypes.set(element_idx, ZERO)   ;
+        std::cout << static_cast<unsigned>(_pre_haplotypes.get(element_idx)) << " ";
+    } else if (value >= TWO) {
+       std::cout  << "- "; 
+    }     
 }
 
 }           // End namespace haplo

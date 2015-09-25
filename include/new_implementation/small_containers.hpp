@@ -54,7 +54,7 @@ public:
     inline void set(const byte i, const byte value) 
     { 
         // If the value is valid and values != value, then we must swap the values
-        if (value <= 1 && !((_bits >> i & 0x01) && value)) _bits ^= (0x01 << i);
+        if (value <= 1 && ((_bits >> i & 0x01) ^ (value & 0x01))) _bits ^= (0x01 << i);
     }
 };
 
