@@ -14,22 +14,45 @@
 
 BOOST_AUTO_TEST_SUITE( BinaryContainerSuite )
     
-BOOST_AUTO_TEST_CASE( canCreateBinaryContainer ) 
+BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith1BitPerElement ) 
 {
-    haplo::BinaryContainer<12> bits;
+    // Define the binary container to use 1 bit per element (default setting)
+    haplo::BinaryContainer<12> elements;
     
-    // Set some bits
-    bits.set(1, 1);
-    bits.set(2, 1);
-    bits.set(7, 1);
-    bits.set(9, 1);
+    // Set some elements
+    elements.set(1, 1);
+    elements.set(2, 1);
+    elements.set(7, 1);
+    elements.set(9, 1);
     
-    BOOST_CHECK( bits.get(1) == 1 );
-    BOOST_CHECK( bits.get(2) == 1 );
-    BOOST_CHECK( bits.get(3) == 0 );
-    BOOST_CHECK( bits.get(7) == 1 );
-    BOOST_CHECK( bits.get(8) == 0 );
-    BOOST_CHECK( bits.get(9) == 1 );
+    BOOST_CHECK( elements.get(1) == 1 );
+    BOOST_CHECK( elements.get(2) == 1 );
+    BOOST_CHECK( elements.get(3) == 0 );
+    BOOST_CHECK( elements.get(7) == 1 );
+    BOOST_CHECK( elements.get(8) == 0 );
+    BOOST_CHECK( elements.get(9) == 1 );
+    BOOST_CHECK( sizeof(elements) == 2);
+}
+
+BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith2BitsPerElement ) 
+{
+    // Define the conatiner to use 2 bits per element and 
+    // 18 elements so 36 bits = 5 bytes
+    haplo::BinaryContainer<18, 2> elements;
+
+    // Set some elements
+    elements.set(1 , 1);
+    elements.set(3 , 2);
+    elements.set(7 , 1);
+    elements.set(14, 3);
+    
+    BOOST_CHECK( elements.get(1)  == 1 );
+    BOOST_CHECK( elements.get(2)  == 0 );
+    BOOST_CHECK( elements.get(3)  == 2 );
+    BOOST_CHECK( elements.get(7)  == 1 );
+    BOOST_CHECK( elements.get(8)  == 0 );
+    BOOST_CHECK( elements.get(14) == 3 );
+    BOOST_CHECK( sizeof(elements) == 5);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
