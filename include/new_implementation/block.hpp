@@ -139,21 +139,34 @@ void Block<R, C, THI, THJ>::fill(const char* data_file)
 template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::filter()
 {
-    // Create a container for the y values
-    int start_index     = -1;           // The start index (column) of the first non gap in a read
-    int end_index       =  0;           // The end index (column) of the last non gap in the read
+    // Check that we aren't trying to use more threads than rows
+    constexpr size_t threads_y = THI < R ? THI : R;
     
-    for (size_t i = 0; i < R; ++i) {
-        for (size_t j = 0; j < C; ++j) {
-            size_t  element_idx  = i * C + j;           // Offset in memory of this element
-            
-            update_row_params(i, j, start_index, end_index);           
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_y), 
+        [&](const tbb::blocked_range<size_t>& thread_ids_y)
+        {
+            for (size_t thread_idy = thread_ids_y.begin(); thread_idy != thread_ids_y.end(); ++thread_idy) {
+                size_t thread_iters_y = ops::get_thread_iterations(thread_idy, R, threads_y);
+                
+                for (size_t it_y = 0; it_y < thread_iters_y; ++it_y) {
+                    size_t  row_id          = it_y * threads_y + thread_idy;
+                    int     start_index     = -1;           // First non gap in row
+                    int     end_index       =  0;           // Last non gap in row
+                    
+                    std::cout << "R : " << row_id << " ";   // Debugging
+                    
+                    // For all of the columns in the row
+                    for (size_t col_id = 0; col_id < C; ++col_id) 
+                        update_row_params(row_id, col_id, start_index, end_index);
+                        
+                    // Update the start and end positions of the row
+                    _row_info[row_id] = start_index; _row_info[row_id + 1] = end_index;
+                    std::cout << " : " << start_index << " " << end_index << "\n";
+                }
+            }
         }
-        std::cout << " : " << start_index << " " << end_index;
-        _row_info[i] = start_index; _row_info[i + 1] = end_index;       // Set index values
-        start_index = -1; end_index = 0;                                // Clear index values
-        std::cout << "\n";
-    }
+    );
 }
 
 template <size_t R, size_t C, size_t THI, size_t THJ> template <typename TP>
