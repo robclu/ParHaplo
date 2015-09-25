@@ -63,11 +63,14 @@ build_and_run: build_tests
 	./$(CXX_EXE) --log_level=test_suite
 	
 build: build_tests
-	
+
 small_container_tests.o: small_container_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
-build_tests: small_container_tests.o tests.o
+block_tests.o: block_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
+build_tests: small_container_tests.o block_tests.o tests.o
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 	
 clean:
