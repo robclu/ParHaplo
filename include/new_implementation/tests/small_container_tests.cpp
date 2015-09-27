@@ -57,4 +57,21 @@ BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith2BitsPerElement )
     BOOST_CHECK( sizeof(elements) == 5);
 }
 
+BOOST_AUTO_TEST_CASE( canRemoveBitsFromBinaryContainer ) 
+{
+    // Define the binary container to use 1 bit per element (default setting)
+    haplo::TinyContainer<int, 1> bits;
+    
+    // Set some elements
+    bits.set(1, 1);
+    bits.set(2, 1);
+    bits.set(7, 1);
+    
+    bits.print();
+    
+    bits.remove_bit(3);
+    
+    bits.print();
+}
+    
 BOOST_AUTO_TEST_SUITE_END()

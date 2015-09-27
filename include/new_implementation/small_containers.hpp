@@ -10,10 +10,12 @@
 
 #include <iostream>
 #include <bitset>
+#include <limits>
 
 namespace haplo {
 
 using byte = uint8_t;
+
 
 // ----------------------------------------------------------------------------------------------------------
 /// @class      TinyContainer
@@ -55,6 +57,26 @@ public:
     { 
         // If the value is valid and values != value, then we must swap the values
         if (value <= 1 && ((_bits >> i & 0x01) ^ (value & 0x01))) _bits ^= (0x01 << i);
+    }
+    
+    inline void remove_bit(const byte i) 
+    {
+        //SizeType ones = (1 << (sizeof(SizeType) * 8)) - 1;
+        //SizeType oth = ((1 << (sizeof(SizeType) * 8 - 1)) - 1);
+        std::bitset<sizeof(SizeType)*8> a(std::numeric_limits<SizeType>::max() ^ (1 << (sizeof(SizeType) * 8 - 1)));
+        //std::bitset<sizeof(SizeType)*8> a(((1 << (sizeof(SizeType) * 8)) - 1) - ((1 << (i + 1)) - 1));
+        //std::bitset<sizeof(SizeType)*8> a((_bits & ((1 << i) - 1)) << 1);
+        //std::bitset<sizeof(SizeType)*8> a(oth);
+        std::cout << a << "\n" << /*b <<*/ "\n";
+            
+        _bits = (_bits & (0xFF - ((1 << (i + 1)) - 1)))        // Get high bits
+                ^ ( _bits & ((1 << i) - 1) << 1);
+    }
+    
+    void print()
+    {
+        std::bitset<sizeof(SizeType) * 8> x(_bits);
+        std::cout << x << "\n";
     }
 };
 

@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 
+// NOTE: All output the the terminal is for debugging and checking at the moment
+
 namespace haplo {
 
 // Define some HEX values for the 8 bits comparisons
@@ -42,7 +44,8 @@ public:
     using data_container        = BinaryContainer<R * C, 2>;    // R*C Elements, 2 bits per element
     using binary_matrix         = BinaryContainer<R * C, 1>;    // A matrix of bits for each element
     using binary_container      = BinaryContainer<C>;           // Just a container of bits
-    using row_info_container    = std::array<int, R * 2>;       // Start of row reads
+    using row_info_container    = std::array<int, R * 2>;       // Start and end of row reads
+    using col_info_container    = std::array<int, C * 2>;       // Reads per col and and num 0's
     // ------------------------------------------------------------------------------------------------------
 private:
     data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
@@ -53,6 +56,8 @@ private:
                                                 //!< data from 1 row -- from which the optimal solution is
                                                 //!< found
     row_info_container  _row_info;              //!< Information about the start and end positions of the row
+    binary_container    _homozygous_sites;      //!< The homozygous sites (columns which are homozygous)
+    col_info_container  _col_info;
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to fill the block with data from the input file
@@ -90,9 +95,6 @@ private:
     void filter(); 
 
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Sets the parameters for a potential solutions determined from a single row
-    /// @param[in]
-    // ------------------------------------------------------------------------------------------------------
     /// @brief      Processes the data from the file, converting the chars into 2-bit values
     /// @param[in]  row     The row in the data matrix to fill
     /// @param[in]  line    The line which holds the elements as tokens
@@ -100,6 +102,11 @@ private:
     // ------------------------------------------------------------------------------------------------------
     template <typename TP>
     void process_data(size_t row, TP tp);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Sets all the homozygous variables if all reads in a column had the same value
+    // ------------------------------------------------------------------------------------------------------
+    void set_homozygous_sites();
 };
 
 // ---------------------------------------------- IMPLEMENTATIONS -------------------------------------------
@@ -108,10 +115,37 @@ private:
 
 template <size_t R, size_t C, size_t THI, size_t THJ>
 Block<R, C, THI, THJ>::Block(const char* data_file)
+: _row_info({0}), _col_info({0})
 {
     fill(data_file);
     filter();
-}
+    set_homozygous_sites();
+
+    // Debugging ....
+    
+    // Print out the column information
+    for (int i = 0; i < 30; ++i) std::cout << "-";
+    std::cout << "\nTR :  ";
+    for (size_t i = 0; i < 2 * C; i += 2) std::cout << _col_info[i] << " ";
+    std::cout << "\nN0 :  ";
+    for (size_t i = 1; i < 2 * C; i += 2) std::cout << _col_info[i] << " ";
+    std::cout << "\n";    
+    for (int i = 0; i < 30; ++i) std::cout << "-";
+    std::cout << "\nh :   ";    
+    
+    // Print the haplotype
+    for (size_t i = 0; i < C; ++i) std::cout << static_cast<unsigned>(_haplotype.get(i)) << " ";
+    std::cout << "\nh` :  "; 
+    for (size_t i = 0; i < C; ++i) {
+        if (_homozygous_sites.get(i) == ONE)
+            std::cout << static_cast<unsigned>(_haplotype.get(i)) << " ";
+        else 
+            std::cout << static_cast<unsigned>((_haplotype.get(i) ^ ONE) & ONE) << " ";
+    }
+    std::cout << "\n";    
+    for (int i = 0; i < 30; ++i) std::cout << "-";
+    std::cout << "\n";    
+} 
 
 // ------------------------------------------------- PRIVATE ------------------------------------------------
 
@@ -210,26 +244,81 @@ void Block<R, C, THI, THJ>::update_row_params(size_t row_idx, size_t col_idx, in
     byte    value       = _data.get(element_idx);
     
     if (value < TWO && start_index == -1) {
-        start_index = col_idx;
+        start_index = col_idx;                                  
+        
+        // Set the value of the aligment and set the haplotype value
         _alignment.set(row_idx, value == ZERO ? ONE : ZERO);
-        _pre_haplotypes.set(element_idx, 0);
+        _pre_haplotypes.set(element_idx, ZERO);
+        
+        // Increment that this column has a value, and if it is a zero or 1
+        ++_col_info[2 *col_idx];
+        _col_info[2 * col_idx + 1] = (value == ZERO ?
+                                        _col_info[2 * col_idx + 1] + 1  :
+                                        _col_info[2 * col_idx + 1]      );
+        
         std::cout << static_cast<unsigned>(_pre_haplotypes.get(element_idx)) << " ";
     } else if (value == ZERO && start_index >= 0) {
         end_index = col_idx;
+        
+        // Update the haplotype based on the aligment and that the read element is a 0
         (_alignment.get(row_idx) == ONE)            ?
             _pre_haplotypes.set(element_idx, ZERO)  :
             _pre_haplotypes.set(element_idx, ONE )  ;
+        
+        // Increment that the column has a read element for the row, and that it's a 0
+        ++_col_info[2 * col_idx];
+        ++_col_info[2 * col_idx + 1];
+            
         std::cout << static_cast<unsigned>(_pre_haplotypes.get(element_idx)) << " ";
     } else if (value == ONE && start_index >= 0) {
         end_index = col_idx;
+        
+        // Update the haplotype based on the aligment and that the read element is a 1
         (_alignment.get(row_idx) == ONE)             ?
             _pre_haplotypes.set(element_idx, ONE )   :
             _pre_haplotypes.set(element_idx, ZERO)   ;
+        
+        // Increment that this column has a read element for the row, but that it's a 1
+        ++_col_info[2 * col_idx];
+        
         std::cout << static_cast<unsigned>(_pre_haplotypes.get(element_idx)) << " ";
     } else if (value >= TWO) {
        std::cout  << "- "; 
+       
     }     
 }
 
+template <size_t R, size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::set_homozygous_sites()
+{
+    // Check that we aren't trying to use more threads than columns
+    constexpr size_t threads_x = THJ < C ? THJ : C;
+    
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_x), 
+        [&](const tbb::blocked_range<size_t>& thread_ids_x)
+        {
+            for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
+                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, C, threads_x);
+                
+                // Check the column information to see if this column is homozygous
+                for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
+                    // *2 is because the array holds the number of elements for each column
+                    // as well as the number of elements that were a zero for the column
+                    size_t col_idx = 2 * it_x * threads_x + thread_idx;
+                    
+                    if (_col_info[col_idx] == _col_info[col_idx + 1]) {                 // All reads are 0
+                        _haplotype.set(col_idx / 2, ZERO);
+                        _homozygous_sites.set(col_idx / 2, 1);
+                    } else if (_col_info[col_idx] > 0 && _col_info[col_idx +1] == 0) {  // All reads are 1
+                        _haplotype.set(col_idx / 2, ONE);
+                        _homozygous_sites.set(col_idx / 2, 1);
+                    }
+                }
+            }
+        }
+    );
+}
+    
 }           // End namespace haplo
 #endif      // PARAHAPLO_BLOCK_HPP
