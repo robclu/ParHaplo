@@ -38,7 +38,7 @@ struct BinaryOnes<byte> {
 /// @class      TinyContainer
 /// @brief      Contianer for binary variables which uses 1 bit pre varable and can hold up to 64 binary
 ///             variables (DON'T use long or unsigned int -- they aren't working fir bit removal
-///             so use byte (8 bits), short (16 bits), int (32 bits), unsigned lon (64 bits)
+///             so use byte (8 bits), short (16 bits), int (32 bits), unsigned long (64 bits)
 /// @tparam     SizeType        The type used for the size of the container -- byte for 8 bits, short for 16 
 ///             bits, int for 32, long for 64 bits etc...
 /// @tparam     BitsPerElement  The number of bits per element. The default is 1 bit, but 2 can be used
@@ -64,7 +64,7 @@ public:
     /// @param[in]  i   The index of the bit to get
     /// @return     The value of the bit at position i
     // ------------------------------------------------------------------------------------------------------
-    inline byte get(const byte i) const { return (_bits >> i) & 0x01; }
+    inline byte get(const byte i) const { return (_bits >> (num_elements - 1 - i)) & 0x01; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Sets the value of the bit at position i
@@ -74,7 +74,8 @@ public:
     inline void set(const byte i, const byte value) 
     { 
         // If the value is valid and values != value, then we must swap the values
-        if (value <= 1 && ((_bits >> i & 0x01) ^ (value & 0x01))) _bits ^= (0x01 << i);
+        if (value <= 1 && (((_bits >> (num_elements - 1 - i)) & 0x01) ^ (value & 0x01))) 
+            _bits ^= (0x01 << (num_elements - 1 - i));
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -86,8 +87,8 @@ public:
     {
         // All ones -- works for signed and unsigned types
         static constexpr SizeType ones = BinaryOnes<SizeType>::value;
-        _bits = (_bits & (ones - ((1 << (i + 1)) - 1)))     // Get bits to the left of the bit to remove
-                ^ (( _bits & ((1 << i) - 1)) << 1);         // Get bits below the bits to move
+        _bits = (_bits & (ones - ((1 << (num_elements - i)) - 1)))     // Get bits to the left of the bit to remove
+                ^ (( _bits & ((1 << (num_elements - i - 1)) - 1)) << 1);         // Get bits below the bits to move
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -121,7 +122,7 @@ public:
     /// @param[in]  i   The index of the bits to get
     /// @return     The value of the bits at position i
     // ------------------------------------------------------------------------------------------------------
-    inline byte get(const byte i) const { return (_bits >> (i * 2)) & 0x03; }
+    inline byte get(const byte i) const { return (_bits >> ((num_elements - i - 1) * 2)) & 0x03; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Sets the value of the bits at position i
@@ -131,9 +132,11 @@ public:
     inline void set(const byte i, const byte value)
     {
         // Check if the lower (right) bit has the correct value, otherwise set it
-        if (value <= 3 && ((_bits >> (i * 2) & 0x01) ^ (value & 0x01))) _bits ^= (0x01 << (i * 2));
+        if (value <= 3 && ((_bits >> ((num_elements - i - 1) * 2) & 0x01) ^ (value & 0x01))) 
+            _bits ^= (1 << ((num_elements - i - 1) * 2));
         // Check if the higher (left) bit has the correct value, otherwise set it
-        if (value <= 3 && ((_bits >> (i * 2 + 1) & 0x01) ^ (value >> 1 & 0x01))) _bits ^= (0x01 << (i * 2 + 1));
+        if (value <= 3 && ((_bits >> ((num_elements - i - 1) * 2 + 1) & 0x01) ^ (value >> 1 & 0x01))) 
+            _bits ^= (0x01 << ((num_elements - i - 1) * 2 + 1));
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -145,8 +148,8 @@ public:
     {
         // All ones -- works for signed and unsigned types
         static constexpr SizeType ones = BinaryOnes<SizeType>::value;
-        _bits = (_bits & (ones - ((1 << (2 * i + 2)) - 1)))     // Get bits to the left of the bit to remove
-                ^ (( _bits & ((1 << (2 * i)) - 1)) << 2);        // Get bits below the bits to move
+        _bits = (_bits & (ones - ((1 << ((num_elements - i) * 2)) - 1)))     // Get bits to the left of the bit to remove
+                ^ (( _bits & ((1 << ((num_elements - i - 1) * 2)) - 1)) << 2);        // Get bits below the bits to move
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -165,7 +168,7 @@ public:
 // ----------------------------------------------------------------------------------------------------------
 /// @class  BinaryContainer 
 /// @brief  Container which can hold N binary variables, which is optimized for space and performance. The
-///         bits are stored little endian
+///         bits are stored bif endian
 /// @tparam NumElements     The number of binary elements the container can hold
 /// @tparam BitsPerElement  The number of bits per element, can be 1 or 2 -- default to 1
 // ----------------------------------------------------------------------------------------------------------
@@ -192,7 +195,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     inline byte get(const size_t i) const 
     { 
-        return _data[bins - (i / elements_per_bin)].get(i % elements_per_bin); }
+        return _data[i / elements_per_bin].get(i % elements_per_bin); }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Sets a value in the variable container
@@ -201,7 +204,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     inline void set(const size_t i, const byte value) 
     { 
-        _data[bins - (i / elements_per_bin)].set(i % elements_per_bin, value); 
+        _data[i / elements_per_bin].set(i % elements_per_bin, value); 
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -216,16 +219,16 @@ public:
     // ------------------------------------------------------------------------------------------------------
     inline void remove_element(const size_t i) 
     {
-        // Decrase the number of elements
+        // Decrease the number of elements
         --_num_elements;
         
         // First remove the bit which is the element
-        _data[bins - (i / elements_per_bin)].remove_bit(i % elements_per_bin);
+        _data[i / elements_per_bin].remove_bit(i % elements_per_bin);
 
         // Now for each of the bins to the right, set the LSB of the container to the MSB of the
-        // container to the right, then shift all bits of the container to the right, to the left
-        for (size_t bin = bins - (i / elements_per_bin); bin < bins; ++bin) {
-            _data[bin].set(0, _data[bin + 1].get(elements_per_bin - 1));
+        // container to the right, then shift all bits of the container to the left
+        for (size_t bin = i / elements_per_bin; bin < bins; ++bin) {
+            _data[bin].set(elements_per_bin - 1, _data[bin + 1].get(0));
             _data[bin + 1].shift_left(1);
         }
     }

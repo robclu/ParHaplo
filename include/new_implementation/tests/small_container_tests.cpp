@@ -64,33 +64,56 @@ BOOST_AUTO_TEST_CASE( canRemoveBitsFrom1BitBinaryContainer )
     bits.set(1, 1);
     bits.set(2, 1);
     bits.set(7, 1);
+    bits.set(3, 0);
     
-    bits.remove_bit(7);
+    // Big endian so bits = 01100001
 
-    BOOST_CHECK( bits.get(7) == 0 );
-    BOOST_CHECK( bits.get(1) == 0 );
+    BOOST_CHECK( bits.get(1) == 1 );
     BOOST_CHECK( bits.get(2) == 1 );
-    BOOST_CHECK( bits.get(3) == 1 );
+    BOOST_CHECK( bits.get(3) == 0 );
+    BOOST_CHECK( bits.get(7) == 1 );
+        
+    bits.remove_bit(7);             // Removes bit 7 : 01100000
+    bits.remove_bit(0);             // Removes bit 0 : 11000000
+    bits.remove_bit(1);             // Removes bit 1 : 10000000
+    
+    BOOST_CHECK( bits.get(0) == 1 );
+    BOOST_CHECK( bits.get(1) == 0 );
+    BOOST_CHECK( bits.get(2) == 0 );
+    BOOST_CHECK( bits.get(3) == 0 );
+    BOOST_CHECK( bits.get(4) == 0 );
+    BOOST_CHECK( bits.get(5) == 0 );
+    BOOST_CHECK( bits.get(6) == 0 );
+    BOOST_CHECK( bits.get(7) == 0 );
 }
 
 BOOST_AUTO_TEST_CASE( canRemoveBitsFrom2BitBinaryContainer ) 
 {
-    // Define the binary container to use 1 bit per element (default setting)
+    // Define the binary container to use 8 bits per container 
+    // and 2 bits per element
     haplo::TinyContainer<haplo::byte, 2> bits;
     
     // Set some elements
     bits.set(0, 3);
     bits.set(1, 1);
     bits.set(2, 2);
+    bits.set(3, 3);
+
+    // Bits : 11011011 or : 11 - 01 - 10 - 11
+     
+    BOOST_CHECK( bits.get(0) == 3 );
+    BOOST_CHECK( bits.get(1) == 1 );
+    BOOST_CHECK( bits.get(2) == 2 );
+    BOOST_CHECK( bits.get(3) == 3 );
     
-    bits.remove_bit(2);
+    bits.remove_bit(1);         // bits : 11101100 : 11 - 10 - 11 - 00
+    bits.remove_bit(0);         // bits : 10110000 : 10 - 11 - 00 - 00
+    bits.remove_bit(2);         // Does nothing in this case 
     
-    bits.shift_left(1);
-    
-    BOOST_CHECK( bits.get(0) == 0 );
-    BOOST_CHECK( bits.get(1) == 0 );
-    BOOST_CHECK( bits.get(2) == 3 );
-    BOOST_CHECK( bits.get(3) == 2 );
+    BOOST_CHECK( bits.get(0) == 2 );
+    BOOST_CHECK( bits.get(1) == 3 );
+    BOOST_CHECK( bits.get(2) == 0 );
+    BOOST_CHECK( bits.get(3) == 0 );
 }
 
 BOOST_AUTO_TEST_CASE( canRemoveElementsOf1BitContainer ) 
@@ -105,18 +128,18 @@ BOOST_AUTO_TEST_CASE( canRemoveElementsOf1BitContainer )
     elements.set(7, 1);
     elements.set(9, 1);    
     elements.set(3, 0);
-    
-    elements.remove_element(6);
-    elements.remove_element(7);
 
-    BOOST_CHECK( elements.get(1) == 0 );
-    BOOST_CHECK( elements.get(2) == 0 );
-    BOOST_CHECK( elements.get(3) == 1 );
-    BOOST_CHECK( elements.get(4) == 1 );
+    elements.remove_element(6);   
+    elements.remove_element(7);
+    
+    BOOST_CHECK( elements.get(1) == 1 );
+    BOOST_CHECK( elements.get(2) == 1 );
+    BOOST_CHECK( elements.get(3) == 0 );
+    BOOST_CHECK( elements.get(4) == 0 );
     BOOST_CHECK( elements.get(5) == 0 );
-    BOOST_CHECK( elements.get(6) == 0 );
-    BOOST_CHECK( elements.get(7) == 0 );
-    BOOST_CHECK( elements.get(9) == 1 );
+    BOOST_CHECK( elements.get(6) == 1 );
+    BOOST_CHECK( elements.get(7) == 1 );
+    BOOST_CHECK( elements.get(9) == 0 );
     BOOST_CHECK( elements.size() == 10 );
 }
 
@@ -126,33 +149,47 @@ BOOST_AUTO_TEST_CASE( canRemoveElementsOf12BitContainer )
     haplo::BinaryContainer<14, 2> elements;
     
     // Set some elements
-    elements.set(1, 1);
-    elements.set(2, 2);
-    elements.set(6, 0);
-    elements.set(7, 3);
-    elements.set(9, 2);    
-    elements.set(3, 0);
+    elements.set(1 , 1);
+    elements.set(2 , 2);
+    elements.set(3 , 0);
+    elements.set(6 , 0);
+    elements.set(7 , 3);
+    elements.set(9 , 2);    
+    elements.set(11, 3);
 
-    elements.print();
-
-    std::cout << "\n";    
-    elements.remove_element(6);
+    // Elements looks like : 00011000000000110010001100000000
     
-    elements.print(); std::cout << "\n";
+    BOOST_CHECK( elements.get(1)  == 1 );
+    BOOST_CHECK( elements.get(2)  == 2 );
+    BOOST_CHECK( elements.get(3)  == 0 );
+    BOOST_CHECK( elements.get(6)  == 0 );
+    BOOST_CHECK( elements.get(7)  == 3 );
+    BOOST_CHECK( elements.get(9)  == 2 );
+    BOOST_CHECK( elements.get(11) == 3 );
+    BOOST_CHECK( elements.get(12) == 0 );
+    BOOST_CHECK( elements.size() == 14 );
+    
+    elements.remove_element(6);
+
+    // Now elements looks like : 0001100000001100100011000000
     
     elements.remove_element(2);
 
-    BOOST_CHECK( elements.get(1) == 0 );
+    // Now elements looks like : 0001000000110010001100000000
+
+    BOOST_CHECK( elements.get(0) == 0 );
+    BOOST_CHECK( elements.get(1) == 1 );
     BOOST_CHECK( elements.get(2) == 0 );
-    BOOST_CHECK( elements.get(3) == 1 );
+    BOOST_CHECK( elements.get(3) == 0 );
     BOOST_CHECK( elements.get(4) == 0 );
-    BOOST_CHECK( elements.get(5) == 0 );
+    BOOST_CHECK( elements.get(5) == 3 );
     BOOST_CHECK( elements.get(6) == 0 );
-    BOOST_CHECK( elements.get(7) == 3 );
-    BOOST_CHECK( elements.get(9) == 2 );
+    BOOST_CHECK( elements.get(7) == 2 );
+    BOOST_CHECK( elements.get(8) == 0 );
+    BOOST_CHECK( elements.get(9) == 3 );
     BOOST_CHECK( elements.size() == 12 );
     
-    elements.print();
+    //elements.print();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

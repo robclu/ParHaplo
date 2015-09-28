@@ -25,6 +25,8 @@ namespace haplo {
 #define ZERO 0x00
 #define ONE  0x01
 #define TWO  0x02
+#define IH   0x00           // Intricically heterozygous
+#define NIH  0x01           // Not intrinsically heterozygous
     
 namespace io = boost::iostreams;
 using namespace io;
@@ -43,21 +45,26 @@ public:
     // ----------------------------------------- TYPES ALIAS'S ----------------------------------------------
     using data_container        = BinaryContainer<R * C, 2>;    // R*C Elements, 2 bits per element
     using binary_matrix         = BinaryContainer<R * C, 1>;    // A matrix of bits for each element
-    using binary_container      = BinaryContainer<C>;           // Just a container of bits
+    using binary_container_r    = BinaryContainer<C>;           // A container of bits C elements long
+    using binary_container_c    = BinaryContainer<R>;           // A container of bits R elements long
     using row_info_container    = std::array<int, R * 2>;       // Start and end of row reads
     using col_info_container    = std::array<int, C * 2>;       // Reads per col and and num 0's
     // ------------------------------------------------------------------------------------------------------
 private:
     data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
-    binary_container    _haplotype;             //!< The binary bits which represent the haplotype
-    binary_container    _alignment;             //!< The binary bits which represent the alignment of the 
-                                                //!< reads to the haplotype                        
+    binary_container_c  _haplo_one;             //!< The binary bits which represent the first haplotype
+    binary_container_c  _haplo_two;             //!< The bianry bits which represent the second haplotype
+    binary_container_r  _alignment;             //!< The binary bits which represent the alignment of the 
+                                                //!< reads to the haplotypes                        
     binary_matrix       _pre_haplotypes;        //!< Potential haplotypes determined by looking at only the 
                                                 //!< data from 1 row -- from which the optimal solution is
                                                 //!< found
     row_info_container  _row_info;              //!< Information about the start and end positions of the row
-    binary_container    _homozygous_sites;      //!< The homozygous sites (columns which are homozygous)
     col_info_container  _col_info;
+    
+    // V2.0
+    binary_container_r  _singletons;            //!< If each of the rows is singleton or not
+    binary_container_c  _column_types;          //!< 0 if intrinsically heterozygous (IH), 1 if not IH
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to fill the block with data from the input file
@@ -71,6 +78,10 @@ public:
     /// @param[in]  col_idx     The index of the column for the element
     // ------------------------------------------------------------------------------------------------------
     byte operator()(size_t row_idx, size_t col_idx) const { return _data.get(row_idx * C + col_idx); }
+   
+    // --------------------- TEMP PRINTING FUNCTIONS ----------------------- 
+    void print() const;
+    void print_singletons() const;
     
 private:
     // ------------------------------------------------------------------------------------------------------
@@ -82,7 +93,7 @@ private:
     /// @param[in]  end_idx         The end index of the row (last non-gap element)
     // ------------------------------------------------------------------------------------------------------
     void update_row_params(size_t row_idx, size_t col_idx, int& start_idx, int& end_idx);
-
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Fills the block with data from the input file
     /// @param[in]  data_file   The file to get the data from 
@@ -93,6 +104,17 @@ private:
     /// @brief      Filers out the best possible solutions for each of the rows
     // ------------------------------------------------------------------------------------------------------
     void filter(); 
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Filters out all the monotone columns and sets the values of the haplotypes at the monotone
+    ///             column positions 
+    // ------------------------------------------------------------------------------------------------------
+    void filter_columns();
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Finds all the singleton rows
+    // ------------------------------------------------------------------------------------------------------
+    void find_singletons();
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Processes the data from the file, converting the chars into 2-bit values
@@ -104,12 +126,47 @@ private:
     void process_data(size_t row, TP tp);
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Filters all columns by finding the monotone columns, as well as counting th
+    // ------------------------------------------------------------------------------------------------------
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Sets all the homozygous variables if all reads in a column had the same value
     // ------------------------------------------------------------------------------------------------------
     void set_homozygous_sites();
 };
 
 // ---------------------------------------------- IMPLEMENTATIONS -------------------------------------------
+
+// ----------------------------------------------- TESTING --------------------------------------------------
+
+template <size_t R, size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::print() const 
+{
+    for (size_t r = 0; r < R; ++r) {
+        for (size_t c = 0; c < C; ++c) {
+            if (_data.get(r * C +c) != 2 ) {
+                std::cout << static_cast<unsigned>(_data.get(r * C + c)) << " ";
+            } else {
+                std::cout << "- ";
+            }
+        }
+        std::cout << "\n";
+    }
+    
+    // Print column info
+    for (size_t c = 0; c < C; ++c)
+        std::cout << static_cast<unsigned>(_column_types.get(c)) << " ";
+    std::cout << "\n";
+}
+
+template <size_t R, size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::print_singletons() const 
+{
+    for (size_t i = 0; i < R; i++) {
+        std::cout << static_cast<unsigned>(_singletons.get(i)) << "\n";
+    }
+    
+}
 
 // ------------------------------------------------- PUBLIC -------------------------------------------------
 
@@ -118,11 +175,12 @@ Block<R, C, THI, THJ>::Block(const char* data_file)
 : _row_info({0}), _col_info({0})
 {
     fill(data_file);
-    filter();
-    set_homozygous_sites();
+    find_singletons();
+    filter_columns();
+    //set_homozygous_sites();
 
     // Debugging ....
-    
+    /*
     // Print out the column information
     for (int i = 0; i < 30; ++i) std::cout << "-";
     std::cout << "\nTR :  ";
@@ -145,9 +203,11 @@ Block<R, C, THI, THJ>::Block(const char* data_file)
     std::cout << "\n";    
     for (int i = 0; i < 30; ++i) std::cout << "-";
     std::cout << "\n";    
+    */
 } 
 
 // ------------------------------------------------- PRIVATE ------------------------------------------------
+
 
 template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::fill(const char* data_file) 
@@ -203,6 +263,73 @@ void Block<R, C, THI, THJ>::filter()
     );
 }
 
+template <size_t R, size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::filter_columns()
+{
+    constexpr size_t threads_x = THJ < C ? THJ : C;
+    
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_x),
+        [&](const tbb::blocked_range<size_t>& thread_ids_x)
+        {
+            for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
+                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, C, threads_x);
+                
+                for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
+                    size_t col_id               = it_x * threads_x + thread_idx;
+                    size_t num_non_singular     = 0;            // Number of 0's and 1's that are non_singluar
+                    size_t num_any[2]           = {0, 0};       // Number of 0's and 1's in column
+                    
+                    for (size_t row_id = 0; row_id < R; ++row_id) {
+                        if (_data.get(row_id * C + col_id) == ZERO) {
+                            ++num_any[0];
+                            if (_singletons.get(row_id) == ZERO) ++num_non_singular;
+                        } else if (_data.get(row_id * C + col_id) == ONE) {
+                            ++num_any[1];
+                            if (_singletons.get(row_id) == ZERO) ++num_non_singular;
+                        }
+                    }
+                    std::cout << col_id << " " << num_any[0] << " " << num_any[1] << " " << num_non_singular << "\n";
+                    if (std::min(num_any[0], num_any[1]) < (num_non_singular / 2)) 
+                        _column_types.set(col_id, NIH);
+                    
+                    // TODO: Remove monotone columns and set solution
+                }
+            }
+        }
+    );
+}
+
+
+template <size_t R, size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::find_singletons() 
+{
+    constexpr size_t threads_y = THI < R ? THI : R;
+    
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_y),
+        [&](const tbb::blocked_range<size_t>& thread_ids_y)
+        {
+            for (size_t thread_idy = thread_ids_y.begin(); thread_idy != thread_ids_y.end(); ++thread_idy) {
+                size_t thread_iters_y = ops::get_thread_iterations(thread_idy, R, threads_y);  
+                
+                for (size_t it_y = 0; it_y < thread_iters_y; ++it_y) {
+                    size_t row_id           = it_y * threads_y + thread_idy;
+                    size_t col_id           = 0;
+                    size_t elements_in_row  = 0;
+                    
+                    while (elements_in_row <= 1 && col_id < C) {
+                        if (_data.get(row_id * C + col_id++) <= 1) 
+                            ++elements_in_row;
+                    } std::cout << "\n";
+                    // Check if only one (or 0 =/) element was found
+                    if (elements_in_row <= 1) _singletons.set(row_id, 1);
+                }
+            }
+        }
+    );
+}
+
 template <size_t R, size_t C, size_t THI, size_t THJ> template <typename TP>
 void Block<R, C, THI, THJ>::process_data(size_t row, TP tp) 
 {
@@ -237,6 +364,7 @@ void Block<R, C, THI, THJ>::process_data(size_t row, TP tp)
     }
 }
 
+/*
 template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::update_row_params(size_t row_idx, size_t col_idx, int& start_index, int& end_index)
 {
@@ -319,6 +447,6 @@ void Block<R, C, THI, THJ>::set_homozygous_sites()
         }
     );
 }
-    
+ */   
 }           // End namespace haplo
 #endif      // PARAHAPLO_BLOCK_HPP
