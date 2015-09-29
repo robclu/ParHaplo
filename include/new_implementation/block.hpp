@@ -49,13 +49,20 @@ public:
     using binary_container_c    = BinaryContainer<R>;           // A container of bits R elements long
     using row_info_container    = std::array<int, R * 2>;       // Start and end of row reads
     using col_info_container    = std::array<int, C * 2>;       // Reads per col and and num 0's
+    using atomic_array          = std::array<tbb::atomic<int>, C * 2>
     // ------------------------------------------------------------------------------------------------------
 private:
     data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
     binary_container_c  _haplo_one;             //!< The binary bits which represent the first haplotype
     binary_container_c  _haplo_two;             //!< The bianry bits which represent the second haplotype
     binary_container_r  _alignment;             //!< The binary bits which represent the alignment of the 
-                                                //!< reads to the haplotypes                        
+                                                //!< reads to the haplotypes 
+    binary_container_r  _singletons;            //!< If each of the rows is singleton or not
+    atomic_array        _column_info;           //!< The information for a column -- number of 0's and number
+                                                //!< of 1's
+                                                
+    // ------ OLD    
+                                            
     binary_matrix       _pre_haplotypes;        //!< Potential haplotypes determined by looking at only the 
                                                 //!< data from 1 row -- from which the optimal solution is
                                                 //!< found
@@ -63,7 +70,6 @@ private:
     col_info_container  _col_info;
     
     // V2.0
-    binary_container_r  _singletons;            //!< If each of the rows is singleton or not
     binary_container_c  _column_types;          //!< 0 if intrinsically heterozygous (IH), 1 if not IH
 public:
     // ------------------------------------------------------------------------------------------------------
@@ -101,7 +107,8 @@ private:
     void fill(const char* data_file);
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Filers out the best possible solutions for each of the rows
+    /// @brief      Filters out the monotone columns, saving the reslts in the haplotype, as well as removing
+    ///             the monotone columns and the singleton rows
     // ------------------------------------------------------------------------------------------------------
     void filter(); 
     
@@ -124,10 +131,12 @@ private:
     // ------------------------------------------------------------------------------------------------------
     template <typename TP>
     void process_data(size_t row, TP tp);
-    
+
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Filters all columns by finding the monotone columns, as well as counting th
+    /// @brief      Processes a row, determining all the necessary parameters
+    /// @param[in]  row_idx     The row in the data matrix to fill
     // ------------------------------------------------------------------------------------------------------
+    void process_row(const size_t row_idx);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Sets all the homozygous variables if all reads in a column had the same value
@@ -233,16 +242,17 @@ void Block<R, C, THI, THJ>::fill(const char* data_file)
 template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::filter()
 {
-    // Check that we aren't trying to use more threads than rows
+    // Check that we aren't trying to use more threads than rows or columns
     constexpr size_t threads_y = THI < R ? THI : R;
+    constexpr size_t threads_x = THJ < C ? THJ : C;
     
+    // Over each of the rows
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_y), 
         [&](const tbb::blocked_range<size_t>& thread_ids_y)
         {
             for (size_t thread_idy = thread_ids_y.begin(); thread_idy != thread_ids_y.end(); ++thread_idy) {
                 size_t thread_iters_y = ops::get_thread_iterations(thread_idy, R, threads_y);
-                
                 for (size_t it_y = 0; it_y < thread_iters_y; ++it_y) {
                     size_t  row_id          = it_y * threads_y + thread_idy;
                     int     start_index     = -1;           // First non gap in row
@@ -262,6 +272,51 @@ void Block<R, C, THI, THJ>::filter()
         }
     );
 }
+
+template <size_t R< size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::process_row(const size_t row_idx)
+{
+    // Determine the number of threads (this should be running in 
+    // parallel for multiple threads - so a parallel matrix of threads
+    constexpr size_t threads_x = (THJ / THI) < C ? (THJ / THI) : C;
+
+    // Over each column in the row
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_x),
+        [&](const tbb::blocked_range<size_t>& thread_ids_x)
+        {
+            for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
+                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, C, threads_x);
+                size_t start_idx = -1, end_idx = -1;
+                for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
+                    auto element_value = _data.get(row_idx * C + col_idx);
+                    
+                    if (element_value == 0) {
+                        ++_column_info[col_idx];
+                        if (start_index == -1) 
+                            start_index = col_idx;
+                        else 
+                            end_idx     = col_idx;
+                    } else if (element_value == 1 ) {
+                        ++_column_info[col_idx + 1];
+                        if (start_index == -1)
+                            start_index = col_idx;
+                        else 
+                            end_idx     = col_idx;
+                    }
+                    
+                    // TODO : Check if singleton
+                    // TODO : Set row parameters
+                    // TODO : Determine if monotone
+                    // TODO : Remove monotones
+                    // TODO : Check for IH and non IH
+                    
+                }
+            }
+        }
+    );
+}
+
 
 template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::filter_columns()
