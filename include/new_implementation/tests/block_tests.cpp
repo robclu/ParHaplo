@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE( canCreateABlock1 )
 BOOST_AUTO_TEST_CASE( canDetermineSingletonColumns )
 {
     // Define the binary container to use 1 bit per element (default setting)
-    haplo::Block<6, 8> block(input_3);
+    haplo::Block<6, 8, 2, 2> block(input_3);
     
     block.print();
 }
