@@ -65,6 +65,7 @@ private:
     atomic_array_c      _col_mplicities;        //!< The multiplicites of the columns
     binary_container_r  _singletons;            //!< If each of the rows is singleton or not
     binary_container_c  _column_types;          //!< The type of a column, IH or NIH
+    binary_container_c  _splittable_columns;    //!< If a column is splittable or not
     atomic_array_2r     _row_info;              //!< Start and end positions for the row
     concurrent_umap     _monotones;             //!< Columns that are monotone and do not need to be searched
 public:
@@ -101,6 +102,14 @@ private:
     /// @param[in]  data_file   The file to get the data from 
     // ------------------------------------------------------------------------------------------------------
     void fill(const char* data_file);
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Finds all duplicates of either a row or a column
+    /// @param[in]  checker     The checker function -- for rows or columns
+    /// @tparam     CheckerType The type of the checker -- rows or columns 
+    // ------------------------------------------------------------------------------------------------------
+    template <typename CheckerType>
+    void find_duplicates(CheckerType checker);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines the start and end indices of each of the rows, if a row is singular, and how
@@ -143,31 +152,37 @@ void Block<R, C, THI, THJ>::print() const
         std::cout << "\n";
     }
     
-    std::cout << "\n|-----------SINGLETONS----------|\n";
+    std::cout << "\n|-----------SINGLETONS----------|";
     
     for (size_t i = 0; i < R; i++) 
         std::cout << static_cast<unsigned>(_singletons.get(i)) << "\n";
     
 
-    std::cout << "\n|------------ROW INFO-----------|\n";
+    std::cout << "\n|------------ROW INFO-----------|";
     
     for (size_t i = 0; i < R; ++i) 
         std::cout << i << " : " << _row_info[2 * i] << " : " << _row_info[2 * i + 1] << "\n";
     
 
-    std::cout << "\n|------------COL TYPES-----------|\n";
+    std::cout << "\n|------------COL TYPES-----------|";
     
     for (auto i = 0; i < C; ++i) 
         std::cout << static_cast<unsigned>(_column_types.get(i)) << " ";
     std::cout << "\n";
     
-    std::cout << "\n|------------MONOTONES-----------|\n";
+    std::cout << "\n|------------MONOTONES-----------|";
     
     for (auto i = 0; i < C; ++i) 
         if (_monotones.find(i) != _monotones.end()) std::cout << i << " ";
     std::cout << "\n";
 
-    std::cout << "\n|------------HAPLOTYPES-----------|\n";
+    std::cout << "\n|------------SPLITTABLE-----------|";
+    
+    for (auto i = 0; i < C; ++i) 
+        if (_splittable_columns.get(i) == 1) std::cout << i << " ";
+    std::cout << "\n";
+
+    std::cout << "\n|------------HAPLOTYPES-----------|";
     
     std::cout << "h   : ";
     for (auto i = 0; i < C; ++i) std::cout << static_cast<unsigned>(_haplo_one.get(i));
@@ -209,9 +224,10 @@ void Block<R, C, THI, THJ>::determine_column_types()
                 // singular rows there are, and then compare that to the min of the 
                 // number of zeros and ones
                 for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
-                    size_t  col_idx            = it_x * threads_x + thread_idx;
-                    int     num_elements[2]    = {0, 0};
-                    int     num_not_single     = 0;
+                    size_t  col_idx             = it_x * threads_x + thread_idx;
+                    int     num_elements[2]     = {0, 0};
+                    int     num_not_single      = 0;
+                    bool    splittable          = true;
                     
                     // For each of the elements in the column (i.e row indices)
                     for (size_t row_idx = 0; row_idx < R; ++row_idx) {
@@ -225,6 +241,10 @@ void Block<R, C, THI, THJ>::determine_column_types()
                             ++num_elements[1];
                             if (_singletons.get(row_idx) == ZERO) ++num_not_single;
                         }
+                        
+                        // Check for splittable condition
+                        if (_row_info[row_idx * 2] < col_idx && _row_info[row_idx * 2 + 1] > col_idx)
+                            splittable = false;
                     }
                     
                     // Check if the column in monotone, and if the are NIH
@@ -249,6 +269,9 @@ void Block<R, C, THI, THJ>::determine_column_types()
                     } else if (!(std::min(num_elements[0], num_elements[1]) >= (num_not_single / 2))) {
                         _column_types.set(col_idx, NIH);      
                     }
+                    
+                    // If the column is splittable, then add it to the splittable list
+                    if (splittable) _splittable_columns.set(col_idx, 1);
                 }
             }
         }
