@@ -12,12 +12,14 @@
 #include "../small_containers.hpp"
 
 
-BOOST_AUTO_TEST_SUITE( BinaryContainerSuite )
-    
-BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith1BitPerElement ) 
+BOOST_AUTO_TEST_SUITE( BinaryArraySuite )
+ 
+// ------------------------------------------ ARRAY TESTS ---------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( canCreateBinaryArrayWith1BitPerElement ) 
 {
     // Define the binary container to use 1 bit per element (default setting)
-    haplo::BinaryContainer<12> elements;
+    haplo::BinaryArray<12> elements;
     
     // Set some elements
     elements.set(1, 1);
@@ -34,11 +36,11 @@ BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith1BitPerElement )
     BOOST_CHECK( elements.get(9) == 1 );
 }
 
-BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith2BitsPerElement ) 
+BOOST_AUTO_TEST_CASE( canCreateBinaryArrayWith2BitsPerElement ) 
 {
     // Define the conatiner to use 2 bits per element and 
     // 18 elements so 36 bits = 5 bytes
-    haplo::BinaryContainer<18, 2> elements;
+    haplo::BinaryArray<18, 2> elements;
 
     // Set some elements
     elements.set(1 , 1);
@@ -55,7 +57,7 @@ BOOST_AUTO_TEST_CASE( canCreateBinaryContainerWith2BitsPerElement )
     BOOST_CHECK( elements.get(14) == 3 );
 }
 
-BOOST_AUTO_TEST_CASE( canRemoveBitsFrom1BitBinaryContainer ) 
+BOOST_AUTO_TEST_CASE( canRemoveBitsFrom1BitTinyContainer ) 
 {
     // Define the binary container to use 1 bit per element (default setting)
     haplo::TinyContainer<haplo::byte, 1> bits;
@@ -87,7 +89,7 @@ BOOST_AUTO_TEST_CASE( canRemoveBitsFrom1BitBinaryContainer )
     BOOST_CHECK( bits.get(7) == 0 );
 }
 
-BOOST_AUTO_TEST_CASE( canRemoveBitsFrom2BitBinaryContainer ) 
+BOOST_AUTO_TEST_CASE( canRemoveBitsFrom2BitTinyContainer ) 
 {
     // Define the binary container to use 8 bits per container 
     // and 2 bits per element
@@ -116,10 +118,10 @@ BOOST_AUTO_TEST_CASE( canRemoveBitsFrom2BitBinaryContainer )
     BOOST_CHECK( bits.get(3) == 0 );
 }
 
-BOOST_AUTO_TEST_CASE( canRemoveElementsOf1BitContainer ) 
+BOOST_AUTO_TEST_CASE( canRemoveElementsOf1BitBianryArray ) 
 {
     // Define the binary container to use 1 bit per element (default setting)
-    haplo::BinaryContainer<12> elements;
+    haplo::BinaryArray<12> elements;
     
     // Set some elements
     elements.set(1, 1);
@@ -143,10 +145,10 @@ BOOST_AUTO_TEST_CASE( canRemoveElementsOf1BitContainer )
     BOOST_CHECK( elements.size() == 10 );
 }
 
-BOOST_AUTO_TEST_CASE( canRemoveElementsOf12BitContainer ) 
+BOOST_AUTO_TEST_CASE( canRemoveElementsOf2BitBinaryArray ) 
 {
     // Define the binary container to use 2 bits per element
-    haplo::BinaryContainer<14, 2> elements;
+    haplo::BinaryArray<14, 2> elements;
     
     // Set some elements
     elements.set(1 , 1);
@@ -188,8 +190,121 @@ BOOST_AUTO_TEST_CASE( canRemoveElementsOf12BitContainer )
     BOOST_CHECK( elements.get(8) == 0 );
     BOOST_CHECK( elements.get(9) == 3 );
     BOOST_CHECK( elements.size() == 12 );
-    
-    //elements.print();
 }
+
+// ------------------------------------------ VECTOR TESTS --------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( canCreateBinaryVectorWith1BitPerElement ) 
+{
+    // BinaryVector uses 1 bit per element
+    haplo::BinaryVector<1> elements(12);
+    
+    // Set some elements
+    elements.set(1, 1);
+    elements.set(2, 1);
+    elements.set(7, 1);
+    elements.set(9, 1);    
+    elements.set(3, 0);
+    
+    BOOST_CHECK( elements.get(1) == 1 );
+    BOOST_CHECK( elements.get(2) == 1 );
+    BOOST_CHECK( elements.get(3) == 0 );
+    BOOST_CHECK( elements.get(7) == 1 );
+    BOOST_CHECK( elements.get(8) == 0 );
+    BOOST_CHECK( elements.get(9) == 1 );
+}
+
+BOOST_AUTO_TEST_CASE( canCreateBinaryVectorWith2BitsPerElement ) 
+{
+    // Define the conatiner to use 2 bits per element and 
+    haplo::BinaryVector<2> elements(18);
+
+    // Set some elements
+    elements.set(1 , 1);
+    elements.set(3 , 2);
+    elements.set(7 , 1);
+    elements.set(14, 3);
+    elements.set(8 , 0);
+    
+    BOOST_CHECK( elements.get(1)  == 1 );
+    BOOST_CHECK( elements.get(2)  == 0 );
+    BOOST_CHECK( elements.get(3)  == 2 );
+    BOOST_CHECK( elements.get(7)  == 1 );
+    BOOST_CHECK( elements.get(8)  == 0 );
+    BOOST_CHECK( elements.get(14) == 3 );
+}
+
+BOOST_AUTO_TEST_CASE( canRemoveElementsOf1BitBinaryVector ) 
+{
+    haplo::BinaryVector<1> elements(12);
+    
+    // Set some elements
+    elements.set(1, 1);
+    elements.set(2, 1);
+    elements.set(6, 1);
+    elements.set(7, 1);
+    elements.set(9, 1);    
+    elements.set(3, 0);
+
+    elements.remove_element(6);   
+    elements.remove_element(7);
+    
+    BOOST_CHECK( elements.get(1) == 1 );
+    BOOST_CHECK( elements.get(2) == 1 );
+    BOOST_CHECK( elements.get(3) == 0 );
+    BOOST_CHECK( elements.get(4) == 0 );
+    BOOST_CHECK( elements.get(5) == 0 );
+    BOOST_CHECK( elements.get(6) == 1 );
+    BOOST_CHECK( elements.get(7) == 1 );
+    BOOST_CHECK( elements.get(9) == 0 );
+    BOOST_CHECK( elements.size() == 10 );
+}
+
+BOOST_AUTO_TEST_CASE( canRemoveElementsOf2BitBinaryVector ) 
+{
+    haplo::BinaryVector<2> elements(14);
+    
+    // Set some elements
+    elements.set(1 , 1);
+    elements.set(2 , 2);
+    elements.set(3 , 0);
+    elements.set(6 , 0);
+    elements.set(7 , 3);
+    elements.set(9 , 2);    
+    elements.set(11, 3);
+
+    // Elements looks like : 00011000000000110010001100000000
+    
+    BOOST_CHECK( elements.get(1)  == 1 );
+    BOOST_CHECK( elements.get(2)  == 2 );
+    BOOST_CHECK( elements.get(3)  == 0 );
+    BOOST_CHECK( elements.get(6)  == 0 );
+    BOOST_CHECK( elements.get(7)  == 3 );
+    BOOST_CHECK( elements.get(9)  == 2 );
+    BOOST_CHECK( elements.get(11) == 3 );
+    BOOST_CHECK( elements.get(12) == 0 );
+    BOOST_CHECK( elements.size() == 14 );
+    
+    elements.remove_element(6);
+
+    // Now elements looks like : 0001100000001100100011000000
+    
+    elements.remove_element(2);
+
+    // Now elements looks like : 0001000000110010001100000000
+
+    BOOST_CHECK( elements.get(0) == 0 );
+    BOOST_CHECK( elements.get(1) == 1 );
+    BOOST_CHECK( elements.get(2) == 0 );
+    BOOST_CHECK( elements.get(3) == 0 );
+    BOOST_CHECK( elements.get(4) == 0 );
+    BOOST_CHECK( elements.get(5) == 3 );
+    BOOST_CHECK( elements.get(6) == 0 );
+    BOOST_CHECK( elements.get(7) == 2 );
+    BOOST_CHECK( elements.get(8) == 0 );
+    BOOST_CHECK( elements.get(9) == 3 );
+    BOOST_CHECK( elements.size() == 12 );
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -17,7 +17,7 @@ BOOST_AUTO_TEST_SUITE( EqualityCheckerSuite )
 BOOST_AUTO_TEST_CASE( canCheckEquivalentRows )
 {
     // Define the binary container to use 1 bit per element (default setting)
-    haplo::BinaryContainer<8, 1> row1;
+    haplo::BinaryArray<8, 1> row1;
    
     row1.set(1, 1);
     row1.set(5, 1);
@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE( canCheckEquivalentRows )
 BOOST_AUTO_TEST_CASE( canCheckNonEquivalentRows )
 {
     // Define the binary container to use 1 bit per element (default setting)
-    haplo::BinaryContainer<8, 1> row1;
+    haplo::BinaryArray<8, 1> row1;
    
     row1.set(1, 1);
     row1.set(4, 1);
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE( canCheckNonEquivalentRows )
 BOOST_AUTO_TEST_CASE( canCheckEquivalentColumns )
 {
     // Define the binary container to use 1 bit per element (default setting)
-    haplo::BinaryContainer<16, 1> cols;
+    haplo::BinaryArray<16, 1> cols;
    
     cols.set(1 , 1);
     cols.set(5 , 1);
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE( canCheckEquivalentColumns )
 BOOST_AUTO_TEST_CASE( canCheckNonEquivalentColumns )
 {
     // Define the binary container to use 1 bit per element (default setting)
-    haplo::BinaryContainer<16, 1> cols;
+    haplo::BinaryArray<16, 1> cols;
    
     cols.set(1 , 1);
     cols.set(5 , 1);

@@ -46,9 +46,9 @@ template <size_t R, size_t C, size_t THI = 1, size_t THJ = 1>
 class Block {
 public:
     // ----------------------------------------- TYPES ALIAS'S ----------------------------------------------
-    using data_container        = BinaryContainer<R * C, 2>;    // R*C Elements, 2 bits per element
-    using binary_container_r    = BinaryContainer<C>;           // A container of bits C elements long
-    using binary_container_c    = BinaryContainer<R>;           // A container of bits R elements long
+    using data_container        = BinaryArray<R * C, 2>;    // R*C Elements, 2 bits per element
+    using binary_container_r    = BinaryArray<C>;           // A container of bits C elements long
+    using binary_container_c    = BinaryArray<R>;           // A container of bits R elements long
     using atomic_array_r        = std::array<tbb::atomic<int>, R>;
     using atomic_array_c        = std::array<tbb::atomic<int>, C>;
     using atomic_array_2r       = std::array<tbb::atomic<int>, R * 2>;

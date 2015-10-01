@@ -164,9 +164,9 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( VariablesSuite )
 
-BOOST_AUTO_TEST_CASE( canCreateABinaryContainerAndSetElementANode )
+BOOST_AUTO_TEST_CASE( canCreateABinaryArrayAndSetElementANode )
 {
-    haplo::BinaryContainer bit_array;
+    haplo::BinaryArray bit_array;
     
     bit_array.set(4, 1); 
     bit_array.set(3, 1); 

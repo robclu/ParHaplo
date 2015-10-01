@@ -11,14 +11,14 @@
 
 namespace haplo {
 
-class BinaryContainer {
+class BinaryArray {
 public:
     uint8_t _bits;
 public: 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to initialize the bits to 0
     // ------------------------------------------------------------------------------------------------------
-    BinaryContainer() : _bits(0) {};
+    BinaryArray() : _bits(0) {};
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the value of the bit at position i
@@ -58,7 +58,7 @@ public:
     : _num_set_elements(0), _data(num_elements / 8 + 1) {}
     
     // Type alias for data container
-    using container_type = std::vector<BinaryContainer>;
+    using container_type = std::vector<BinaryArray>;
 private:
     container_type  _data;              //!< The values of each of the binary variables
     size_t          _num_set_elements;  //!< The number of elements which have been set (determined)
@@ -96,7 +96,7 @@ public:
       _data(num_elements_d1 * num_elements_d2 / 8 + 1)  {}
 
     // Type alias for container
-    using container_type = std::vector<BinaryContainer>;
+    using container_type = std::vector<BinaryArray>;
 private:
     container_type      _data;              //!< The values of each of the binary variables
     size_t              _num_elements_d1;   //!< The number of elements in the first dimension

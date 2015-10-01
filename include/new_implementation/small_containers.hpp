@@ -11,6 +11,7 @@
 #include <iostream>
 #include <bitset>
 #include <limits>
+#include <vector>
 
 namespace haplo {
 
@@ -165,14 +166,14 @@ public:
 };
 
 // ----------------------------------------------------------------------------------------------------------
-/// @class  BinaryContainer 
+/// @class  BinaryArray 
 /// @brief  Container which can hold N binary variables, which is optimized for space and performance. The
 ///         bits are stored bif endian
 /// @tparam NumElements     The number of binary elements the container can hold
 /// @tparam BitsPerElement  The number of bits per element, can be 1 or 2 -- default to 1
 // ----------------------------------------------------------------------------------------------------------
 template <size_t NumElements, byte BitsPerElement = 1>
-class BinaryContainer {
+class BinaryArray {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
     using internal_container = TinyContainer<byte, BitsPerElement>;
@@ -186,7 +187,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor
     // ------------------------------------------------------------------------------------------------------
-    BinaryContainer() : _num_elements(NumElements) {}
+    BinaryArray() : _num_elements(NumElements) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a value from the binary container
@@ -235,6 +236,84 @@ public:
     void print() 
     {
         for (int i = 0; i < bins + 1; ++i)
+            _data[i].print();
+    }
+};
+
+// ----------------------------------------------------------------------------------------------------------
+/// @class  BinaryVector
+/// @brief  Container which can hold N binary variables, which is optimized for space and performance. The
+///         bits are stored big endian
+/// @tparam BitsPerElement  The number of bits per element, can be 1 or 2 -- default to 1
+// ----------------------------------------------------------------------------------------------------------
+template <byte BitsPerElement = 1>
+class BinaryVector {
+public:
+    // ----------------------------------------------- ALIAS'S ----------------------------------------------
+    using internal_container = TinyContainer<byte, BitsPerElement>;
+    using data_container     = std::vector<internal_container>;
+    // ------------------------------------------------------------------------------------------------------
+    static constexpr size_t elements_per_bin    = internal_container::num_elements;
+private:
+    data_container          _data;              //!< Vector of bit containers
+    size_t                  _bins;              //!< The number of bins in the vector
+    size_t                  _num_elements;      //!< Number of elements in the container
+public:
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Default constructor
+    // ------------------------------------------------------------------------------------------------------
+    explicit BinaryVector(const size_t num_elements) 
+    : _data(num_elements / elements_per_bin + 1), _bins(num_elements / elements_per_bin), 
+      _num_elements(num_elements)
+    {}
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a value from the binary container
+    /// @param[in]  i   The index of the binary in the container to get
+    // ------------------------------------------------------------------------------------------------------
+    inline byte get(const size_t i) const 
+    { 
+        return _data[i / elements_per_bin].get(i % elements_per_bin); }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Sets a value in the variable container
+    /// @param[in]  i       The index of the variable to set
+    /// @param[in]  value   The value to set the varibale to (must be 0 or 1)
+    // ------------------------------------------------------------------------------------------------------
+    inline void set(const size_t i, const byte value) 
+    { 
+        _data[i / elements_per_bin].set(i % elements_per_bin, value); 
+    }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The size (number of elements) in the container 
+    /// @return     The number of elements in the container 
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t size() const { return _num_elements; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Removes an element from the container
+    /// @param[in]  i   The index of the element to remove
+    // ------------------------------------------------------------------------------------------------------
+    inline void remove_element(const size_t i) 
+    {
+        // Decrease the number of elements
+        --_num_elements;
+        
+        // First remove the bit which is the element
+        _data[i / elements_per_bin].remove_bit(i % elements_per_bin);
+
+        // Now for each of the bins to the right, set the LSB of the container to the MSB of the
+        // container to the right, then shift all bits of the container to the left
+        for (size_t bin = i / elements_per_bin; bin < _bins; ++bin) {
+            _data[bin].set(elements_per_bin - 1, _data[bin + 1].get(0));
+            _data[bin + 1].shift_left(1);
+        }
+    }
+    
+    void print() 
+    {
+        for (int i = 0; i < _bins + 1; ++i)
             _data[i].print();
     }
 };
