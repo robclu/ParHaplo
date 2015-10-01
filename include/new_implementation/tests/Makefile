@@ -52,7 +52,7 @@ PXX_FLAGS       :=
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: all container_tests block_tests clean
+.PHONY: all container_tests checker_tests block_tests clean
 
 all: build_and_run
 
@@ -65,13 +65,16 @@ build: build_tests
 small_container_tests.o: small_container_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
+equality_checker_tests.o: equality_checker_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
 block_tests.o: block_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 tests.o: tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
-build_tests: small_container_tests.o block_tests.o tests.o
+build_tests: small_container_tests.o equality_checker_tests.o block_tests.o tests.o
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 
 container_tests: CXX_FLAGS += -DSTAND_ALONE
@@ -80,6 +83,10 @@ container_tests: small_container_tests.o
 	
 block_tests: CXX_FLAGS += -DSTAND_ALONE
 block_tests: block_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+	
+checker_tests: CXX_FLAGS += -DSTAND_ALONE
+checker_tests: equality_checker_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 	
 clean:

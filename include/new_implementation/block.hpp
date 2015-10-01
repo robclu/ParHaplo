@@ -12,6 +12,7 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/tokenizer.hpp>
 #include <tbb/tbb.h>
+#include <tbb/concurrent_unordered_map.h>
 
 #include <iostream>
 #include <string>
@@ -46,12 +47,13 @@ class Block {
 public:
     // ----------------------------------------- TYPES ALIAS'S ----------------------------------------------
     using data_container        = BinaryContainer<R * C, 2>;    // R*C Elements, 2 bits per element
-    using binary_matrix         = BinaryContainer<R * C, 1>;    // A matrix of bits for each element
     using binary_container_r    = BinaryContainer<C>;           // A container of bits C elements long
     using binary_container_c    = BinaryContainer<R>;           // A container of bits R elements long
-    using col_info_container    = std::array<int, C * 2>;       // Reads per col and and num 0's
-    using atomic_array_2c       = std::array<tbb::atomic<int>, C * 2>;
+    using atomic_array_r        = std::array<tbb::atomic<int>, R>;
+    using atomic_array_c        = std::array<tbb::atomic<int>, C>;
     using atomic_array_2r       = std::array<tbb::atomic<int>, R * 2>;
+    using concurrent_umap       = tbb::concurrent_unordered_map<int, byte>;
+    
     // ------------------------------------------------------------------------------------------------------
 private:
     data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
@@ -59,10 +61,12 @@ private:
     binary_container_c  _haplo_two;             //!< The bianry bits which represent the second haplotype
     binary_container_r  _alignment;             //!< The binary bits which represent the alignment of the 
                                                 //!< reads to the haplotypes 
+    atomic_array_r      _row_mplicities;        //!< The multiplicites of the rows
+    atomic_array_c      _col_mplicities;        //!< The multiplicites of the columns
     binary_container_r  _singletons;            //!< If each of the rows is singleton or not
-    atomic_array_2c     _column_info;           //!< The information for a column -- number of 0's and number
-                                                //!< of 1's
+    binary_container_c  _column_types;          //!< The type of a column, IH or NIH
     atomic_array_2r     _row_info;              //!< Start and end positions for the row
+    concurrent_umap     _monotones;             //!< Columns that are monotone and do not need to be searched
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to fill the block with data from the input file
@@ -81,6 +85,17 @@ public:
     void print() const;
     
 private:
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the types of each of the columns - if the column is intrisically heterozygous,
+    ///             or if it is not intrinsically heterozygous
+    // ------------------------------------------------------------------------------------------------------
+    void determine_column_types();
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the mutplicities of the rows and the columns
+    // ------------------------------------------------------------------------------------------------------
+    void determine_multiplicities();
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Fills the block with data from the input file
     /// @param[in]  data_file   The file to get the data from 
@@ -112,6 +127,9 @@ private:
 template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::print() const 
 {
+    std::cout << "\n\n|----------STARTING TO PRINT------------|\n";
+    std::cout << "|---------------------------------------|";
+    
     std::cout << "\n\n|--------------DATA------------|\n\n";
     
     for (size_t r = 0; r < R; ++r) {
@@ -125,16 +143,37 @@ void Block<R, C, THI, THJ>::print() const
         std::cout << "\n";
     }
     
-    std::cout << "\n\n|-----------SINGLETONS----------|\n\n";
+    std::cout << "\n|-----------SINGLETONS----------|\n";
     
     for (size_t i = 0; i < R; i++) 
         std::cout << static_cast<unsigned>(_singletons.get(i)) << "\n";
     
 
-    std::cout << "\n\n|------------ROW INFO-----------|\n\n";
+    std::cout << "\n|------------ROW INFO-----------|\n";
     
     for (size_t i = 0; i < R; ++i) 
         std::cout << i << " : " << _row_info[2 * i] << " : " << _row_info[2 * i + 1] << "\n";
+    
+
+    std::cout << "\n|------------COL TYPES-----------|\n";
+    
+    for (auto i = 0; i < C; ++i) 
+        std::cout << static_cast<unsigned>(_column_types.get(i)) << " ";
+    std::cout << "\n";
+    
+    std::cout << "\n|------------MONOTONES-----------|\n";
+    
+    for (auto i = 0; i < C; ++i) 
+        if (_monotones.find(i) != _monotones.end()) std::cout << i << " ";
+    std::cout << "\n";
+
+    std::cout << "\n|------------HAPLOTYPES-----------|\n";
+    
+    std::cout << "h   : ";
+    for (auto i = 0; i < C; ++i) std::cout << static_cast<unsigned>(_haplo_one.get(i));
+    std::cout << "\nh`  : ";
+    for (auto i = 0; i < C; ++i) std::cout << static_cast<unsigned>(_haplo_two.get(i));
+    std::cout << "\n|---------------------------------------|\n\n";
         
 }
 
@@ -143,7 +182,7 @@ void Block<R, C, THI, THJ>::print() const
 
 template <size_t R, size_t C, size_t THI, size_t THJ>
 Block<R, C, THI, THJ>::Block(const char* data_file)
-: _row_info{0}, _column_info{0}
+: _row_info{0}
 {
     fill(data_file);
     find_params();
@@ -151,6 +190,70 @@ Block<R, C, THI, THJ>::Block(const char* data_file)
 } 
 
 // ------------------------------------------------- PRIVATE ------------------------------------------------
+
+template <size_t R, size_t C, size_t THI, size_t THJ>
+void Block<R, C, THI, THJ>::determine_column_types()
+{
+    // We can use all the available cores for this 
+    constexpr size_t threads_x = (THJ + THI) < C ? (THJ + THI) : C;
+
+    // Over each column in the row
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads_x),
+        [&](const tbb::blocked_range<size_t>& thread_ids_x)
+        {
+            for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
+                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, C, threads_x);
+     
+                // For each column we must traverse downwards and check how many non
+                // singular rows there are, and then compare that to the min of the 
+                // number of zeros and ones
+                for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
+                    size_t  col_idx            = it_x * threads_x + thread_idx;
+                    int     num_elements[2]    = {0, 0};
+                    int     num_not_single     = 0;
+                    
+                    // For each of the elements in the column (i.e row indices)
+                    for (size_t row_idx = 0; row_idx < R; ++row_idx) {
+                        auto element_value = _data.get(row_idx * C + col_idx);
+                        // Check the element value and update the appropriate
+                        // column information container, set start and end values
+                        if (element_value == 0) {
+                            ++num_elements[0];
+                            if (_singletons.get(row_idx) == ZERO) ++num_not_single;
+                        } else if (element_value == 1) {
+                            ++num_elements[1];
+                            if (_singletons.get(row_idx) == ZERO) ++num_not_single;
+                        }
+                    }
+                    
+                    // Check if the column in monotone, and if the are NIH
+                    // if they are none of these, then they are the default (IH)
+                    if (num_elements[0] != 0 && num_elements[1] == 0) {
+                        _monotones[col_idx] = 0;
+                        
+                        // Set the values of the haplotypes at these positions
+                        _haplo_one.set(col_idx, 0);
+                        _haplo_two.set(col_idx, 0);
+                        
+                        // These columns also fit the IH category
+                        _column_types.set(col_idx, NIH);
+                    } else if (num_elements[1] != 0 && num_elements[0] == 0) {
+                        _monotones[col_idx] = 0;
+                        
+                        // Set the value of the haplotypes
+                        _haplo_one.set(col_idx, 1);
+                        _haplo_two.set(col_idx, 1);
+                        
+                        _column_types.set(col_idx, NIH);
+                    } else if (!(std::min(num_elements[0], num_elements[1]) >= (num_not_single / 2))) {
+                        _column_types.set(col_idx, NIH);      
+                    }
+                }
+            }
+        }
+    );
+}
 
 
 template <size_t R, size_t C, size_t THI, size_t THJ>
@@ -196,17 +299,18 @@ void Block<R, C, THI, THJ>::find_params()
                     process_row(row_idx);
                 }
             }
-            
-            // Check for and remove monotones
         }
     );
+    
+    // Now we can find which of the columns are IH and which are NIH
+    determine_column_types();
 }
 
 template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::process_row(const size_t row_idx)
 {
-    // Determine the number of threads (this should be running in 
-    // parallel for multiple threads - so a parallel matrix of threads
+    // Determine the number of threads (this function is called by parallel
+    // rows so the number of threads each instance can use is limited)
     constexpr size_t threads_x = (THJ / THI) < C ? (THJ / THI) : C;
 
     // Over each column in the row
@@ -224,21 +328,16 @@ void Block<R, C, THI, THJ>::process_row(const size_t row_idx)
                     auto col_idx       = it_x * threads_x + thread_idx;
                     auto element_value = _data.get(row_idx * C + col_idx);
                     
-                    // Check the element value and update the appropriate
-                    // column information container, set start and end values
-                    if (element_value == 0) {
-                        ++_column_info[col_idx];
-                        if (start_idx == -1) 
-                            start_idx = col_idx;
-                        end_idx = col_idx;
-                    } else if (element_value == 1 ) {
-                        ++_column_info[col_idx + 1];
+                    // If the element has a valid value then we 
+                    // can set the start and end index appropriately
+                    if (element_value <= 1) {
                         if (start_idx == -1) 
                             start_idx = col_idx;
                         end_idx = col_idx;
                     }
                 }
                 // Set the row paramters - the start and the end of the row
+                // as well as if the row is a singleton or not (has 1 element)
                 if (start_idx != end_idx) {
                     _row_info[2 * row_idx]     = start_idx;
                     _row_info[2 * row_idx + 1] = end_idx;

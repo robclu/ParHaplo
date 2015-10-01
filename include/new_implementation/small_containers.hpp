@@ -16,7 +16,6 @@ namespace haplo {
 
 using byte = uint8_t;
 
-
 // ----------------------------------------------------------------------------------------------------------
 /// @struct     BinaryOnes
 /// @brief      Generates a seqeunce of binary ones at compile time, the length depends on the data type
