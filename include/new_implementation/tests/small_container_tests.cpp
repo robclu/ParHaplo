@@ -306,5 +306,90 @@ BOOST_AUTO_TEST_CASE( canRemoveElementsOf2BitBinaryVector )
     BOOST_CHECK( elements.size() == 12 );
 }
 
+BOOST_AUTO_TEST_CASE( canResizeBianryVectorFromZero ) 
+{
+    haplo::BinaryVector<2> elements;
+    
+    elements.resize(14);
+    
+    // Set some elements
+    elements.set(1 , 1);
+    elements.set(2 , 2);
+    elements.set(3 , 0);
+    elements.set(6 , 0);
+    elements.set(7 , 3);
+    elements.set(9 , 2);    
+    elements.set(11, 3);
+
+    // Elements looks like : 00011000000000110010001100000000
+    
+    BOOST_CHECK( elements.get(1)  == 1 );
+    BOOST_CHECK( elements.get(2)  == 2 );
+    BOOST_CHECK( elements.get(3)  == 0 );
+    BOOST_CHECK( elements.get(6)  == 0 );
+    BOOST_CHECK( elements.get(7)  == 3 );
+    BOOST_CHECK( elements.get(9)  == 2 );
+    BOOST_CHECK( elements.get(11) == 3 );
+    BOOST_CHECK( elements.get(12) == 0 );
+    BOOST_CHECK( elements.size() == 14 );
+}
+
+BOOST_AUTO_TEST_CASE( canResizeBinaryVectorUpwards )
+{
+    haplo::BinaryVector<2> elements;
+    
+    elements.resize(14);
+    
+    // Set some elements
+    elements.set(1 , 1);
+    elements.set(2 , 2);
+    elements.set(3 , 0);
+    elements.set(6 , 0);
+    elements.set(7 , 3);
+    elements.set(9 , 2);    
+    elements.set(11, 3);
+    
+    elements.resize(18);
+    
+    elements.set(15, 1);
+    
+    BOOST_CHECK( elements.get(1)  == 1 );
+    BOOST_CHECK( elements.get(2)  == 2 );
+    BOOST_CHECK( elements.get(3)  == 0 );
+    BOOST_CHECK( elements.get(6)  == 0 );
+    BOOST_CHECK( elements.get(7)  == 3 );
+    BOOST_CHECK( elements.get(9)  == 2 );
+    BOOST_CHECK( elements.get(11) == 3 );
+    BOOST_CHECK( elements.get(12) == 0 );
+    BOOST_CHECK( elements.get(14) == 0 );
+    BOOST_CHECK( elements.get(15) == 1 );
+    BOOST_CHECK( elements.size() == 18 );
+}
+
+BOOST_AUTO_TEST_CASE( canResizeBinaryVectorDownwards ) 
+{
+    haplo::BinaryVector<2> elements;
+    
+    elements.resize(14);
+    
+    // Set some elements
+    elements.set(1 , 1);
+    elements.set(2 , 2);
+    elements.set(3 , 0);
+    elements.set(6 , 0);
+    elements.set(7 , 3);
+    elements.set(9 , 2);    
+    elements.set(11, 3);
+    
+    elements.resize(10);
+    
+    BOOST_CHECK( elements.get(1)  == 1 );
+    BOOST_CHECK( elements.get(2)  == 2 );
+    BOOST_CHECK( elements.get(3)  == 0 );
+    BOOST_CHECK( elements.get(6)  == 0 );
+    BOOST_CHECK( elements.get(7)  == 3 );
+    BOOST_CHECK( elements.get(9)  == 2 );
+    BOOST_CHECK( elements.size() == 10 );
+}
 
 BOOST_AUTO_TEST_SUITE_END()

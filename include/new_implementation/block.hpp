@@ -17,6 +17,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 // NOTE: All output the the terminal is for debugging and checking at the moment
 
@@ -53,9 +54,10 @@ public:
     using atomic_array_r        = std::array<tbb::atomic<uint>, R>;
     using atomic_array_c        = std::array<tbb::atomic<uint>, C>;
     using atomic_array_2r       = std::array<tbb::atomic<uint>, R * 2>;
-    using concurrent_umap       = tbb::concurrent_unordered_map<uint, byte>;
-    
+    using concurrent_umap       = tbb::concurrent_unordered_map<uint, byte>;    
     // ------------------------------------------------------------------------------------------------------
+    static constexpr size_t rows    = R;
+    static constexpr size_t columns = C;
 private:
     data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
     binary_container_c  _haplo_one;             //!< The binary bits which represent the first haplotype
@@ -245,7 +247,7 @@ void Block<R, C, THI, THJ>::print() const
 
 template <size_t R, size_t C, size_t THI, size_t THJ>
 Block<R, C, THI, THJ>::Block(const char* data_file)
-: _row_info{0}
+: _row_info{{0}}
 {
     fill(data_file);                    // Get the data from the input file
     determine_column_types();           // Determine which columns are splittable, montone, and IH or NIH
@@ -384,7 +386,9 @@ template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::fill(const char* data_file) 
 {
     // Open file and convert to string (for tokenizer)
-    io::mapped_file_source  file(data_file);
+    io::mapped_file_source file(data_file);
+    if (!file.is_open()) throw std::runtime_error("Could not open input file =(!\n");
+    
     std::string data(file.data(), file.size());
 
     // Create a tokenizer to tokenize by newline character and another by whitespace
@@ -400,6 +404,8 @@ void Block<R, C, THI, THJ>::fill(const char* data_file)
     // Get the data and store it in the data container 
     for (auto line = lines.begin(); line != lines.end(); ++line) 
         process_data(row++, line);
+    
+    if (file.is_open()) file.close();
 }
 
 template <size_t R, size_t C, size_t THI, size_t THJ>

@@ -20,21 +20,20 @@ UNINSTALL_DIR   := $(addsuffix /nano, $(INSTALL_DIR))
 #	NXX     : The compiler for the nvidia cuda gpu implementation                      #
 ########################################################################################
 
-CXX 			:= g++ 
+CXX 			:= clang++ 
 NXX             := nvcc --ccbin $(CXX)
 
 ########################################################################################
 #				                    INCLUDE DIRECTORIES 		                       #
 ########################################################################################
 
-CXX_INCLUDE     := -I$(TBBROOT)/include
+CXX_INCLUDE     := -I$(TBBROOT)/include 
 
 ########################################################################################
 #				   	                   LIBRARIES 						               #
 ########################################################################################
 
-CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm \
-					-Wl,-rpath,`$(TBB_LIBRARY_RELEASE) -L$(TBB_LIBRARY_RELEASE)` -ltbb	
+CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm -ltbb
 CXX_LDIR  	    := 
 
 ########################################################################################

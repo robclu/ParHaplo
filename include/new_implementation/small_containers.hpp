@@ -262,6 +262,11 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor
     // ------------------------------------------------------------------------------------------------------
+    explicit BinaryVector() : _data(0), _bins(0), _num_elements(0) {}
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Constructor to take the number of elements for the container 
+    // ------------------------------------------------------------------------------------------------------
     explicit BinaryVector(const size_t num_elements) 
     : _data(num_elements / elements_per_bin + 1), _bins(num_elements / elements_per_bin), 
       _num_elements(num_elements)
@@ -290,6 +295,25 @@ public:
     /// @return     The number of elements in the container 
     // ------------------------------------------------------------------------------------------------------
     inline size_t size() const { return _num_elements; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Resizes the data container (adds to the end if bigger, or removes from the end if smaller) 
+    /// @param[in]  num_elements    The number of elements in the container after the resize
+    // ------------------------------------------------------------------------------------------------------
+    inline void resize(const size_t num_elements) 
+    { 
+        size_t total_bins       = num_elements / elements_per_bin;
+        size_t current_bins     = _bins;
+        
+        if (total_bins > current_bins) {
+            for (size_t i = current_bins; i < total_bins; ++i) _data.emplace_back();
+            ++_bins;
+        } else if (total_bins < current_bins) {
+            for (size_t i = current_bins; i > total_bins; --i) _data.pop_back();
+            --_bins;
+        }
+        _num_elements = num_elements;
+    }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Removes an element from the container

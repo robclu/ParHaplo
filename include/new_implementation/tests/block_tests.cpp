@@ -11,9 +11,9 @@
 
 #include "../block.hpp"
 
-constexpr char* input_1 = "input_unfiltered_1.txt";
-constexpr char* input_2 = "input_unfiltered_2.txt";
-constexpr char* input_3 = "input_singleton_rows.txt";
+static constexpr const char* input_1 = "input_files/input_unfiltered_1.txt";
+static constexpr const char* input_2 = "input_files/input_unfiltered_2.txt";
+static constexpr const char* input_3 = "input_files/input_singleton_rows.txt";
 
 BOOST_AUTO_TEST_SUITE( BlockSuite )
     
