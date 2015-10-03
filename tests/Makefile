@@ -51,7 +51,7 @@ PXX_FLAGS       :=
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: all container_tests checker_tests block_tests clean
+.PHONY: all container_tests checker_tests block_tests converter_tests clean
 
 all: build_and_run
 
@@ -65,6 +65,12 @@ small_container_tests.o: small_container_tests.cpp
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 equality_checker_tests.o: equality_checker_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
+data_converter.o: ../haplo/data_converter.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+	
+data_converter_tests.o: data_converter_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 block_tests.o: block_tests.cpp 
@@ -89,6 +95,10 @@ block_tests: block_tests.o
 	
 checker_tests: CXX_FLAGS += -DSTAND_ALONE
 checker_tests: equality_checker_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
+converter_tests: CXX_FLAGS += -DSTAND_ALONE
+converter_tests: data_converter.o data_converter_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
 unsplittable_block_tests: CXX_FLAGS += -DSTAND_ALONE
