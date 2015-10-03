@@ -2,25 +2,37 @@
 
 # Parahaplo
 
-This is for my final year project, which is an investigation into the parallelization of the individual haplotyping assembly problem. There will be 3 different implementations:
-* __Multi-threaded C++__: Using standard C++ and the SIMD instructions.
-* __CUDA__: Parallel implementation using CUDA, capable of running on Nvidia graphics cards. 
-* __Xeon Phi__: Parallel implementation capable of running on the Xeon Phi.
+Provides a parallel implementation of the haplotype assembly problem, that works with a multiple parallel
+hardware:
 
-## Languages
-
-C++ is used for all implementations. The Nvidia CUDA API is used for the CUDA implementation.
+* __GPU__: This is the intended usage and provides the best performance, it uses CUDA.
+* __CPU__: Parallel CPU implementation using Intel TBB.
+* __PHI__: Intel Xeon Phi implementation, it uses Intel TBB
 
 #Organisation 
 
 The repository is structured as follows:
 
 ```
-| ROOT
--| doc (documentation)
---| prelim (preliminary report)
---| final (final report)
--| src (source code)
--| ref (reference material)
---| links (links to any relevant information)
+|--- parahaplo
+|    |--- LICENCE.md       
+|    |--- README.md
+|    |--- doc/                                  (documentation)
+|    |    |--- prelim/                          (preliminary report)
+|    |    |--- final/                           (final report)
+|    |--- haplo/                                (source code)
+|    |--- ref/                                  (reference material)
+|    |    |--- links.md                         (links to any relevant information)
+|    |--- tests/                                (unit tests for library)
+|    |    |--- block_tests.cpp                  (block tests)
+|    |    |--- equality_checker_tests.cpp       (tests for checking if rows/cols are equal)
+|    |    |--- Makefile                         (Makefile for tests)
+|    |    |--- small_container_tests.cpp        (tests for small (binary) containers)
+|    |    |--- tests.cpp                        (main test file for running all tests)
+|    |    |--- unsplittable_block_tests.cpp     (tests for unsplittable blocks)
+|    |    |--- input_files/                     (input files for tests)
 ```
+
+# Dependencies 
+
+# Compiling 

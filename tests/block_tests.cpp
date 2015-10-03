@@ -9,7 +9,7 @@
 #endif
 #include <boost/test/unit_test.hpp>
 
-#include "../block.hpp"
+#include "../haplo/block.hpp"
 
 static constexpr const char* input_1 = "input_files/input_unfiltered_1.txt";
 static constexpr const char* input_2 = "input_files/input_unfiltered_2.txt";
