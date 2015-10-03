@@ -17,6 +17,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <array>
 #include <stdexcept>
 
 // NOTE: All output the the terminal is for debugging and checking at the moment
