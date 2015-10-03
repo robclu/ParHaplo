@@ -56,8 +56,10 @@ void DataConverter::convert_data(const char* data_file)
     size_t row = 0;
     
     // Get the data and store it in the data container
-    for (auto line = lines.begin(); line != lines.end(); ++line)
-        process_line(row++, line);
+    //for (auto line = lines.begin(); line != lines.end(); ++line)
+    //    process_line(row++, line);
+    
+    for (const auto& t : lines) std::cout << t << "\n";
     
     if (file.is_open()) file.close();
 

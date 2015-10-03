@@ -100,6 +100,7 @@ checker_tests: CXX_FLAGS += -DSTAND_ALONE
 checker_tests: equality_checker_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
+converter_tests: CXX_FLAGS += -DSTAND_ALONE
 converter_tests: data_converter.o data_converter_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
@@ -110,6 +111,7 @@ node_tests: node_container_tests.o
 unsplittable_block_tests: CXX_FLAGS += -DSTAND_ALONE
 unsplittable_block_tests: unsplittable_block_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
 clean:
 	rm -rf *.o
 	rm -rf $(CXX_EXE) 
