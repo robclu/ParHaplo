@@ -18,6 +18,14 @@ namespace haplo {
 class DataConverter {
 private:
     std::vector<char>       _data;      //!< The converted data
+    size_t                  _rows;
+    size_t                  _columns;
+    std::vector<char>       _refSeq;
+    std::vector<char>       _altSeq;
+    std::vector<int>        _aBase;
+    std::vector<int>        _cBase;
+    std::vector<int>        _tBase;
+    std::vector<int>        _gBase;
 public:
     DataConverter(const char* data_file);
     
@@ -34,7 +42,21 @@ private:
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
     template <typename TP>
-    void process_line(size_t line, TP token_pointer); 
+    void find_base_occurrance(size_t line_number, TP token_pointer);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    void determine_ref_sequence();
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    template <typename TP>
+    void process_line(size_t line, TP token_pointer);
+    
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    void write_data_to_file();
 };
 
 }               // End namespcea haplo
