@@ -1,3 +1,4 @@
+// ----------------------------------------------------------------------------------------------------------
 /// @file   unsplittables_block.hpp
 /// @brief  Header file for the unsplittable block class definition
 // ----------------------------------------------------------------------------------------------------------
@@ -7,15 +8,8 @@
 
 #include "block.hpp"
 
-namespace haplo   {
-namespace devices {
+namespace haplo {
     
-static constexpr byte cpu = 0;
-static constexpr byte gpu = 1;
-static constexpr byte phi = 2;
-
-}           // End namespace devices
-
 // ----------------------------------------------------------------------------------------------------------
 /// @class      UnsplittableBlock   
 /// @brief      General class for creating sub blocks from an entire block, which can then be solved in

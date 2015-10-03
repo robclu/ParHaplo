@@ -21,8 +21,6 @@
 
 // NOTE: All output the the terminal is for debugging and checking at the moment
 
-// TODO : Create unsplittable info and then determine unsplittable blocks
-
 namespace haplo {
 
 // Define some HEX values for the 8 bits comparisons
@@ -54,7 +52,7 @@ public:
     using atomic_array_r        = std::array<tbb::atomic<uint>, R>;
     using atomic_array_c        = std::array<tbb::atomic<uint>, C>;
     using atomic_array_2r       = std::array<tbb::atomic<uint>, R * 2>;
-    using concurrent_umap       = tbb::concurrent_unordered_map<uint, byte>;    
+    using concurrent_umap       = tbb::concurrent_unordered_map<size_t, size_t>;
     // ------------------------------------------------------------------------------------------------------
     static constexpr size_t rows    = R;
     static constexpr size_t columns = C;
@@ -120,7 +118,17 @@ public:
     /// @brief      Gets the number of unsplittable blocks possible from this block
     /// @return     The number of unsplittable blocks from this block
     // ------------------------------------------------------------------------------------------------------
-    inline const size_t num_unsplittable_blocks() const { return _splittable_columns.size() - 1; }
+    inline size_t num_unsplittable_blocks() const { return _splittable_columns.size() - 1; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets if the column is IH or not
+    /// @param[in]  col_idx     The index of the column to check
+    /// @return     If the column is IH or not
+    // ------------------------------------------------------------------------------------------------------
+    inline bool is_intrin_hetero(const size_t col_idx) const 
+    { 
+        return _column_types.get(col_idx) == IH ? true : false;
+    }
    
     // --------------------- TEMP PRINTING FUNCTIONS ----------------------- 
     
@@ -412,6 +420,7 @@ template <size_t R, size_t C, size_t THI, size_t THJ>
 void Block<R, C, THI, THJ>::find_row_params()
 {
     // Check that we aren't trying to use more threads than rows or columns
+
     constexpr size_t threads_y = THI < R ? THI : R;
     
     // Over each of the rows
