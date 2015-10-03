@@ -76,6 +76,12 @@ void DataConverter::convert_data(const char* data_file)
     {
         process_line(rows++, line);
     }
+=======
+    //for (auto line = lines.begin(); line != lines.end(); ++line)
+    //    process_line(row++, line);
+    
+    for (const auto& t : lines) std::cout << t << "\n";
+>>>>>>> 5148aa0a47f057c6b69c6cf287b0f22367c353b5
     
     if (file.is_open()) file.close();
 
