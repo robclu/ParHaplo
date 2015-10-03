@@ -27,14 +27,14 @@ NXX             := nvcc --ccbin $(CXX)
 #				                    INCLUDE DIRECTORIES 		                       #
 ########################################################################################
 
-CXX_INCLUDE     := -I$(TBBROOT)/include -I/Users/sashatn/Documents/boost_1_59_0/include 
+CXX_INCLUDE     := -I$(TBBROOT)/include
 
 ########################################################################################
 #				   	                   LIBRARIES 						               #
 ########################################################################################
 
 CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm -ltbb
-CXX_LDIR  	    :=  -L/Users/sashatn/Documents/boost_1_59_0/stage/lib/
+CXX_LDIR  	    :=
 
 ########################################################################################
 #					                COMPILER FLAGS 					                   #
@@ -82,7 +82,7 @@ unsplittable_block_tests.o: unsplittable_block_tests.cpp
 tests.o: tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
-build_tests: small_container_tests.o equality_checker_tests.o block_tests.o tests.o
+build_tests: small_container_tests.o equality_checker_tests.o data_converter.o block_tests.o unsplittable_block_tests.o tests.o
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 
 container_tests: CXX_FLAGS += -DSTAND_ALONE

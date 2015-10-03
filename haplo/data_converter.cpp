@@ -62,8 +62,7 @@ void DataConverter::convert_data(const char* data_file)
     
     
     // Get the data and store it in the data container
-    for (auto line = lines.begin(); line != lines.end(); ++line)
-    {
+    for (auto line = lines.begin(); line != lines.end(); ++line) {
         _rows++;
         find_base_occurrance(_rows, line);
     }
@@ -72,16 +71,9 @@ void DataConverter::convert_data(const char* data_file)
     
     size_t rows = 0;
     
-    for (auto line = lines.begin(); line != lines.end(); ++line)
-    {
+    for (auto line = lines.begin(); line != lines.end(); ++line) {
         process_line(rows++, line);
     }
-=======
-    //for (auto line = lines.begin(); line != lines.end(); ++line)
-    //    process_line(row++, line);
-    
-    for (const auto& t : lines) std::cout << t << "\n";
->>>>>>> 5148aa0a47f057c6b69c6cf287b0f22367c353b5
     
     if (file.is_open()) file.close();
 
@@ -93,8 +85,7 @@ void DataConverter::find_base_occurrance(size_t line_number, TP token_pointer)
 {
     std::string line(*token_pointer);
     
-        for(int i = 0; i < _columns; i++)
-        {
+        for(int i = 0; i < _columns; i++) {
             if(line[i] == 'a')
                 _aBase.push_back(_aBase.at(i)++);
             else if(line[i] == 'c')
@@ -103,15 +94,17 @@ void DataConverter::find_base_occurrance(size_t line_number, TP token_pointer)
                 _tBase.push_back(_tBase.at(i)++);
             else if(line[i] == 'g')
                 _gBase.push_back(_gBase.at(i)++);
-            
         }
     
 }
 
 void DataConverter::determine_ref_sequence()
 {
+    // Underscores, not camelcase -- base_occurance
     int baseOccurance[4];
-    for(int i=0 ; i < _columns; i++)
+    // spaces between for and the bracket
+    // ++i not i++
+    for (int i=0 ; i < _columns; i++)
     {
         baseOccurance[0] = {_aBase.at(i)};
         baseOccurance[1] = {_cBase.at(i)};
@@ -167,6 +160,8 @@ void DataConverter::process_line(size_t line_number, TP token_pointer)
     std::string line(*token_pointer);
 
 
+    // { brackets go on the same line inside functions 
+    // only use { on a new line for the start of a function
     for (int i = 0; i < _columns; i++) {
 
         if(line.at(i) == _refSeq.at(i))
