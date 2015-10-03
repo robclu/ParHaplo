@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE( canDetermineSplittableColumns )
     
     block_type block(input_1);
     
-    block.print();
+    //block.print();
     
     BOOST_CHECK( block.num_unsplittable_blocks() == 3  );
     BOOST_CHECK( block.unsplittable_column(0)    == 1  );

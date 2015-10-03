@@ -27,14 +27,14 @@ NXX             := nvcc --ccbin $(CXX)
 #				                    INCLUDE DIRECTORIES 		                       #
 ########################################################################################
 
-CXX_INCLUDE     := -I$(TBBROOT)/include 
+CXX_INCLUDE     := -I$(TBBROOT)/include -I/Users/sashatn/Documents/boost_1_59_0/include 
 
 ########################################################################################
 #				   	                   LIBRARIES 						               #
 ########################################################################################
 
 CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm -ltbb
-CXX_LDIR  	    := 
+CXX_LDIR  	    :=  -L/Users/sashatn/Documents/boost_1_59_0/stage/lib/
 
 ########################################################################################
 #					                COMPILER FLAGS 					                   #
