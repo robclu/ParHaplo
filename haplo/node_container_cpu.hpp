@@ -37,6 +37,13 @@ public:
     inline size_t num_nodes() const { return _nodes; }
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Resets the number of nodes in the container (doesn't do any memory removal, just changes
+    ///             the number of nodes for the index mapping
+    /// @param[in]  new_num_nodes   The new number of nodes in the container
+    // ------------------------------------------------------------------------------------------------------
+    inline void set_num_nodes(const size_t new_num_nodes) { _nodes = new_num_nodes; }
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a node (it's information which can be compared to links and other nodes
     /// @param[in]  index   The index of the node to get
     /// @return     The node at the given index

@@ -5,7 +5,7 @@
 #ifndef PARHAPLO_TREE_CPU_HPP
 #define PARHAPLO_TREE_CPUHPP
 
-#include "node.hpp"
+A#include "node_container_cpu.hpp"
 
 namespace haplo {
     
@@ -19,6 +19,10 @@ template <>
 class Tree<devices::cpu> {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
+private:
+    NodeContainer<devices::cpu>     _nodes;     //!< The nodes in the tree
+public:
+    Tree();
 };
 
 }           // End namespace haplo
