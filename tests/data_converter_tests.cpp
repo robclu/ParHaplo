@@ -11,7 +11,8 @@
 
 #include "../haplo/data_converter.hpp"
 
-static constexpr const char* input_1 = "input_files/input_unfiltered_1.txt";
+static constexpr const char* input_1 = "input_files/input_simulated_2.txt";
+static constexpr const char* input_2 = "input_files/input_simulated_3.txt";
 
 BOOST_AUTO_TEST_SUITE( DataConverterSuite )
     
