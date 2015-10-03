@@ -328,6 +328,13 @@ void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::set_row_data(const si
     );
 }
 
+// TEST FUNCTOIN
+template <typename BaseBlock, size_t THI, size_t THJ> 
+void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::find_node_params() 
+{
+    
+}
+
 }               // End namespace haplo
 #endif          // PARAHAPLO_UNSPLITTABLE_BLOCK_CPU_HPP
 

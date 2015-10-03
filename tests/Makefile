@@ -51,7 +51,7 @@ PXX_FLAGS       :=
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: all container_tests checker_tests block_tests converter_tests clean
+.PHONY: all container_tests node_tests checker_tests block_tests converter_tests clean
 
 all: build_and_run
 
@@ -76,13 +76,16 @@ data_converter_tests.o: data_converter_tests.cpp
 block_tests.o: block_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
+node_container_tests.o: node_container_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+	
 unsplittable_block_tests.o: unsplittable_block_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 tests.o: tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
-build_tests: small_container_tests.o equality_checker_tests.o block_tests.o tests.o
+build_tests: small_container_tests.o node_container_tests.o equality_checker_tests.o block_tests.o tests.o
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 
 container_tests: CXX_FLAGS += -DSTAND_ALONE
@@ -99,6 +102,10 @@ checker_tests: equality_checker_tests.o
 
 converter_tests: CXX_FLAGS += -DSTAND_ALONE
 converter_tests: data_converter.o data_converter_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
+node_tests: CXX_FLAGS += -DSTAND_ALONE
+node_tests: node_container_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
 unsplittable_block_tests: CXX_FLAGS += -DSTAND_ALONE
