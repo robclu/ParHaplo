@@ -13,7 +13,7 @@ namespace haplo {
 /// @tparam     DeviceType  The type of device to use the node on -- so that we can optimize functions for the
 ///             different implementations and so that each one can be excluded from compilation if necessary
 // ----------------------------------------------------------------------------------------------------------
-template <byte DeviceType>
+template <uint8_t DeviceType>
 class Tree;
 
 }           // End namespace haplo

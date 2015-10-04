@@ -11,42 +11,82 @@
 namespace haplo {
 
 // ----------------------------------------------------------------------------------------------------------
-/// @struct     Node
+/// @class     Node
 /// @brief      Each node has a weight and and index, the index represents the position which the node models
 ///             in the haplotype and the weight is the significance of the variable
 // ----------------------------------------------------------------------------------------------------------
-struct Node {
-    
+class Node {
+private:
     size_t _weight;     //!< The weight of the node (how important it is)
-    size_t _index;      //!< The index of the node (which position in the haplotype it represents)
-    
+    size_t _haplo_pos;      //!< The position in the haplotype the node represents
+public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor for initialization
     // ------------------------------------------------------------------------------------------------------
-    Node() : _weight(1), _index(0) {}
+    Node() noexcept : _weight(1), _haplo_pos(0) {}
 
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Returns the value of the node so that it cant be used bya sorting function
+    /// @brief      Destructor for node class
+    // ------------------------------------------------------------------------------------------------------
+    ~Node() noexcept {}
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Accessor for the weight
+    /// @return     A reference to the weight
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t& weight() { return _weight; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Accessor for the weight
+    /// @return     A constant reference to the weight
+    // ------------------------------------------------------------------------------------------------------
+    inline const size_t& weight() const { return _weight; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Accessor for the haplo position
+    /// @return     A reference to haplo position
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t& position() { return _haplo_pos; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Returns the value of the node so that it cant be used by sorting function
     /// @return     The value (weight of the node)
     // ------------------------------------------------------------------------------------------------------
     inline size_t value() const { return _weight; }
 };
 
 // ----------------------------------------------------------------------------------------------------------
-/// @struct     Link
+/// @class     Link
 /// @brief      A link between two nodes, there is a homozygous component -- how strongly correlated the nodes
 ///             are (that they should have the same value) -- and a heterozygous component -- how stongly they
 ///             should be different.
 // ----------------------------------------------------------------------------------------------------------
-struct Link {
-  
+class Link {
+private:  
     tbb::atomic<size_t> _homo_weight;        //!< Weight of the link if the nodes have the same ideal values
     tbb::atomic<size_t> _hetro_weight;       //!< Weight of the link if the nodes have different ideal values
-
+public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor for initialization
     // ------------------------------------------------------------------------------------------------------
-    Link() : _homo_weight(0), _hetro_weight(0) {}
+    Link() noexcept : _homo_weight(0), _hetro_weight(0) {}
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Destructor for link class
+    // ------------------------------------------------------------------------------------------------------
+    ~Link() noexcept {}
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Accessor for the homozygous weight 
+    /// @return     A reference to the homozygous weight
+    // ------------------------------------------------------------------------------------------------------
+    inline tbb::atomic<size_t>& homo_weight() { return _homo_weight; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Accessor for the heteroygous weight 
+    /// @return     A reference to the heteroygous weight
+    // ------------------------------------------------------------------------------------------------------
+    inline tbb::atomic<size_t>& hetro_weight() { return _hetro_weight; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the value of the link so that it cant be used bya sorting function

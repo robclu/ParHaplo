@@ -28,7 +28,28 @@ public:
     /// @brief      Constructor for creating a node container
     /// @param[in]  nodes   The number of nodes in the container
     // ------------------------------------------------------------------------------------------------------
-    NodeContainer(const size_t nodes);
+    NodeContainer(const size_t nodes) noexcept
+    : _nodes(nodes), _node_info(nodes), _node_links((nodes - 1) * nodes / 2)
+    {
+        size_t position = 0;
+        for (auto& info : _node_info) info.position() = position++;
+    }
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Destructor for node container class
+    // ------------------------------------------------------------------------------------------------------
+    ~NodeContainer() noexcept {}
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Move constructor
+    /// @param[in]  other  The other node container to assign this container to
+    // ------------------------------------------------------------------------------------------------------
+    template <uint8_t ContainerInstance>
+    NodeContainer(NodeContainer<ContainerInstance>&& other) noexcept
+    : _nodes(other._nodes), _node_info(std::move(other._node_info)), _node_links(std::move(other._node_links))    
+    {
+        other._nodes   = 0;
+    } 
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of nodes in the container 
@@ -44,6 +65,12 @@ public:
     inline void set_num_nodes(const size_t new_num_nodes) { _nodes = new_num_nodes; }
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the position in the haplotype a node represents
+    /// @param[in]  index   The index of the node
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t& haplo_pos(const size_t index) { return _node_info[index].position(); }
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a node (it's information which can be compared to links and other nodes
     /// @param[in]  index   The index of the node to get
     /// @return     The node at the given index
@@ -55,14 +82,14 @@ public:
     /// @param[in]  index       The index of the node to get the weight for
     /// @return     The weight of the node at index i
     // ------------------------------------------------------------------------------------------------------
-    inline const size_t& weight(const size_t index) const { return _node_info[index]._weight; }
+    inline const size_t& weight(const size_t index) const { return _node_info[index].weight(); }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the weight of the node at container position index (non const refernce)
     /// @param[in]  index       The index of the node to get the weight for
     /// @return     The weight of the node at index i
     // ------------------------------------------------------------------------------------------------------
-    inline size_t& weight(const size_t index) { return _node_info[index]._weight; }
+    inline size_t& weight(const size_t index) { return _node_info[index].weight(); }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the link between two nodes (the link between nodes 0 and 1 is the same as the link 
@@ -71,7 +98,13 @@ public:
     /// @param[in]  node_idx_b    The index of the second node (this must always be > node_idx_a)
     /// @return     The link between the nodes
     // ------------------------------------------------------------------------------------------------------
-    const Link& link(const size_t node_idx_a, const size_t node_idx_b) const;
+    inline const Link& link(const size_t node_idx_a, const size_t node_idx_b) const
+    {
+        const size_t link_idx = _node_links.size() - ((_nodes - node_idx_a) * (_nodes - node_idx_a - 1) / 2) 
+                                + node_idx_b - node_idx_a - 1;
+        return _node_links[link_idx];
+        
+    }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a non-cost reference to link between two nodes (the link between nodes 0 and 1 is 
@@ -81,37 +114,13 @@ public:
     /// @param[in]  node_idx_b    The index of the second node (this must always be > node_idx_a)
     /// @return     The link between the nodes
     // ------------------------------------------------------------------------------------------------------
-    Link& link(const size_t node_idx_a, const size_t node_idx_b);
+    inline Link& link(const size_t node_idx_a, const size_t node_idx_b)
+    {
+        const size_t link_idx = _node_links.size() - ((_nodes - node_idx_a) * (_nodes - node_idx_a - 1) / 2) 
+                                 + node_idx_b - node_idx_a - 1;
+        return _node_links[link_idx]; 
+    }
 };
-
-// ---------------------------------------------- IMPLEMENTATION --------------------------------------------
-
-// ------------------------------------------------ PUBLIC --------------------------------------------------
-
-NodeContainer<devices::cpu>::NodeContainer(const size_t nodes)
-: _nodes(nodes), _node_info(nodes), _node_links((nodes - 1) * nodes / 2)
-{
-    size_t index = 0;
-    for (auto& info : _node_info) info._index = index++;
-}
-
-const Link& NodeContainer<devices::cpu>::link(const size_t node_idx_a, const size_t node_idx_b) const 
-{
-    // We really should do bound checking here but for now we're assuming that we can use out own function
-    // correctly
-    const size_t link_idx = _node_links.size() - ((_nodes - node_idx_a) * (_nodes - node_idx_a - 1) / 2) 
-                          + node_idx_b - node_idx_a - 1;
-    return _node_links[link_idx];
-}
-
-Link& NodeContainer<devices::cpu>::link(const size_t node_idx_a, const size_t node_idx_b) 
-{
-    // We really should do bound checking here but for now we're assuming that we can use out own function
-    // correctly
-    const size_t link_idx = _node_links.size() - ((_nodes - node_idx_a) * (_nodes - node_idx_a - 1) / 2) 
-                          + node_idx_b - node_idx_a - 1;
-    return _node_links[link_idx];
-}
 
 }           // End namespace haplo
 #endif      // PARAHAPLO_NODE_CONTAINER_CPU_HPP

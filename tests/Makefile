@@ -47,11 +47,22 @@ CXX_FLAGS 		:= -std=c++11 -Wall -g
 NXX_FLAGS       := -arch=sm_30
 PXX_FLAGS       :=
 
+ALL_TESTS       =   small_container_tests.o             \
+					equality_checker_tests.o            \
+					data_converter.o                    \
+					data_converter_tests.o              \
+					block_tests.o                       \
+					tree_tests.o                        \
+					node_container_tests.o              \
+					unsplittable_block_tests.o          \
+					tests.o 
+
 ########################################################################################
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: all container_tests checker_tests block_tests converter_tests clean
+.PHONY: all block_tests container_tests checker_tests converter_tests node_tests tree_tests \
+		unsplittable_block_tests clean
 
 all: build_and_run
 
@@ -61,7 +72,7 @@ build_and_run: build_tests
 	
 build: build_tests
 
-small_container_tests.o: small_container_tests.cpp 
+block_tests.o: block_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 equality_checker_tests.o: equality_checker_tests.cpp 
@@ -73,7 +84,13 @@ data_converter.o: ../haplo/data_converter.cpp
 data_converter_tests.o: data_converter_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
-block_tests.o: block_tests.cpp 
+node_container_tests.o: node_container_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+	
+small_container_tests.o: small_container_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
+tree_tests.o: tree_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 unsplittable_block_tests.o: unsplittable_block_tests.cpp 
@@ -82,7 +99,7 @@ unsplittable_block_tests.o: unsplittable_block_tests.cpp
 tests.o: tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
-build_tests: small_container_tests.o equality_checker_tests.o data_converter.o block_tests.o unsplittable_block_tests.o tests.o
+build_tests: $(ALL_TESTS)
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 
 container_tests: CXX_FLAGS += -DSTAND_ALONE
@@ -101,9 +118,18 @@ converter_tests: CXX_FLAGS += -DSTAND_ALONE
 converter_tests: data_converter.o data_converter_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
+node_tests: CXX_FLAGS += -DSTAND_ALONE
+node_tests: node_container_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
+tree_tests: CXX_FLAGS += -DSTAND_ALONE
+tree_tests: tree_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+	
 unsplittable_block_tests: CXX_FLAGS += -DSTAND_ALONE
 unsplittable_block_tests: unsplittable_block_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
 clean:
 	rm -rf *.o
 	rm -rf $(CXX_EXE) 

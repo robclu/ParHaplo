@@ -8,6 +8,7 @@
 #include "devices.hpp"
 #include "equality_checker.hpp"
 #include "processor_cpu.hpp"
+#include "tree_cpu.hpp"
 #include "unsplittable_block.hpp"
 
 #include <sstream>
@@ -21,6 +22,7 @@ class UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu> : public BaseBlock {
 public:
     // ------------------------------------------- ALIAS'S --------------------------------------------------`
     using ublock_type           = UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>;
+    using tree_type             = Tree<devices::cpu>;
     using binary_container      = BinaryVector<2>;              // Vector which uses 2 bits per element
     using atomic_vector         = std::vector<tbb::atomic<size_t>>;
     using node_container        = NodeContainer<devices::cpu>;
@@ -36,15 +38,18 @@ private:
     size_t              _cols;              //!< The number of columns in the unsplittable block
     size_t              _rows;              //!< The number of rows in the unsplittable block
     
-    template <typename FriendType, byte ProcessType, byte DeviceType>
-    friend class Processor;
-    
     concurrent_umap     _duplicate_rows;        
     concurrent_umap     _duplicate_cols;
     concurrent_umap     _monotone_cols;         //!< Monotone columns
     concurrent_umap     _nonih_cols;            //!< Non intrinsically heterozygous columns
     concurrent_umap     _row_multiplicities;    //!< The multiplicity of the rows
     concurrent_umap     _col_multiplicities;    //!< The multiplicity of the columns
+    
+    tree_type           _tree;                  //!< The tree to be solved for the block
+
+    // Friend class that can process rows and columns    
+    template <typename FriendType, byte ProcessType, byte DeviceType>
+    friend class Processor;
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for when the size (number of elements) is not given (this is the preferred way
@@ -67,6 +72,12 @@ public:
     { 
         return _data.get(row_idx * _cols + col_idx);
     }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a constant reference to the tree for the block
+    /// @return     A constant ference to the tree for the block
+    // ------------------------------------------------------------------------------------------------------
+    const tree_type& tree() const { return _tree; }
    
     // ---- DEBUGGING
     void print() const;
@@ -171,7 +182,8 @@ UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::UnsplittableBlock(const Ba
   _start_idx(block.unsplittable_column(index))                                          ,
   _end_idx(block.unsplittable_column(index + 1))                                        ,  
   _cols(block.unsplittable_column(index + 1) - block.unsplittable_column(index) + 1)    ,
-  _rows(0)
+  _rows(0)                                                                              ,
+  _tree(block.unsplittable_column(index + 1) - block.unsplittable_column(index) + 1)    
 {
     std::ostringstream error_message;
     error_message   << "Index for unsplittable block past max index\n" 
@@ -207,17 +219,16 @@ void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::fill()
 template <typename BaseBlock, size_t THI, size_t THJ> 
 void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::find_duplicate_cols()
 {
-    node_container nodes(_cols);               // Nodes for the tree we are going to solve
-    
     // Create a column processor to operate on the columns of this ublock
-    Processor<ublock_type, proc::COL_DUP_LINKS, devices::cpu> col_processor(this);
+    Processor<ublock_type, proc::col_dups_links, devices::cpu> col_processor(*this, _tree);
     
     for (size_t col_idx = _cols; col_idx > 0; --col_idx) {
-        // Set the node index
+        // Set the haplotype position for the tree
+        _tree.node_haplo_pos(col_idx - 1) = col_idx - 1;
             
         // Process the column with the column processor to determine
-        // the node connections and duplicate columns -- this is done in parallel
-        col_processor(col_idx - 1, nodes);
+        // duplicate columns and initialize the tree links and weights
+        col_processor(col_idx - 1);
         
         if (base_block()->is_monotone(col_idx + _start_idx - 1)) {                  // Monoton
             _monotone_cols[col_idx - 1] = 0;
@@ -231,7 +242,7 @@ template <typename BaseBlock, size_t THI, size_t THJ>
 void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::find_duplicate_rows()
 {
     // Create a processor for the rows to determine duplicates
-    Processor<ublock_type, proc::ROW_DUP, devices::cpu> row_processor(this);
+    Processor<ublock_type, proc::row_dups, devices::cpu> row_processor(*this);
     
     // For each of the rows, from back to front
     for (size_t row_idx = _rows; row_idx > 0; --row_idx) {
