@@ -7,23 +7,27 @@
 
 #include "devices.hpp"
 #include "equality_checker.hpp"
-#include "node_container_cpu.hpp"
+#include "processor_cpu.hpp"
 #include "unsplittable_block.hpp"
 
 #include <sstream>
 
 namespace haplo {
-    
+
+
 // Specialization for the CPU implementation of the unsplittable block
 template <typename BaseBlock, size_t THI, size_t THJ>
 class UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu> : public BaseBlock {
 public:
-    // ------------------------------------------- ALIAS'S --------------------------------------------------
+    // ------------------------------------------- ALIAS'S --------------------------------------------------`
+    using ublock_type           = UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>;
     using binary_container      = BinaryVector<2>;              // Vector which uses 2 bits per element
     using atomic_vector         = std::vector<tbb::atomic<size_t>>;
     using node_container        = NodeContainer<devices::cpu>;
     using concurrent_umap       = typename BaseBlock::concurrent_umap;
     // ------------------------------------------------------------------------------------------------------
+    static constexpr size_t THREADS_I = THI;
+    static constexpr size_t THREADS_J = THJ;
 private:
     binary_container    _data;              //!< The data for the block
     size_t              _index;             //!< The index of the unsplittable block within the base block
@@ -32,14 +36,15 @@ private:
     size_t              _cols;              //!< The number of columns in the unsplittable block
     size_t              _rows;              //!< The number of rows in the unsplittable block
     
+    template <typename FriendType, byte ProcessType, byte DeviceType>
+    friend class Processor;
+    
     concurrent_umap     _duplicate_rows;        
     concurrent_umap     _duplicate_cols;
     concurrent_umap     _monotone_cols;         //!< Monotone columns
     concurrent_umap     _nonih_cols;            //!< Non intrinsically heterozygous columns
     concurrent_umap     _row_multiplicities;    //!< The multiplicity of the rows
     concurrent_umap     _col_multiplicities;    //!< The multiplicity of the columns
-    
-    
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for when the size (number of elements) is not given (this is the preferred way
@@ -74,42 +79,27 @@ private:
     const BaseBlock* base_block() const { return static_cast<const BaseBlock*>(this); }
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Determines the duplicate rows or columns and hence the multiplicities of the rows/columns
-    /// @param[in]  checker     The functor which is use to check if 2 rows/cols are equal
-    /// @tparam     CheckerType If the checker is a row or column checker
-    // ------------------------------------------------------------------------------------------------------
-    template <typename CheckerType>
-    void determine_duplicates(CheckerType checker);
-    
-    // ------------------------------------------------------------------------------------------------------
     /// @brief      Fills the data for the unsplittable block with the releavant data from the base block
     // ------------------------------------------------------------------------------------------------------
     void fill();
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Initializes the nodes
+    /// @brief      Find the duplicate columns, and initializes the nodes as they depend on the columns deing
+    ///             duplicates (separate functions are not possible because of the performance implications
     // ------------------------------------------------------------------------------------------------------
-    void initialize_nodes();    
-    
+    void find_duplicate_cols();    
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Find the duplicate rows
+    // ------------------------------------------------------------------------------------------------------
+    void find_duplicate_rows();
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines if a row is singul
     /// @param[in]  row_idx     The row to check for singularity
     /// @return     If the row is singular or not 
     // ------------------------------------------------------------------------------------------------------
     bool is_singular(const size_t row_idx) const;
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Processes columns to check for duplicate and determine node parameters
-    /// @param      col_idx             The index of the column
-    /// @param      nodes               The nodes to set the parameters for
-    /// @param      start_conditions    The start conditions for other columns to be processed (for atomicity)
-    /// @param      duplcates           Duplicate columns
-    // ------------------------------------------------------------------------------------------------------
-    void process_column(const size_t        col_idx         ,
-                        node_container&     nodes           ,
-                        atomic_vector&      start_conditions, 
-                        concurrent_umap&    duplicates      );
-        
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Sets a row of data for the unsplittable block
@@ -197,94 +187,9 @@ UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::UnsplittableBlock(const Ba
    }
    
    fill();
-   
-   EqualityChecker<check::ROWS>     row_checker;
-   EqualityChecker<check::COLUMNS>  col_checker;
-   
-   determine_duplicates(row_checker);
-   determine_duplicates(col_checker);
-   
-   initialize_nodes();
+   find_duplicate_rows();
+   find_duplicate_cols();
 }
-
-template <typename BaseBlock, size_t THI, size_t THJ> template <typename CheckerType>
-void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::determine_duplicates(CheckerType checker)
-{
-    // This can check either row or column equivalence, the following variables are defined:
-    // 
-    // checks       : This is the total number of elements for comparison, so if rows are being checked 
-    //                then checks = number of columns since for 2 rows, each corresponding column must 
-    //                be checked, and vice versa for columns
-    // comparisons  : This is the total number of rows or columns (an index) to compare for equivelance,
-    //                if columns are being checked then comparisons = _cols and if rows are are being 
-    //                checked then comparisons = _rows
-
-    // Create an concurrent unordered map so that insertion is thread-safe and use the index of a 
-    // duplicate row/column as the key, and the row/column of which it is a duplicate as the value
-    concurrent_umap duplicates;
-
-    // Set the number of checks for each comparison, total number of comparisons, stride and the
-    // total number of threads to use depending on if column or row duplicates are being checked
-    const size_t checks         = CheckerType::type == check::ROWS ? _cols : _rows;
-    const size_t comparisons    = CheckerType::type == check::ROWS ? _rows : _cols;
-    const size_t stride         = _cols;    
-    const size_t threads        = (THI + THJ) > comparisons ? comparisons : (THI + THJ);
-
-    // Start conditions for each of the threads which comapre other indices which the index assigned 
-    // to them. Say thread 2 needs to find all duplicates of row 2, then thread 0 and 1 need to have 
-    // compared to row 2 before row 2 can compare with rows 3->N, which allows duplicates to be skipped
-    atomic_vector start_conditions(comparisons);  
-    
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads),
-        [&](const tbb::blocked_range<size_t>& thread_ids)
-        {
-            for (size_t thread_id = thread_ids.begin(); thread_id != thread_ids.end(); ++thread_id) {
-                size_t thread_iters = ops::get_thread_iterations(thread_id, comparisons, threads);             
-                for (size_t it = 0; it < thread_iters; ++it) {
-                    size_t idx          = ops::thread_map(thread_id, threads, it);
-                    size_t multiplicity = 1;
-                    
-                    // Wait until this thread is allowed to start
-                    while (idx > 0 && start_conditions[idx] < idx) {}
-                    
-                    // If this thread is not known to be a duplicate
-                    if (duplicates.find(idx) == duplicates.end()) {
-                        size_t duplicates_found = 1;
-                        
-                        // Search all rows/cols ahead for duplicates
-                        for (size_t other_idx = idx + 1; other_idx < comparisons; ++other_idx) {
-                            // Check for equality
-                            if (checker(_data, idx, other_idx, checks, stride)) {
-                                // Add the other_idx (row/col ahead of this one) is
-                                // a duplicate of idx, and use other_idx as a key so 
-                                // that this fn is not executed for oteher_idx
-                                duplicates[other_idx] = idx;
-                                ++multiplicity;
-                                // Set that other_idx can start it's search
-                                start_conditions[other_idx] += duplicates_found++;
-                            } else {
-                                // Set that idx has checked other_idx, so that the next
-                                // thread can check equality against other_idx
-                                start_conditions[other_idx] += duplicates_found;
-                            }
-                        }
-                        // Add index and multiplicity to appropriate container
-                        CheckerType::type == check::ROWS 
-                                           ? _row_multiplicities[idx] = multiplicity
-                                           : _col_multiplicities[idx] = multiplicity;
-                    }
-                }       
-            }
-        }
-    );
-    
-    // Move the duplicates container
-    CheckerType::type == check::ROWS
-                       ? _duplicate_rows = std::move(duplicates)
-                       : _duplicate_cols = std::move(duplicates);
-}
-
 
 template <typename BaseBlock, size_t THI, size_t THJ> 
 void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::fill()
@@ -300,115 +205,39 @@ void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::fill()
 }
 
 template <typename BaseBlock, size_t THI, size_t THJ> 
-void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::initialize_nodes()
+void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::find_duplicate_cols()
 {
-    // Create a node for each column
-    node_container nodes(_cols);
+    node_container nodes(_cols);               // Nodes for the tree we are going to solve
     
-    // Set the number of threads to use (we can use both dimensions threads)
-    const size_t threads_x = THJ < _cols ? THI + THJ : _cols;
+    // Create a column processor to operate on the columns of this ublock
+    Processor<ublock_type, proc::COL_DUP_LINKS, devices::cpu> col_processor(this);
     
-    // Start conditions for each column
-    atomic_vector start_conditions(_cols);  
-    tbb::atomic<int> intrin_hetero_cols{0};
-    
-    // Duplicate columns, so that we don't do any work for these
-    concurrent_umap duplicates;
-    
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads_x),
-        [&](const tbb::blocked_range<size_t>& thread_ids_x) 
-        {   
-            for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
-                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, _cols, threads_x); 
-                
-                for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
-                    size_t col_idx          = it_x * threads_x + thread_idx;
-                    size_t duplicates_found = 1;
-                    
-                    // Wait until this thread is allowed to start
-                    while (col_idx > 0 && start_conditions[col_idx] < col_idx) {}
-
-                    if (base_block()->is_monotone(col_idx + _start_idx)) {
-                        // Set that the column is monotone and that the next column can begin
-                        _monotone_cols[col_idx]          = 0;
-                        start_conditions[col_idx + 1]   += 1;
-                    } else if (!base_block()->is_intrin_hetero(col_idx + _start_idx)) {
-                        // Non-IH column
-                        _nonih_cols[col_idx]            =  0;
-                        start_conditions[col_idx + 1]   += 1;
-                    } else {
-                        // Set the node index
-                        
-                        // Column is not monotone and is IH
-                        process_column(col_idx, nodes, start_conditions, duplicates);
-                    }
-                }
-            }
+    for (size_t col_idx = _cols; col_idx > 0; --col_idx) {
+        // Set the node index
+            
+        // Process the column with the column processor to determine
+        // the node connections and duplicate columns -- this is done in parallel
+        col_processor(col_idx - 1, nodes);
+        
+        if (base_block()->is_monotone(col_idx + _start_idx - 1)) {                  // Monoton
+            _monotone_cols[col_idx - 1] = 0;
+        } else if (!base_block()->is_intrin_hetero(col_idx + _start_idx - 1)) {     // NIH
+            _nonih_cols[col_idx - 1] = 0;
         }
-    );
+    }
 }
 
-template <typename BaseBlock, size_t THI, size_t THJ> 
-void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::process_column(
-                                                                        const size_t        col_idx         ,
-                                                                        node_container&     nodes           ,
-                                                                        atomic_vector&      start_conditions,
-                                                                        concurrent_umap&    duplicates      )
+template <typename BaseBlock, size_t THI, size_t THJ>
+void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::find_duplicate_rows()
 {
-    // This is running in parallel, so we have to share the I dimension threads with the J dimension threads
-    const size_t threads_x = (THI / THJ + (THI % THJ)) < (_cols - col_idx - 1)
-                           ? (THI / THJ + (THI % THJ))
-                           : (_cols - col_idx - 1);
+    // Create a processor for the rows to determine duplicates
+    Processor<ublock_type, proc::ROW_DUP, devices::cpu> row_processor(this);
     
-    size_t multiplicity = 1;
-    
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads_x),
-        [&](const tbb::blocked_range<size_t>& thread_ids_x) 
-        {   
-            for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
-                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, _cols - col_idx - 1, threads_x); 
-                
-                for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
-                    size_t other_col_idx    = col_idx + it_x * threads_x + thread_idx + 1;
-                    bool   cols_equal       = true;
-                    // Go down the two columns 
-                    for (size_t row_idx = 0; row_idx < _rows; ++row_idx) {
-                        // If this row is not a duplicate
-                        if (_duplicate_rows.find(row_idx) == _duplicate_rows.end()) {
-                            // If the values at these two positions are equivalent
-                            const size_t offset_col = row_idx * _cols + col_idx;
-                            const size_t offset_oth = row_idx * _cols + other_col_idx;
-                            
-                            if (_data.get(offset_col) == _data.get(offset_oth) && _data.get(offset_col) <= 1) {
-                                // Optimal if the values are the same
-                                nodes.link(col_idx, other_col_idx)._homo_weight += 
-                                                                            _row_multiplicities[row_idx];
-                            } else if (_data.get(offset_col) != _data.get(offset_oth)         &&
-                                       _data.get(offset_col) <= ONE && _data.get(offset_oth) <= ONE) {
-                                // Optimal if the values are opposite
-                                nodes.link(col_idx, other_col_idx)._hetro_weight += 
-                                                                            _row_multiplicities[row_idx];
-                                // Columns are not equal
-                                cols_equal = false;
-                            }
-                        }
-                    }
-                    // Check if a duplicate column was found
-                    if (cols_equal) {
-                        ++multiplicity;                                     // Add the weight of the node
-                        duplicates[other_col_idx] = col_idx;               // Add that we found a duplicate
-                        start_conditions[other_col_idx] += multiplicity;    // Set the next column to start
-                    } else {
-                        start_conditions[other_col_idx] += multiplicity;    // Set the next column to start
-                    }
-                }
-            }
-        }
-    );
-    
-    _duplicate_cols = std::move(duplicates);
+    // For each of the rows, from back to front
+    for (size_t row_idx = _rows; row_idx > 0; --row_idx) {
+        // Process the row for duplicates -- done in parallel
+        row_processor(row_idx - 1);
+    }
 }
 
 template <typename BaseBlock, size_t THI, size_t THJ> 

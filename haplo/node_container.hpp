@@ -6,6 +6,7 @@
 #define PARHAPLO_NODE_CONTAINER_HPP
 
 #include "devices.hpp"
+#include <tbb/tbb.h>
 
 namespace haplo {
 
@@ -39,8 +40,8 @@ struct Node {
 // ----------------------------------------------------------------------------------------------------------
 struct Link {
   
-    size_t _homo_weight;        //!< Weight of the link if the nodes have the same ideal values
-    size_t _hetro_weight;       //!< Weight of the link if the nodes have different ideal values
+    tbb::atomic<size_t> _homo_weight;        //!< Weight of the link if the nodes have the same ideal values
+    tbb::atomic<size_t> _hetro_weight;       //!< Weight of the link if the nodes have different ideal values
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor for initialization

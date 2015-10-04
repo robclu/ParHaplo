@@ -44,8 +44,7 @@ BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData1 )
     // Create an unsplittable block from the block out of range -- just to illustrate out of range error
     haplo::UnsplittableBlock<block_type, 2, 2, haplo::devices::cpu> ublock(block, 0);
 
-    ublock.print();
-    
+    //ublock.print();
 
     BOOST_CHECK( ublock(0, 0) == 1 );
     BOOST_CHECK( ublock(0, 1) == 0 );
@@ -70,8 +69,7 @@ BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData2 )
     // Create an unsplittable block from the block out of range -- just to illustrate out of range error
     haplo::UnsplittableBlock<block_type, 2, 2, haplo::devices::cpu> ublock(block, 1);
 
-    ublock.print();
-    
+    //ublock.print();
 
     BOOST_CHECK( ublock(0, 0) == 0 );
     BOOST_CHECK( ublock(0, 1) == 1 );
@@ -90,7 +88,7 @@ BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData3 )
     // Create an unsplittable block from the block out of range -- just to illustrate out of range error
     haplo::UnsplittableBlock<block_type, 2, 2, haplo::devices::cpu> ublock(block, 2);
 
-    ublock.print();
+    //ublock.print();
     
     BOOST_CHECK( ublock(0, 0) == 2 );
     BOOST_CHECK( ublock(0, 1) == 2 );
@@ -150,7 +148,7 @@ BOOST_AUTO_TEST_CASE( canDetermineDuplicateColumnsAndMultiplicities )
     block_type block(input_5);
     
     // Create an unsplittable block from the block out of range -- just to illustrate out of range error
-    haplo::UnsplittableBlock<block_type, 4, 4, haplo::devices::cpu> ublock(block, 0);
+    haplo::UnsplittableBlock<block_type, 1, 1, haplo::devices::cpu> ublock(block, 0);
 
     ublock.print();
 }
