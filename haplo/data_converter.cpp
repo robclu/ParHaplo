@@ -6,18 +6,20 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include <fstream>
 
 namespace haplo {
 
 namespace io = boost::iostreams;
 using namespace io;
+    
+#define ZERO    0x00
+#define ONE     0x01
+#define TWO     0x02
 
 DataConverter::DataConverter(const char* data_file):
 _data(0), _rows(0), _columns(0), _aBase(0), _cBase(0), _tBase(0), _gBase(0)
 {
-    convert_data(data_file);
-    //write_data_to_file();
+    convert_data_to_binary(data_file);
 }
 
 void DataConverter::print() const 
@@ -25,7 +27,7 @@ void DataConverter::print() const
     for (const auto& element : _data) std::cout << element;
 }
 
-void DataConverter::convert_data(const char* data_file)
+void DataConverter::convert_data_to_binary(const char* data_file)
 {
     // Open file and convert to string (for tokenizer)
     io::mapped_file_source file(data_file);
@@ -49,6 +51,7 @@ void DataConverter::convert_data(const char* data_file)
     
     // Get the data and store it in the data container
     for (const auto& line : lines) {
+       // std::cout << line << std::endl;
         find_base_occurrance(line);
         _rows++;
     }
@@ -65,7 +68,7 @@ void DataConverter::convert_data(const char* data_file)
 template <typename TP>    
 void DataConverter::find_base_occurrance(const TP& line)
 {
-    // Add some comments about what's happening
+    // count occurances of the bases (a,c,t,g) in each column of a line
     for(size_t i = 0; i < _columns; ++i) {
         if(line[i] == 'a')
             _aBase.push_back(_aBase.at(i)++);
@@ -81,35 +84,35 @@ void DataConverter::find_base_occurrance(const TP& line)
 void DataConverter::determine_ref_sequence()
 {
     // Underscores, not camelcase -- base_occurance
-    size_t baseOccurance[4];
+    size_t base_occurance[4];
     // spaces between for and the bracket
     // ++i not i++
     // not i=0, i = 0
     // use size_t, int wont be big enough
     for (size_t i = 0 ; i < _columns; i++) {
-        baseOccurance[0] = {_aBase.at(i)};
-        baseOccurance[1] = {_cBase.at(i)};
-        baseOccurance[2] = {_tBase.at(i)};
-        baseOccurance[3] = {_gBase.at(i)};
+        base_occurance[0] = {_aBase.at(i)};
+        base_occurance[1] = {_cBase.at(i)};
+        base_occurance[2] = {_tBase.at(i)};
+        base_occurance[3] = {_gBase.at(i)};
         
-        std::sort(baseOccurance, baseOccurance + 4);
+        std::sort(base_occurance, base_occurance + 4);
         
-        if(_aBase.at(i) == baseOccurance[3])
+        if(_aBase.at(i) == base_occurance[3])
             _refSeq.push_back('a');
-        else if(_cBase.at(i) == baseOccurance[3])
+        else if(_cBase.at(i) == base_occurance[3])
             _refSeq.push_back('c');
-        else if(_tBase.at(i) == baseOccurance[3])
+        else if(_tBase.at(i) == base_occurance[3])
             _refSeq.push_back('t');
-        else if(_gBase.at(i) == baseOccurance[3])
+        else if(_gBase.at(i) == base_occurance[3])
             _refSeq.push_back('g');
         
-        if(_aBase.at(i) == baseOccurance[2])
+        if(_aBase.at(i) == base_occurance[2])
             _altSeq.push_back('a');
-        else if(_cBase.at(i) == baseOccurance[2])
+        else if(_cBase.at(i) == base_occurance[2])
             _altSeq.push_back('c');
-        else if(_tBase.at(i) == baseOccurance[2])
+        else if(_tBase.at(i) == base_occurance[2])
             _altSeq.push_back('t');
-        else if(_gBase.at(i) == baseOccurance[2])
+        else if(_gBase.at(i) == base_occurance[2])
             _altSeq.push_back('g');
     }
 
@@ -127,7 +130,7 @@ void DataConverter::process_line(const TP& line)
     // { brackets go on the same line inside functions 
     // only use { on a new line for the start of a function
     for (size_t i = 0; i < _columns; ++i) {
-        if(line.at(i) == _refSeq.at(i)) {
+        if(line[i] == _refSeq.at(i)) {
             _data.push_back('1');
         } else if(line[i] == '-') {
             _data.push_back('-');
@@ -140,7 +143,25 @@ void DataConverter::process_line(const TP& line)
     // Add in the newline character
     _data.push_back('\n');
 }
+
+template <size_t length>
+std::vector<char> DataConverter::convert_data_from_binary(BinaryArray<length> input)
+{
+    std::vector<char> output;
+    for(size_t i = 0; i < length; ++i){
+        
+        if(input.get(i) == ONE){
+            output.push_back(_refSeq.at(i));
+        }
+        else {
+            output.push_back(_altSeq.at(i));
+        }
+    }
     
+    return output;
+        
+}
+
 void DataConverter::write_data_to_file(const char* filename)
 {
     // Create the parameters for the output file
