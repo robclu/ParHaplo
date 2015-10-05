@@ -56,4 +56,15 @@ BOOST_AUTO_TEST_CASE( canGetAndSetNodeWeight )
     BOOST_CHECK( tree.node_weight(4) == 12 );
 }
 
+BOOST_AUTO_TEST_CASE( canGetAndSetNodeWorstCaseValue )
+{
+    // Create a tree with 12 nodes
+    haplo::Tree<haplo::devices::cpu> tree(12);    
+    
+    tree.node_worst_case(2) = 12;
+    
+    BOOST_CHECK( tree.node_worst_case(2) == 12 );    
+    BOOST_CHECK( tree.node_worst_case(4) == 0  );    
+}
+
 BOOST_AUTO_TEST_SUITE_END()
