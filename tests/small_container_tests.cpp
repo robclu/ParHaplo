@@ -392,4 +392,24 @@ BOOST_AUTO_TEST_CASE( canResizeBinaryVectorDownwards )
     BOOST_CHECK( elements.size() == 10 );
 }
 
+BOOST_AUTO_TEST_CASE( canPushBackToVector )
+{
+    haplo::BinaryVector<2> elements(15);
+    
+    elements.push_back(1);
+    
+    BOOST_CHECK( elements.size()    == 16 );
+    BOOST_CHECK( elements.get(15)   == 1  );
+
+    elements.push_back(2);    
+    elements.push_back(3);    
+    
+    BOOST_CHECK( elements.size()    == 18 );
+    BOOST_CHECK( elements.get(16)   == 2  );
+    BOOST_CHECK( elements.get(17)   == 3  );
+    
+    // Check that the vector did the over-allocation
+    BOOST_CHECK( elements.get(18)   == 0  );
+}
+
 BOOST_AUTO_TEST_SUITE_END()

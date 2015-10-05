@@ -124,14 +124,16 @@ BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData3 )
 BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateRowsInInput )
 {
     // Define a 12x12 block with a 4x4 CPU core grid
-    using block_type = haplo::Block<27, 30, 4, 4>;
+    using block_type = haplo::Block<12, 12, 4, 4>;
     
     // First create the block (using duplicate row input)
-    block_type block(input_6);
+    block_type block(input_4);
     
     // Create an unsplittable block from the block out of range -- just to illustrate out of range error
     haplo::UnsplittableBlock<block_type, 4, 4, haplo::devices::cpu> ublock(block, 0);
 
+    ublock.print();
+    
     // Get the tree which the block created
     auto tree = ublock.tree();
     

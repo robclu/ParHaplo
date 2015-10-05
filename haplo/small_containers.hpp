@@ -335,6 +335,20 @@ public:
         }
     }
     
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Adds an element to the back of the vector
+    /// @param[in]  value     The element to add to the back of the vector
+    // ------------------------------------------------------------------------------------------------------
+    inline void push_back(const byte value)
+    {
+        // If the container is currently full
+        if (!((elements_per_bin * _bins) > _num_elements)) { _data.emplace_back(); ++_bins; }
+        
+        // Add the new element
+        _data[_num_elements / elements_per_bin].set(_num_elements % elements_per_bin, value);
+        ++_num_elements;
+    }
+    
     void print() 
     {
         for (int i = 0; i < _bins + 1; ++i)
