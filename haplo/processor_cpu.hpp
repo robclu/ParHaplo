@@ -11,7 +11,7 @@
 #include "processor.hpp"
 
 #include <tbb/tbb.h>
-
+#include <iostream>
 namespace haplo {
 
 // ------------------------------------------------- ROWS : DUPLICATES  -------------------------------------
@@ -141,8 +141,8 @@ public:
     using friend_type   = FriendType;
     // ------------------------------------------------------------------------------------------------------
 private:
-    friend_type& _friend;           //!< The friend class this class has access to to process
-    tree_type    _tree;             //!< The tree to initialize 
+    friend_type&     _friend;           //!< The friend class this class has access to to process
+    tree_type&       _tree;             //!< The tree to initialize 
     
 public:    
     // ------------------------------------------------------------------------------------------------------

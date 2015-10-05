@@ -87,6 +87,18 @@ public:
     /// @return     A reference to the heteroygous weight
     // ------------------------------------------------------------------------------------------------------
     inline tbb::atomic<size_t>& hetro_weight() { return _hetro_weight; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Const ccessor for the homozygous weight 
+    /// @return     A cosnt reference to the homozygous weight
+    // ------------------------------------------------------------------------------------------------------
+    inline const tbb::atomic<size_t>& homo_weight() const { return _homo_weight; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Const ccessor for the heteroygous weight 
+    /// @return     A const reference to the heteroygous weight
+    // ------------------------------------------------------------------------------------------------------
+    inline const tbb::atomic<size_t>& hetro_weight() const { return _hetro_weight; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the value of the link so that it cant be used bya sorting function

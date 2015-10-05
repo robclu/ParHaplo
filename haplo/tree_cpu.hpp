@@ -27,7 +27,9 @@ template <>
 class Tree<devices::cpu> {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
-    using node_container    = NodeContainer<devices::cpu>;     // Container for the nodes
+    using node_container    = NodeContainer<devices::cpu>;              // Container for the nodes
+    using info_container    = typename node_container::info_container;  // Vector of nodes
+    using link_container    = typename node_container::link_container;  // Vector of links
     // ------------------------------------------------------------------------------------------------------
 private:
     node_container     _nodes;     //!< The nodes in the tree
@@ -37,6 +39,18 @@ public:
     /// @param[in]  nodes   The number of nodes in the tree
     // ------------------------------------------------------------------------------------------------------
     Tree(const size_t nodes) : _nodes(nodes) {}
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the nodes of the tree
+    /// @return     The nodes in the tree
+    // ------------------------------------------------------------------------------------------------------
+    inline const info_container& nodes() const { return _nodes.nodes(); }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the links of the tree
+    /// @return     The links for  the tree
+    // ------------------------------------------------------------------------------------------------------
+    inline const link_container& links() const { return _nodes.links(); }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the link between two nodes of the tree

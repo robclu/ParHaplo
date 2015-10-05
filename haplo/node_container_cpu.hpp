@@ -56,6 +56,18 @@ public:
     /// @return     The number of nodes in the node container 
     // ------------------------------------------------------------------------------------------------------
     inline size_t num_nodes() const { return _nodes; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the node information (nodes) for the container 
+    /// @return     The nodes for the container
+    // ------------------------------------------------------------------------------------------------------
+    inline const info_container& nodes() const { return _node_info; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the node links for the container 
+    /// @return     The node links for the container
+    // ------------------------------------------------------------------------------------------------------
+    inline const link_container& links() const { return _node_links; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Resets the number of nodes in the container (doesn't do any memory removal, just changes
