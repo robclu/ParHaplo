@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "../haplo/data_converter.hpp"
-#include "../haplo/small_containers.hpp"
 
 #define ZERO    0x00
 #define ONE     0x01
@@ -39,7 +38,7 @@ BOOST_AUTO_TEST_CASE( canConvertDataFromBinary )
     
     haplo::DataConverter converter(input_1);
     converter.write_data_to_file(output_1);
-    haplo::BinaryArray<30> input;
+    haplo::BinaryArray<30, 2> input;
     std::vector<char> output;
     for(size_t i = 0; i < 30; ++i){
         if(i % 2 == 0){

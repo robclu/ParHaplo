@@ -12,6 +12,12 @@
 #include <string>
 #include <vector>
 
+#ifndef ONE
+    #define     ZERO    0x00
+    #define     ONE     0x01
+    #define     TWO     0x02
+#endif
+
 // !!!! Please do not modift Makefile -- ccompile with make converter_tests to compile only the converter
 // tests
 
@@ -56,7 +62,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
     template <size_t length>
-    std::vector<char> convert_data_from_binary(BinaryArray<length> input);
+    std::vector<char> convert_data_from_binary(BinaryArray<length, 2> input);
     
 private:
     // ------------------------------------------------------------------------------------------------------
@@ -78,6 +84,23 @@ private:
     void process_line(const TP& token_pointer);
     
 };
+
+template <size_t length>
+std::vector<char> DataConverter::convert_data_from_binary(BinaryArray<length, 2> input)
+{
+    std::vector<char> output;
+    for(size_t i = 0; i < length; ++i){
+        
+        if(input.get(i) == ONE) {
+            output.push_back(_refSeq.at(i));
+        }
+        else {
+            output.push_back(_altSeq.at(i));
+        }
+    }
+    
+    return output;
+}
 
 }               // End namespcea haplo
 #endif          // PARAHAPLO_INPUT_CONVERTER_HPP

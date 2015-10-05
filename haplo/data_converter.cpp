@@ -144,24 +144,6 @@ void DataConverter::process_line(const TP& line)
     _data.push_back('\n');
 }
 
-template <size_t length>
-std::vector<char> DataConverter::convert_data_from_binary(BinaryArray<length> input)
-{
-    std::vector<char> output;
-    for(size_t i = 0; i < length; ++i){
-        
-        if(input.get(i) == ONE){
-            output.push_back(_refSeq.at(i));
-        }
-        else {
-            output.push_back(_altSeq.at(i));
-        }
-    }
-    
-    return output;
-        
-}
-
 void DataConverter::write_data_to_file(const char* filename)
 {
     // Create the parameters for the output file
