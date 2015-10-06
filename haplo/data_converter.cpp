@@ -121,7 +121,7 @@ void DataConverter::convert_dataset_to_binary(const char* data_file)
                 _rows++;
             }
             else {
-                  header_length--;
+                header_length--;
             }
           
             // std::cout << "i am here 1" << std::endl;
@@ -298,8 +298,10 @@ void DataConverter::determine_dataset_ref_sequence(const TP& token_pointer)
 void DataConverter::storeBaseData(size_t chromosome, size_t position, char ref_base, char alt_base, bool real, size_t haplo_one, size_t haplo_two)
 {
     if(chromosome == 1)
+        //int i = 0;
         _chr1_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
     else if(chromosome == 2)
+        //int i = 0;
         _chr2_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
     else if(chromosome == 3)
         _chr3_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
