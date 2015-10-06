@@ -29,9 +29,11 @@ namespace haplo {
 // --------------------------------------------------- ------------------------------------------------------
 class DataConverter {
 private:
-    std::vector<char>       _data;          //!< The converted data
-    size_t                  _rows;          //!< Number of rows in the input file
-    size_t                  _columns;       //!< Number of columns in the input file
+    std::vector<char>       _data;                  //!< The converted data
+    size_t                  _rows;                  //!< Number of rows in the input file
+    size_t                  _columns;               //!< Number of columns in the input file
+    size_t                  _no_of_chromosomes;     //!< Chromosome number identifier
+    std::string             _chromosomes;           //!< Chromosome letter identifier
 
     // Rename these all as _ref_seq .. _base_a, unless _a_base makes more
     // sense, but i don't understand what they mean
@@ -41,6 +43,33 @@ private:
     std::vector<size_t>     _cBase;
     std::vector<size_t>     _tBase;
     std::vector<size_t>     _gBase;
+    
+    BinaryVector<2>         _chr1_ref_seq;
+    BinaryVector<2>         _chr2_ref_seq;
+    BinaryVector<2>         _chr3_ref_seq;
+    BinaryVector<2>         _chr4_ref_seq;
+    BinaryVector<2>         _chr5_ref_seq;
+    BinaryVector<2>         _chr6_ref_seq;
+    BinaryVector<2>         _chr7_ref_seq;
+    BinaryVector<2>       _chr8_ref_seq;
+    /*std::vector<char>       _chr9_ref_seq;
+    std::vector<char>       _chr10_ref_seq;
+    std::vector<char>       _chr11_ref_seq;
+    std::vector<char>       _chr12_ref_seq;
+    std::vector<char>       _chr13_ref_seq;
+    std::vector<char>       _chr14_ref_seq;
+    std::vector<char>       _chr15_ref_seq;
+    std::vector<char>       _chr16_ref_seq;
+    std::vector<char>       _chr17_ref_seq;
+    std::vector<char>       _chr18_ref_seq;
+    std::vector<char>       _chr19_ref_seq;
+    std::vector<char>       _chr20_ref_seq;
+    std::vector<char>       _chr21_ref_seq;
+    std::vector<char>       _chr22_ref_seq;*/
+    
+    BinaryVector<2>         _haplotype_one;
+    BinaryVector<2>         _haplotype_two;
+    
 public:
     
     // ------------------------------------------------------------------------------------------------------
@@ -67,7 +96,11 @@ public:
 private:
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
-    void convert_data_to_binary(const char* data_file);
+    void convert_simulated_data_to_binary(const char* data_file);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    void convert_dataset_to_binary(const char* data_file);
     
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
@@ -76,12 +109,27 @@ private:
     
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
-    void determine_ref_sequence();
+    void determine_simulated_ref_sequence();
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    template <typename TP>
+    void determine_dataset_ref_sequence(const TP& token_pointer);
     
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
     template <typename TP>
     void process_line(const TP& token_pointer);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    byte convert_char_to_byte(char input);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    char convert_byte_to_char(byte input);
+    
+    
     
 };
 
