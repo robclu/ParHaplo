@@ -69,55 +69,41 @@ BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData2 )
     // Create an unsplittable block from the block out of range -- just to illustrate out of range error
     haplo::UnsplittableBlock<block_type, 2, 2, haplo::devices::cpu> ublock(block, 1);
 
-    BOOST_CHECK( ublock(0, 0) == 0 );
-    BOOST_CHECK( ublock(0, 1) == 1 );
-    BOOST_CHECK( ublock(1, 0) == 1 );
-    BOOST_CHECK( ublock(1, 1) == 0 );
+    BOOST_CHECK( ublock.size() == 4 );
+    BOOST_CHECK( ublock(0, 0)  == 0 );
+    BOOST_CHECK( ublock(0, 1)  == 1 );
+    BOOST_CHECK( ublock(1, 0)  == 1 );
+    BOOST_CHECK( ublock(1, 1)  == 0 );
 }
 
-BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData3 )
+BOOST_AUTO_TEST_CASE( canRemoveMonotoneColumns )
 {
     // Define a 10x12 block with a 2x2 CPU core grid
     using block_type = haplo::Block<10, 12, 2, 2>;
     
     // First create the block
     block_type block(input_1);
+   
+    // Use 4 cores for x and 4 for y 
+    haplo::UnsplittableBlock<block_type, 4, 4, haplo::devices::cpu> ublock(block, 2);
     
-    // Create an unsplittable block from the block out of range -- just to illustrate out of range error
-    haplo::UnsplittableBlock<block_type, 1, 1, haplo::devices::cpu> ublock(block, 2);
-    
-    BOOST_CHECK( ublock(0, 0) == 2 );
-    BOOST_CHECK( ublock(0, 1) == 2 );
-    BOOST_CHECK( ublock(0, 2) == 2 );
-    BOOST_CHECK( ublock(0, 3) == 2 );
-    BOOST_CHECK( ublock(0, 4) == 2 );
-    BOOST_CHECK( ublock(0, 5) == 2 );
-    BOOST_CHECK( ublock(0, 6) == 1 );
-    BOOST_CHECK( ublock(0, 7) == 1 );
-    BOOST_CHECK( ublock(1, 0) == 2 );
-    BOOST_CHECK( ublock(1, 1) == 2 );
-    BOOST_CHECK( ublock(1, 2) == 2 );
-    BOOST_CHECK( ublock(1, 3) == 2 );
-    BOOST_CHECK( ublock(1, 4) == 2 );
-    BOOST_CHECK( ublock(1, 5) == 2 );
-    BOOST_CHECK( ublock(1, 6) == 0 );
-    BOOST_CHECK( ublock(1, 7) == 0 ); 
-    BOOST_CHECK( ublock(2, 0) == 0 );
-    BOOST_CHECK( ublock(2, 1) == 2 );
-    BOOST_CHECK( ublock(2, 2) == 2 );
-    BOOST_CHECK( ublock(2, 3) == 1 );
-    BOOST_CHECK( ublock(2, 4) == 0 );
-    BOOST_CHECK( ublock(2, 5) == 1 );
-    BOOST_CHECK( ublock(2, 6) == 2 );
-    BOOST_CHECK( ublock(2, 7) == 0 ); 
-    BOOST_CHECK( ublock(3, 0) == 2 );
-    BOOST_CHECK( ublock(3, 1) == 1 );
-    BOOST_CHECK( ublock(3, 2) == 0 );
-    BOOST_CHECK( ublock(3, 3) == 0 );
-    BOOST_CHECK( ublock(3, 4) == 0 );
-    BOOST_CHECK( ublock(3, 5) == 2 );
-    BOOST_CHECK( ublock(3, 6) == 0 );
-    BOOST_CHECK( ublock(3, 7) == 0 );  
+    BOOST_CHECK( ublock.size() == 16 );
+    BOOST_CHECK( ublock(0, 0)  == 2 );
+    BOOST_CHECK( ublock(0, 1)  == 2 );
+    BOOST_CHECK( ublock(0, 2)  == 1 );
+    BOOST_CHECK( ublock(0, 3)  == 1 );
+    BOOST_CHECK( ublock(1, 0)  == 2 );
+    BOOST_CHECK( ublock(1, 1)  == 2 );
+    BOOST_CHECK( ublock(1, 2)  == 0 );
+    BOOST_CHECK( ublock(1, 3)  == 0 );
+    BOOST_CHECK( ublock(2, 0)  == 0 );
+    BOOST_CHECK( ublock(2, 1)  == 1 );
+    BOOST_CHECK( ublock(2, 2)  == 2 );
+    BOOST_CHECK( ublock(2, 3)  == 0 );
+    BOOST_CHECK( ublock(3, 0)  == 2 );
+    BOOST_CHECK( ublock(3, 1)  == 0 );
+    BOOST_CHECK( ublock(3, 2)  == 0 );
+    BOOST_CHECK( ublock(3, 3)  == 0 );
 }
 
 
