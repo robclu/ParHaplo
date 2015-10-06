@@ -11,6 +11,7 @@
 #include <array>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #ifndef ONE
     #define     ZERO    0x00
@@ -23,6 +24,31 @@
 
 namespace haplo {
     
+    struct Base {
+        Base()
+        {}
+        Base(char ref, char alt, bool r) : _ref_base(ref), _alt_base(alt), _real(r)
+        {}
+        Base(char ref, char alt, bool r, size_t hap_one, size_t hap_two) : _ref_base(ref), _alt_base(alt), _real(r), _haplotype_one(hap_one), _haplotype_two(hap_two)
+        {}
+        void print() const {
+            std::cout << "ref: " << _ref_base << std::endl;
+            std::cout << "alt: " << _alt_base << std::endl;
+            std::cout << "real: " << _real << std::endl;
+            std::cout << "hap 1: " << _haplotype_one << std::endl;
+            std::cout << "hap 2: " << _haplotype_two << std::endl;
+            
+        }
+        
+        char     _ref_base;  // a t c g
+        char     _alt_base;
+        bool     _real;
+        size_t   _haplotype_one;
+        size_t   _haplotype_two;
+
+    };
+
+    
 // ----------------------------------------------------------------------------------------------------------
 /// @class      InputConverter
 /// @class      Converts the input from ATCG to binary
@@ -32,9 +58,7 @@ private:
     std::vector<char>       _data;                  //!< The converted data
     size_t                  _rows;                  //!< Number of rows in the input file
     size_t                  _columns;               //!< Number of columns in the input file
-    size_t                  _no_of_chromosomes;     //!< Chromosome number identifier
-    std::string             _chromosomes;           //!< Chromosome letter identifier
-
+    size_t                  _chromosome;     //!< Chromosome number identifier
     // Rename these all as _ref_seq .. _base_a, unless _a_base makes more
     // sense, but i don't understand what they mean
     std::vector<char>       _refSeq;
@@ -44,38 +68,32 @@ private:
     std::vector<size_t>     _tBase;
     std::vector<size_t>     _gBase;
     
-    //BinaryVector<2>         _chr1_ref_seq;
-    std::vector<char>           _chr1_ref_seq;
-    BinaryVector<2>         _chr2_ref_seq;
-    BinaryVector<2>         _chr3_ref_seq;
-    BinaryVector<2>         _chr4_ref_seq;
-    BinaryVector<2>         _chr5_ref_seq;
-    BinaryVector<2>         _chr6_ref_seq;
-    BinaryVector<2>         _chr7_ref_seq;
-    BinaryVector<2>       _chr8_ref_seq;
-    /*std::vector<char>       _chr9_ref_seq;
-    std::vector<char>       _chr10_ref_seq;
-    std::vector<char>       _chr11_ref_seq;
-    std::vector<char>       _chr12_ref_seq;
-    std::vector<char>       _chr13_ref_seq;
-    std::vector<char>       _chr14_ref_seq;
-    std::vector<char>       _chr15_ref_seq;
-    std::vector<char>       _chr16_ref_seq;
-    std::vector<char>       _chr17_ref_seq;
-    std::vector<char>       _chr18_ref_seq;
-    std::vector<char>       _chr19_ref_seq;
-    std::vector<char>       _chr20_ref_seq;
-    std::vector<char>       _chr21_ref_seq;
-    std::vector<char>       _chr22_ref_seq;*/
-    
-    std::vector<char>             _chr1_alt_seq;
-    
-    BinaryVector<2>         _haplotype_one;
-    BinaryVector<2>         _haplotype_two;
-    
+    std::unordered_map<size_t, Base> _chr1_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr2_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr3_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr4_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr5_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr6_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr7_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr8_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr9_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr10_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr11_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr12_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr13_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr14_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr15_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr16_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr17_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr18_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr19_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr20_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr21_ref_and_alt_seq;
+    std::unordered_map<size_t, Base> _chr22_ref_and_alt_seq;
+
 public:
     
-    // ------------------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
     DataConverter() {};
     // ------------------------------------------------------------------------------------------------------
@@ -93,10 +111,25 @@ public:
     
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
+    
+    void printMap() const;
+    
     template <size_t length>
     std::vector<char> convert_data_from_binary(BinaryArray<length, 2> input);
     
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    byte convert_char_to_byte(char input);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    char convert_byte_to_char(byte input);
+
+    
 private:
+    void storeBaseData(size_t chromosome, size_t position, char ref_base, char alt_base, bool real, size_t haplo_one, size_t haplo_two);
+
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
     void convert_simulated_data_to_binary(const char* data_file);
@@ -124,14 +157,7 @@ private:
     template <typename TP>
     void process_line(const TP& token_pointer);
     
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    byte convert_char_to_byte(char input);
-    
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    char convert_byte_to_char(byte input);
-    
+
     
     
 };
