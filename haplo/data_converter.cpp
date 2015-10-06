@@ -269,7 +269,7 @@ void DataConverter::determine_dataset_ref_sequence(const TP& token_pointer)
                 //alt sequence column (first character)
                 else if(column_counter == 4){
                     alt_base = e[0];
-                                    }
+                }
                 //ground truth column 1|1
                 else if(column_counter == 9){
                     if(e[1] == '|') {

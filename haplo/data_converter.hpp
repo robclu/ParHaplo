@@ -67,7 +67,15 @@ private:
     std::vector<size_t>     _cBase;
     std::vector<size_t>     _tBase;
     std::vector<size_t>     _gBase;
-    
+   
+    // Makybe make this an array of unordered maps -- this looks pretty ugly
+    //  
+    //  using umap = std::unorderd_map;
+    //  using chromo_array = std::array<umap, 22>
+    //  
+    //  Then you can declare it above as
+    //  
+    //      chromo_array    _ref_alt_chromosomes -- for example
     std::unordered_map<size_t, Base> _chr1_ref_and_alt_seq;
     std::unordered_map<size_t, Base> _chr2_ref_and_alt_seq;
     std::unordered_map<size_t, Base> _chr3_ref_and_alt_seq;

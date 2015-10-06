@@ -119,13 +119,16 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateRowsInInput )
     
     // Get the tree which the block created
     auto tree = ublock.tree();
-    
+   
+    for (auto& node : tree.nodes() ) 
+        std::cout << node.worst_case_value() << " ";
+    std::cout << "\n";
     // The node weights are the column multiplicities
     BOOST_CHECK( tree.node_weight(0) == 1 );
     BOOST_CHECK( tree.node_weight(1) == 1 );
     BOOST_CHECK( tree.node_weight(2) == 1 );
     BOOST_CHECK( tree.node_weight(3) == 1 );
-    
+   
     // The worst case values are the links between the nodes
     BOOST_CHECK( tree.node_worst_case(0) == 3 );
     BOOST_CHECK( tree.node_worst_case(1) == 3 );
@@ -145,6 +148,9 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
    
     auto tree = ublock.tree();
 
+    for (auto& node : tree.nodes() ) 
+        std::cout << node.worst_case_value() << " ";
+    std::cout << "\n";
     // The node weights are the column multiplicities
     BOOST_CHECK( tree.node_weight(0) == 2 );
     BOOST_CHECK( tree.node_weight(1) == 1 );
@@ -153,11 +159,29 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
     BOOST_CHECK( tree.node_weight(4) == 1 );
     
     // The worst case values are the links between the nodes
-    BOOST_CHECK( tree.node_worst_case(0) == 5 );
-    BOOST_CHECK( tree.node_worst_case(1) == 5 );
-    BOOST_CHECK( tree.node_worst_case(2) == 6 );
-    BOOST_CHECK( tree.node_worst_case(3) == 4 );
+    // 1 and 3 are duplicates - we don't care about their values
+    BOOST_CHECK( tree.node_worst_case(0) == 3 );
+    BOOST_CHECK( tree.node_worst_case(2) == 3 );
     BOOST_CHECK( tree.node_worst_case(4) == 4 );
 }
 
+BOOST_AUTO_TEST_CASE( canFindTreeStartNodeForSearch ) 
+{
+    // Define a 10x14 block with a 4x4 CPU core grid
+    using block_type = haplo::Block<10, 14, 4, 4>;
+    
+    // First create the block (using duplicate column input)
+    block_type block(input_5);
+
+    haplo::UnsplittableBlock<block_type, 4, 4, haplo::devices::cpu> ublock(block, 0);
+   
+    auto tree = ublock.tree();    
+
+    for (auto& node : tree.nodes() ) 
+        std::cout << node.worst_case_value() << " ";
+    std::cout << "\n";
+    
+    BOOST_CHECK( tree.max_worst_case()  == 6 );
+    BOOST_CHECK( tree.start_node()      == 2 );
+}
 BOOST_AUTO_TEST_SUITE_END()
