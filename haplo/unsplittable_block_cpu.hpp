@@ -62,13 +62,19 @@ public:
     ///             unsplittable blocks which can be made from it)
     // ------------------------------------------------------------------------------------------------------
     explicit UnsplittableBlock(const BaseBlock& block, const size_t index);
-    
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the size of the block (total number of elements)
+    /// @return     The number of elements in the block
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t size() const { return _rows * _cols; }
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the value of the element at position row_idx, col_idx
     /// @param[in]  row_idx     The index of the row of the element
     /// @param[in]  col_idx     The index of the column of the element
     // ------------------------------------------------------------------------------------------------------
-    byte operator()(const size_t row_idx, const size_t col_idx) const 
+    inline byte operator()(const size_t row_idx, const size_t col_idx) const 
     { 
         return _data.get(row_idx * _cols + col_idx);
     }
@@ -183,17 +189,12 @@ UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::UnsplittableBlock(const Ba
     } catch (const std::out_of_range& oor) { 
          std::cerr << "Out of Range error: " << oor.what() << '\n'; 
     }
-     
-    fill();
     
-    std::cout << "ID : " << _index << "\n"; 
-    // Create an object to remove monotone columns
-    if (_monotone_cols.size() > 0) {
-        for (size_t i = 0; i < _cols; ++i) 
-            if (_monotone_cols.find(i) != _monotone_cols.end()) std::cout << i << " ";
-        std::cout << "\n";
+    fill();                                             // Fill the block with data
+    
+    if (_monotone_cols.size() > 0) {                    // Remove all monotone columns
         Processor<ublock_type, proc::col_rem_mono, devices::cpu> mono_removal_processor(*this);
-        mono_removal_processor();
+        mono_removal_processor();       // Invoke monotone removal
     }
     
     //  Create a tree with a node per column
@@ -282,7 +283,8 @@ void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::set_row_data(const si
 {
     size_t current_data_size = _data.size();
     
-    // Resize the data to add another row
+    // Resize the data to add another row (this only 
+    // acctual doesn anything if the data's at full capacity)
     _data.resize(current_data_size + _cols);
     
     const size_t threads_x = (THI + THJ) < _cols ? (THI + THJ) : _cols;
@@ -295,16 +297,17 @@ void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::set_row_data(const si
                 size_t thread_iters_x = ops::get_thread_iterations(thread_idx, _cols, threads_x); 
                 
                 for (size_t it_x = 0; it_x < thread_iters_x ; ++it_x) {
-                    size_t offset   = it_x * threads_x + thread_idx;
-                    size_t col_idx  = _start_idx + offset;
+                    size_t ublock_col_idx = it_x * threads_x + thread_idx;    
+                    size_t base_col_idx   = _start_idx + ublock_col_idx;
                   
-                    _data.set(current_data_size + offset, base_block()->operator()(row_idx, col_idx));
+                    _data.set(current_data_size + ublock_col_idx, 
+                              base_block()->operator()(row_idx, base_col_idx));
                    
                     // Check if the column is monotone or NIH
-                    if (base_block()->is_monotone(col_idx + _start_idx - 1))
-                        _monotone_cols[col_idx - 1] = 0;
-                    else if (!base_block()->is_intrin_hetero(col_idx + _start_idx - 1))
-                        _nonih_cols[col_idx - 1] = 0;
+                    if (base_block()->is_monotone(base_col_idx))
+                        _monotone_cols[ublock_col_idx] = 0;
+                    else if (!base_block()->is_intrin_hetero(base_col_idx))
+                        _nonih_cols[ublock_col_idx] = 0;
                 }
             }
         }

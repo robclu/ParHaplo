@@ -306,11 +306,15 @@ public:
         size_t current_bins     = _bins;
         
         if (total_bins > current_bins) {
-            for (size_t i = current_bins; i < total_bins; ++i) _data.emplace_back();
-            ++_bins;
+            for (size_t i = current_bins; i < total_bins; ++i) {
+                _data.emplace_back();
+                ++_bins;
+            }
         } else if (total_bins < current_bins) {
-            for (size_t i = current_bins; i > total_bins; --i) _data.pop_back();
-            --_bins;
+            for (size_t i = current_bins; i > total_bins; --i) {
+                _data.pop_back();
+                --_bins;
+            }
         }
         _num_elements = num_elements;
     }

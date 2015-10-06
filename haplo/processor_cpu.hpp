@@ -308,27 +308,25 @@ public:
 template <typename FriendType>
 void Processor<FriendType, proc::col_rem_mono, devices::cpu>::operator()() 
 {
-    size_t cols_removed         = 0;
-    size_t col_idx_with_removal = 0;
+    const size_t cols_before            = _friend._cols;
+    size_t       elements               = _friend._cols * _friend._rows;
+    size_t       cols_removed           = 0;
+    size_t       col_idx_with_removal   = 0;
     
     // Unroll the column deteltion process
-    while (col_idx_with_removal < _friend._rows * _friend._cols) {
-        size_t col_idx_without_removal = (col_idx_with_removal + cols_removed) % _friend._rows;
-            std::cout << "CINR: " << col_idx_without_removal << " " <<
-                _friend._monotone_cols.count(col_idx_without_removal) << "\n";
+    while (col_idx_with_removal < elements) {
+        size_t col_idx_without_removal = (col_idx_with_removal + cols_removed) % cols_before;
         
         if (_friend._monotone_cols.find(col_idx_without_removal) != _friend._monotone_cols.end() ) {
-            std::cout << "CIWR: " << col_idx_with_removal << "\n";
             // Montone column so remove it 
             _friend._data.remove_element(col_idx_with_removal);
-            ++cols_removed; --_friend._cols;
+            ++cols_removed;
+            --elements;
         } else {
             ++col_idx_with_removal;     // Just move to the next element
-            std::cout << "CIWR: " << col_idx_with_removal << "\n";
         }
     }
-    
-    std::cout << "end ...\n\n";
+    _friend._cols -= _friend._monotone_cols.size();
 }
 
 }               // End namespace haplo
