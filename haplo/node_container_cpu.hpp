@@ -102,6 +102,13 @@ public:
     /// @return     The weight of the node at index i
     // ------------------------------------------------------------------------------------------------------
     inline size_t& weight(const size_t index) { return _node_info[index].weight(); }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the worst case value of a node
+    /// @param[in]  idx     The index of the node to get the worst case value of
+    /// @return     The worst case value of the node at the index
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t& worst_case_value(const size_t index) { return _node_info[index].worst_case_value(); }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the link between two nodes (the link between nodes 0 and 1 is the same as the link 

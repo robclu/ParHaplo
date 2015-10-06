@@ -109,4 +109,14 @@ BOOST_AUTO_TEST_CASE( canMoveNodeContainerWithAssigmentOperator )
     BOOST_CHECK( new_nodes.link(0, 1).homo_weight() == 1 );
 }
 
+BOOST_AUTO_TEST_CASE( canGetWorstCaseValueOfANode )
+{
+    using node_container = haplo::NodeContainer<haplo::devices::cpu>;
+    node_container nodes(4);
+       
+    nodes.worst_case_value(2) = 12;
+    
+    BOOST_CHECK( nodes.worst_case_value(2) == 12 );
+}
+
 BOOST_AUTO_TEST_SUITE_END()

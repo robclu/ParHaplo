@@ -124,45 +124,54 @@ BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData3 )
 BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateRowsInInput )
 {
     // Define a 12x12 block with a 4x4 CPU core grid
-    using block_type = haplo::Block<27, 30, 4, 4>;
+    using block_type = haplo::Block<12, 12, 4, 4>;
     
     // First create the block (using duplicate row input)
-    block_type block(input_6);
+    block_type block(input_4);
     
-    // Create an unsplittable block from the block out of range -- just to illustrate out of range error
     haplo::UnsplittableBlock<block_type, 4, 4, haplo::devices::cpu> ublock(block, 0);
-
+    
     // Get the tree which the block created
     auto tree = ublock.tree();
     
-    for (const auto& node : tree.nodes() )
-        std::cout << node.weight() << "\n";
+    // The node weights are the column multiplicities
+    BOOST_CHECK( tree.node_weight(0) == 1 );
+    BOOST_CHECK( tree.node_weight(1) == 1 );
+    BOOST_CHECK( tree.node_weight(2) == 1 );
+    BOOST_CHECK( tree.node_weight(3) == 1 );
     
-    std::cout << "\n";
-   
-    size_t i = 0; size_t j = 1; size_t nodes = 30;
-    for (auto& link : tree.links() ) {
-        std::cout << i << j << " : " << link.homo_weight() << " - " << link.hetro_weight() << "\n"; 
-        if (j == nodes - 1) {
-            std::cout << "\n\n";
-            ++i;
-            j = i + 1;
-        } else {
-            ++j;
-        }
-    }
+    // The worst case values are the links between the nodes
+    BOOST_CHECK( tree.node_worst_case(0) == 3 );
+    BOOST_CHECK( tree.node_worst_case(1) == 3 );
+    BOOST_CHECK( tree.node_worst_case(2) == 6 );
+    BOOST_CHECK( tree.node_worst_case(3) == 2 );
 }
 
-BOOST_AUTO_TEST_CASE( canDetermineDuplicateColumnsAndMultiplicities )
+BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
 {
     // Define a 10x14 block with a 4x4 CPU core grid
     using block_type = haplo::Block<10, 14, 4, 4>;
     
     // First create the block (using duplicate column input)
     block_type block(input_5);
+
+    haplo::UnsplittableBlock<block_type, 4, 4, haplo::devices::cpu> ublock(block, 0);
+   
+    auto tree = ublock.tree();
+
+    // The node weights are the column multiplicities
+    BOOST_CHECK( tree.node_weight(0) == 2 );
+    BOOST_CHECK( tree.node_weight(1) == 1 );
+    BOOST_CHECK( tree.node_weight(2) == 2 );
+    BOOST_CHECK( tree.node_weight(3) == 1 );
+    BOOST_CHECK( tree.node_weight(4) == 1 );
     
-    // Create an unsplittable block from the block out of range -- just to illustrate out of range error
-    haplo::UnsplittableBlock<block_type, 1, 1, haplo::devices::cpu> ublock(block, 0);
+    // The worst case values are the links between the nodes
+    BOOST_CHECK( tree.node_worst_case(0) == 5 );
+    BOOST_CHECK( tree.node_worst_case(1) == 5 );
+    BOOST_CHECK( tree.node_worst_case(2) == 6 );
+    BOOST_CHECK( tree.node_worst_case(3) == 4 );
+    BOOST_CHECK( tree.node_worst_case(4) == 4 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

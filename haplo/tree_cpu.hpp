@@ -79,6 +79,13 @@ public:
     inline size_t& node_weight(const size_t idx) { return _nodes.weight(idx); }
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the worst case value of a node
+    /// @param[in]  idx     The index of the node
+    /// @return     The worst case value of the node at the index
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t& node_worst_case(const size_t idx) { return _nodes.worst_case_value(idx); }
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the haplotype position of a node -- the position in the haplotype a node represents
     /// @param[in]  node_idx    The index of the node to get the haplotype position of
     /// @return     The position the node represents in the haplotype

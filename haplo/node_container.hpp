@@ -17,13 +17,14 @@ namespace haplo {
 // ----------------------------------------------------------------------------------------------------------
 class Node {
 private:
-    size_t _weight;     //!< The weight of the node (how important it is)
-    size_t _haplo_pos;      //!< The position in the haplotype the node represents
+    size_t  _weight;            //!< The weight of the node (how important it is)
+    size_t  _worst_case;        //!< The worst case contribution to the score
+    size_t  _haplo_pos;         //!< The position in the haplotype the node represents
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor for initialization
     // ------------------------------------------------------------------------------------------------------
-    Node() noexcept : _weight(1), _haplo_pos(0) {}
+    Node() noexcept : _weight(1), _worst_case(0), _haplo_pos(0) {}
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Destructor for node class
@@ -53,6 +54,18 @@ public:
     /// @return     The value (weight of the node)
     // ------------------------------------------------------------------------------------------------------
     inline size_t value() const { return _weight; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The worst case value of the node (const reference)
+    /// @return     A const reference to the worst case value of the node
+    // ------------------------------------------------------------------------------------------------------
+    inline const size_t& worst_case_value() const { return _worst_case; };
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The worst case value of the node
+    /// @return     A reference to the worst case value of the node
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t& worst_case_value() { return _worst_case; };
 };
 
 // ----------------------------------------------------------------------------------------------------------

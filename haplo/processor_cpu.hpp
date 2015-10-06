@@ -223,7 +223,7 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                                                                                 const size_t col_idx_right  ,
                                                                                 const size_t threads_y      )
 {
-    tbb::atomic<bool> cols_equal{true};
+    tbb::atomic<bool>   cols_equal{true};
     
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_y),
@@ -263,6 +263,15 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
             }
         }
     );
+    // Determine the contribution to the worst case value for these columns
+    const size_t worst_case_value = _tree.link_max(col_idx_left, col_idx_right) -       // Max of the links
+        std::min(_tree.link<links::homo>(col_idx_left, col_idx_right) ,                 // Min of the links
+                 _tree.link<links::hetro>(col_idx_left, col_idx_right));
+    
+    // Add to their worst case values
+    _tree.node_worst_case(col_idx_left)  += worst_case_value;
+    _tree.node_worst_case(col_idx_right) += worst_case_value;
+
     return static_cast<bool>(cols_equal);
 }
 }               // End namespace haplo
