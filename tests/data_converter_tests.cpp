@@ -15,7 +15,7 @@
 #define ZERO    0x00
 #define ONE     0x01
 #define TWO     0x02
-
+#define THREE   0x03
 
 static constexpr const char* input_1    = "input_files/input_simulated_2.txt";
 static constexpr const char* input_2    = "input_files/input_simulated_1.txt";
@@ -71,10 +71,46 @@ BOOST_AUTO_TEST_CASE( canConvertDataFromBinary )
     //for (auto i = 0; i < 30; ++i) std::cout << output.at(i);
 }*/
 
+/*BOOST_AUTO_TEST_CASE( canMapBinaryToChar )
+{
+    haplo::DataConverter converter(input_1);
+    char test_0;
+    char test_1;
+    char test_2;
+    char test_3;
+    test_0 = converter.convert_byte_to_char(ZERO);
+    test_1 = converter.convert_byte_to_char(ONE);
+    test_2 = converter.convert_byte_to_char(TWO);
+    test_3 = converter.convert_byte_to_char(THREE);
+    
+    BOOST_CHECK(test_0 == 'a');
+    BOOST_CHECK(test_1 == 'c');
+    BOOST_CHECK(test_2 == 't');
+    BOOST_CHECK(test_3 == 'g');
+}
+
+BOOST_AUTO_TEST_CASE( canMapCharToBinary )
+{
+    haplo::DataConverter converter(input_1);
+    haplo::byte test_0;
+    haplo::byte test_1;
+    haplo::byte test_2;
+    haplo::byte test_3;
+    test_0 = converter.convert_char_to_byte('a');
+    test_1 = converter.convert_char_to_byte('c');
+    test_2 = converter.convert_char_to_byte('t');
+    test_3 = converter.convert_char_to_byte('g');
+
+    BOOST_CHECK(test_0 == ZERO);
+    BOOST_CHECK(test_1 == ONE);
+    BOOST_CHECK(test_2 == TWO);
+    BOOST_CHECK(test_3 == THREE);
+}*/
+
 BOOST_AUTO_TEST_CASE( canConvertDataset )
 {
     haplo::DataConverter converter(input_4);
-    converter.print();
+    converter.printMap();
 }
 
 

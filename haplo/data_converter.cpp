@@ -22,19 +22,39 @@ _data(0), _rows(0), _columns(0), _aBase(0), _cBase(0), _tBase(0), _gBase(0)
 {
     convert_dataset_to_binary(data_file);
 }
+    
+void DataConverter::printMap() const
+{
+    int counter = 0;
+    for (auto& x: _chr1_ref_and_alt_seq){
+        counter++;
+        std::cout << std::endl << counter << ": " <<  x.first << std::endl;
+        std::cout << ": ";
+        (x.second).print();
+        std::cout << std::endl;
+        
+
+    }
+    
+    std::cout << "chromosome 2" << std::endl;
+    
+    for (auto& x: _chr2_ref_and_alt_seq){
+        counter++;
+        std::cout << counter << ": " <<  x.first << ": ";
+        (x.second).print();
+        std::cout << std::endl;
+        
+        
+    }
+    
+    
+}
+
 
 void DataConverter::print() const 
 {
     //for (const auto& element : _data) std::cout << element;
     
-    //std::cout << "Ref: " << std::endl;
-    
-    //for (auto i = 0; i < 23; ++i) std::cout << _chr1_ref_seq.at(i);
-
-    
-    //std::cout << std::endl << "Alt: " << std::endl;
-    
-   // for (auto i = 0; i < 23; ++i) std::cout << _chr1_alt_seq.at(i);
 }
 
 void DataConverter::convert_simulated_data_to_binary(const char* data_file)
@@ -94,18 +114,20 @@ void DataConverter::convert_dataset_to_binary(const char* data_file)
         size_t header_length = 5;
     
         for (const auto& line : lines) {
-            std::cout << "line: " << line << std::endl;
+            //std::cout << "line: " << line << std::endl;
             if(header_length == 0) {
                 //std::cout << header_length << std::endl;
                 determine_dataset_ref_sequence(line);
                 _rows++;
-                header_length = 5;
             }
-            header_length--;
-             std::cout << "i am here 1" << std::endl;
+            else {
+                  header_length--;
+            }
+          
+            // std::cout << "i am here 1" << std::endl;
         }
     
-        
+        //std::cout << "i am here 3" << std::endl;
         /*for (const auto& line : lines) {
             process_line(line);
             //row++;
@@ -133,7 +155,6 @@ void DataConverter::find_base_occurrance(const TP& line)
 
 void DataConverter::determine_simulated_ref_sequence()
 {
-    // Underscores, not camelcase -- base_occurance
     size_t base_occurance[4];
     // spaces between for and the bracket
     // ++i not i++
@@ -178,51 +199,164 @@ void DataConverter::determine_dataset_ref_sequence(const TP& token_pointer)
 
         tokenizer   elements{token_pointer, wspace_separator};
         size_t column_counter = 0;
-
+        size_t position = 0;
+        char ref_base;
+        char alt_base;
+        size_t haplo_one;
+        size_t haplo_two;
     
         for (auto& e : elements) {
-            //std::cout << e << std::endl;
             
-               //if() {
-               //}
-            
-                    if(column_counter == 1){
-                        //_chr1_ref_seq.push_back(static_cast<size_t>(e));
+            if(column_counter == 0){
+                
+                if(e == "chr1")
+                    _chromosome = 1;
+                else if(e == "chr2")
+                    _chromosome = 2;
+                else if(e == "chr3")
+                    _chromosome = 3;
+                else if(e == "chr4")
+                    _chromosome = 4;
+                else if(e == "chr5")
+                    _chromosome = 5;
+                else if(e == "chr6")
+                    _chromosome = 6;
+                else if(e == "chr7")
+                    _chromosome = 7;
+                else if(e == "chr8")
+                    _chromosome = 8;
+                else if(e == "chr9")
+                    _chromosome = 9;
+                else if(e == "chr10")
+                    _chromosome = 10;
+                else if(e == "chr11")
+                    _chromosome = 11;
+                else if(e == "chr12")
+                    _chromosome = 12;
+                else if(e == "chr13")
+                    _chromosome = 13;
+                else if(e == "chr14")
+                    _chromosome = 14;
+                else if(e == "chr15")
+                    _chromosome = 15;
+                else if(e == "chr16")
+                    _chromosome = 16;
+                else if(e == "chr17")
+                    _chromosome = 17;
+                else if(e == "chr18")
+                    _chromosome = 18;
+                else if(e == "chr19")
+                    _chromosome = 19;
+                else if(e == "chr20")
+                    _chromosome = 20;
+                else if(e == "chr21")
+                    _chromosome = 21;
+                else if(e == "chr22")
+                    _chromosome = 22;
+                else
+                    std::cout << "Invalid chromosome" << std::endl;
+            }
+            else if(_chromosome >=1 && column_counter > 0){
+                
+                //position column
+                if(column_counter == 1){
+                    position = std::stoul(e);
+                }
+                //ref sequence column (first character)
+                else if(column_counter == 3){
+                    ref_base = e[0];
+                }
+                //alt sequence column (first character)
+                else if(column_counter == 4){
+                    alt_base = e[0];
+                                    }
+                //ground truth column 1|1
+                else if(column_counter == 9){
+                    if(e[1] == '|'}) {
+                        haplo_one = e[0] - 48;
+                        haplo_two = e[2] - 48;
                     }
-                    else if(column_counter == 3){
-                        //std::cout << "col_count: " << e[0] << std::endl;
-                        _chr1_ref_seq.push_back(e[0]);
-                    }
-                    else if(column_counter == 4){
-                        _chr1_alt_seq.push_back(e[0]);
-                    }
-                    else if(column_counter == 9){
-                        //_haplotype_one.push_back(convert_char_to_byte(e[0]));
-                        //_haplotype_one.push_back(convert_char_to_byte(e[2]));
-                    }
-                //}
-                /*else {
+                   
+                   
+                }
+ 
+            }
+            else {
                         
-                        std::cerr << "Error reading input data - exiting =(\n";
-                        exit(1);
+                std::cerr << "Error reading input data - exiting =(\n";
+                exit(1);
                     
-                }*/
+            }
             
             column_counter++;
         }
-    std::cout << "i am here 2" << std::endl;
+    
+        storeBaseData(_chromosome, position, ref_base, alt_base, true, haplo_one, haplo_two);
+
 }
-                    
+    
+void DataConverter::storeBaseData(size_t chromosome, size_t position, char ref_base, char alt_base, bool real, size_t haplo_one, size_t haplo_two)
+{
+    if(chromosome == 1)
+        _chr1_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 2)
+        _chr2_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 3)
+        _chr3_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 4)
+        _chr4_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 5)
+        _chr5_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 6)
+        _chr6_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 7)
+        _chr7_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 8)
+        _chr8_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 9)
+        _chr9_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 10)
+        _chr10_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 11)
+        _chr11_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 12)
+        _chr12_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 13)
+        _chr13_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 14)
+        _chr14_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 15)
+        _chr15_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 16)
+        _chr16_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 17)
+        _chr17_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 18)
+        _chr18_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 19)
+        _chr19_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 20)
+        _chr20_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 21)
+        _chr21_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else if(chromosome == 22)
+        _chr22_ref_and_alt_seq[position] = Base(ref_base, alt_base, real, haplo_one, haplo_two);
+    else
+        std::cout << "Invaid chromosomoe" << std::endl;
+
+ }
+
+    
 byte DataConverter::convert_char_to_byte(char input)
 {
     switch(input){
-            case 'a':
+            case 'A':
                 return ZERO;
-            case 'c':
+            case 'C':
                 return ONE;
-            case 't':
+            case 'T':
                 return TWO;
-            case 'g':
+            case 'G':
                 return THREE;
     }
     
@@ -242,9 +376,6 @@ char DataConverter::convert_byte_to_char(byte input)
     }
     
 }
-    
-
-    
     
 template <typename TP>
 void DataConverter::process_line(const TP& line) 
