@@ -25,6 +25,12 @@ private:
     link_container      _node_links;            //!< Data for each of the nodes
 public:
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Default constructor
+    // ------------------------------------------------------------------------------------------------------
+    NodeContainer() noexcept
+    : _nodes(0), _node_info(0), _node_links(0) {}
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for creating a node container
     /// @param[in]  nodes   The number of nodes in the container
     // ------------------------------------------------------------------------------------------------------
@@ -50,6 +56,16 @@ public:
     {
         other._nodes   = 0;
     } 
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Resizes the node container
+    // ------------------------------------------------------------------------------------------------------
+    inline void resize(const size_t new_size) 
+    {
+        _nodes = new_size;
+        _node_info.resize(new_size);
+        _node_links.resize((new_size - 1) * new_size / 2);
+    }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of nodes in the container 

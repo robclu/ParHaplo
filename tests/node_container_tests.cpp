@@ -119,4 +119,27 @@ BOOST_AUTO_TEST_CASE( canGetWorstCaseValueOfANode )
     BOOST_CHECK( nodes.worst_case_value(2) == 12 );
 }
 
+BOOST_AUTO_TEST_CASE( canResizeNodeContainer )
+{
+    using node_container = haplo::NodeContainer<haplo::devices::cpu>;
+    node_container nodes;
+    
+    BOOST_CHECK( nodes.num_nodes() == 0 );
+    
+    nodes.resize(4);
+       
+    nodes.worst_case_value(2)           = 12;
+    nodes.link(0, 1).homo_weight()      = 1;
+    nodes.link(0, 1).hetro_weight()     = 2;
+    nodes.weight(0)                     = 2;
+    nodes.weight(2)                     = 7; 
+    
+    BOOST_CHECK( nodes.num_nodes()                   == 4 );
+    BOOST_CHECK( nodes.worst_case_value(2)           == 12 ); 
+    BOOST_CHECK( nodes.link(0, 1).homo_weight()      == 1 );
+    BOOST_CHECK( nodes.link(0, 1).hetro_weight()     == 2 );
+    BOOST_CHECK( nodes[0].weight()                   == 2 );
+    BOOST_CHECK( nodes[2].weight()                   == 7 );
+}
+
 BOOST_AUTO_TEST_SUITE_END()

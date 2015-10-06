@@ -175,9 +175,13 @@ private:
     void flip_column_bits(const uint col_idx);
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Processes a line of data
+    /// @param[in]  row_idx     The row number of data which is being processed
+    /// @param      line        The data to proces
+    /// @tparam     TP          The token pointer type
     // ------------------------------------------------------------------------------------------------------
     template <typename TP>
-    void process_data(size_t row, TP token_pointer);
+    void process_data(size_t row, TP& line);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Processes a row, determining all the necessary parameters, such as the start and end
@@ -185,7 +189,6 @@ private:
     /// @param[in]  row_idx     The row in the data matrix to fill
     // ------------------------------------------------------------------------------------------------------
     void process_row(const size_t row_idx);
-    
 };
 
 // ---------------------------------------------- IMPLEMENTATIONS -------------------------------------------
@@ -411,7 +414,7 @@ void Block<R, C, THI, THJ>::fill(const char* data_file)
     size_t row = 0;
    
     // Get the data and store it in the data container 
-    for (auto line = lines.begin(); line != lines.end(); ++line) 
+    for (auto& line : lines)
         process_data(row++, line);
     
     if (file.is_open()) file.close();
@@ -502,15 +505,14 @@ void Block<R, C, THI, THJ>::process_row(const size_t row_idx)
 }
 
 template <size_t R, size_t C, size_t THI, size_t THJ> template <typename TP>
-void Block<R, C, THI, THJ>::process_data(size_t row, TP token_pointer) 
+void Block<R, C, THI, THJ>::process_data(size_t row, TP& line) 
 {
     // Create a tokenizer to tokenize by newline character and another by whitespace
     using tokenizer = boost::tokenizer<boost::char_separator<char>>;
     boost::char_separator<char> wspace_separator{" "}; 
 
-    // Create a string from the line token and tokenize it
-    std::string line(*token_pointer);
-    tokenizer   elements{line, wspace_separator};
+    // Tokenize the line
+    tokenizer  elements{line, wspace_separator};
 
     size_t column       = 0;
     size_t row_offset   = row * C;

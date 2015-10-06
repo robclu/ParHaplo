@@ -12,6 +12,7 @@
 
 #include <tbb/tbb.h>
 #include <iostream>
+
 namespace haplo {
 
 // ------------------------------------------------- ROWS : DUPLICATES  -------------------------------------
@@ -274,5 +275,61 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
 
     return static_cast<bool>(cols_equal);
 }
+
+// ------------------------------------- COLUMNS : REMOVE MONTONES ------------------------------------------
+
+template <typename FriendType>
+class Processor<FriendType, proc::col_rem_mono, devices::cpu> {
+public:
+    // ----------------------------------------------- ALIAS'S ----------------------------------------------
+    using tree_type     = Tree<devices::cpu>;
+    using friend_type   = FriendType;
+    // ------------------------------------------------------------------------------------------------------
+private:
+    friend_type&     _friend;           //!< The friend class this class has access to to process
+    
+public:    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Contructor -- sets the friend class to operate on
+    /// @param[in]  friend_class    The class to do the processing for
+    // ------------------------------------------------------------------------------------------------------
+    Processor(friend_type& friend_class) : _friend(friend_class) {}
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Operator to invoke the processing on the friend class, the processing looks through all
+    ///             the monotone columns and removes them
+    /// @param[in]  col_idx     The index of the column in the friend class to process
+    // ------------------------------------------------------------------------------------------------------
+    void operator()();
+};
+
+// ------------------------------------------ IMPLEMENTATION ------------------------------------------------
+
+template <typename FriendType>
+void Processor<FriendType, proc::col_rem_mono, devices::cpu>::operator()() 
+{
+    size_t cols_removed         = 0;
+    size_t col_idx_with_removal = 0;
+    
+    // Unroll the column deteltion process
+    while (col_idx_with_removal < _friend._rows * _friend._cols) {
+        size_t col_idx_without_removal = (col_idx_with_removal + cols_removed) % _friend._rows;
+            std::cout << "CINR: " << col_idx_without_removal << " " <<
+                _friend._monotone_cols.count(col_idx_without_removal) << "\n";
+        
+        if (_friend._monotone_cols.find(col_idx_without_removal) != _friend._monotone_cols.end() ) {
+            std::cout << "CIWR: " << col_idx_with_removal << "\n";
+            // Montone column so remove it 
+            _friend._data.remove_element(col_idx_with_removal);
+            ++cols_removed; --_friend._cols;
+        } else {
+            ++col_idx_with_removal;     // Just move to the next element
+            std::cout << "CIWR: " << col_idx_with_removal << "\n";
+        }
+    }
+    
+    std::cout << "end ...\n\n";
+}
+
 }               // End namespace haplo
 #endif          // PARAHAPLO_PROCESSOR_CPU_HPP
