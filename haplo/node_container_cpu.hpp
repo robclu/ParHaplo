@@ -18,6 +18,7 @@ public:
     // ------------------------------------------ ALIAS'S ---------------------------------------------------
     using info_container    = std::vector<Node>;
     using link_container    = std::vector<Link>;
+    using atomic_type       = tbb::atomic<size_t>;
     // ------------------------------------------------------------------------------------------------------
 private:
     size_t              _nodes;                 //!< The number of nodes
@@ -96,7 +97,13 @@ public:
     /// @brief      Gets the position in the haplotype a node represents
     /// @param[in]  index   The index of the node
     // ------------------------------------------------------------------------------------------------------
-    inline size_t& haplo_pos(const size_t index) { return _node_info[index].position(); }
+    inline atomic_type& haplo_pos(const size_t index) { return _node_info[index].position(); }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the position in the haplotype a node represents
+    /// @param[in]  index   The index of the node
+    // ------------------------------------------------------------------------------------------------------
+    inline const atomic_type& haplo_pos(const size_t index) const { return _node_info[index].position(); }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a node (it's information which can be compared to links and other nodes
@@ -110,21 +117,31 @@ public:
     /// @param[in]  index       The index of the node to get the weight for
     /// @return     The weight of the node at index i
     // ------------------------------------------------------------------------------------------------------
-    inline const size_t& weight(const size_t index) const { return _node_info[index].weight(); }
+    inline const atomic_type& weight(const size_t index) const { return _node_info[index].weight(); }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the weight of the node at container position index (non const refernce)
     /// @param[in]  index       The index of the node to get the weight for
     /// @return     The weight of the node at index i
     // ------------------------------------------------------------------------------------------------------
-    inline size_t& weight(const size_t index) { return _node_info[index].weight(); }
+    inline atomic_type& weight(const size_t index) { return _node_info[index].weight(); }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the worst case value of a node
     /// @param[in]  idx     The index of the node to get the worst case value of
     /// @return     The worst case value of the node at the index
     // ------------------------------------------------------------------------------------------------------
-    inline size_t& worst_case_value(const size_t index) { return _node_info[index].worst_case_value(); }
+    inline atomic_type& worst_case_value(const size_t index) { return _node_info[index].worst_case_value(); }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the worst case value of a node
+    /// @param[in]  idx     The index of the node to get the worst case value of
+    /// @return     The worst case value of the node at the index
+    // ------------------------------------------------------------------------------------------------------
+    inline const atomic_type& worst_case_value(const size_t index) const 
+    { 
+        return _node_info[index].worst_case_value(); 
+    }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the link between two nodes (the link between nodes 0 and 1 is the same as the link 

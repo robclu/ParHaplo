@@ -142,4 +142,13 @@ BOOST_AUTO_TEST_CASE( canResizeNodeContainer )
     BOOST_CHECK( nodes[2].weight()                   == 7 );
 }
 
+BOOST_AUTO_TEST_CASE( canInitializeNodeWithPointerToLinks )
+{
+    // Create a vector of links
+    std::vector<haplo::Link> links(100);
+    
+    // Create the node 
+    haplo::Node node(&links);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

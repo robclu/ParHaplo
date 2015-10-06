@@ -264,15 +264,22 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
             }
         }
     );
-    // Determine the contribution to the worst case value for these columns
-    const size_t worst_case_value = _tree.link_max(col_idx_left, col_idx_right) -       // Max of the links
-        std::min(_tree.link<links::homo>(col_idx_left, col_idx_right) ,                 // Min of the links
-                 _tree.link<links::hetro>(col_idx_left, col_idx_right));
-    
-    // Add to their worst case values
-    _tree.node_worst_case(col_idx_left)  += worst_case_value;
-    _tree.node_worst_case(col_idx_right) += worst_case_value;
+    if (!cols_equal) {
+        // Determine the contribution to the worst case value for these columns
+        const size_t worst_case_value = _tree.link_max(col_idx_left, col_idx_right) -       // Max of the links
+            std::min(_tree.link<links::homo>(col_idx_left, col_idx_right) ,                 // Min of the links
+                     _tree.link<links::hetro>(col_idx_left, col_idx_right));
 
+        // Add to their worst case values
+        _tree.node_worst_case(col_idx_left)  += worst_case_value * _tree.node_weight(col_idx_right);
+        _tree.node_worst_case(col_idx_right) += worst_case_value;
+        
+        // Check if either of these nodes has the maximum worst case value
+        if (_tree.node_worst_case(col_idx_right) * _tree.node_weight(col_idx_right) > _tree.max_worst_case()) {
+            _tree.max_worst_case()  = _tree.node_worst_case(col_idx_right) * _tree.node_weight(col_idx_right);
+            _tree.start_node()      = col_idx_right;
+        }
+    }
     return static_cast<bool>(cols_equal);
 }
 
