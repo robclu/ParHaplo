@@ -48,10 +48,12 @@ NXX_FLAGS       := -arch=sm_30
 PXX_FLAGS       :=
 
 ALL_TESTS       =   small_container_tests.o             \
+					comparator_tests.o                  \
 					equality_checker_tests.o            \
 					data_converter.o                    \
 					data_converter_tests.o              \
 					block_tests.o                       \
+					sorter_tests.o                      \
 					tree_tests.o                        \
 					node_container_tests.o              \
 					unsplittable_block_tests.o          \
@@ -62,7 +64,7 @@ ALL_TESTS       =   small_container_tests.o             \
 #######################################################################################
 
 .PHONY: all block_tests container_tests checker_tests converter_tests node_tests tree_tests \
-		unsplittable_block_tests clean
+		comparator_tests sorter_tests unsplittable_block_tests clean
 
 all: build_and_run
 
@@ -73,6 +75,9 @@ build_and_run: build_tests
 build: build_tests
 
 block_tests.o: block_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
+comparator_tests.o: comparator_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 equality_checker_tests.o: equality_checker_tests.cpp 
@@ -90,6 +95,9 @@ node_container_tests.o: node_container_tests.cpp
 small_container_tests.o: small_container_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
+sorter_tests.o: sorter_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
 tree_tests.o: tree_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
@@ -102,10 +110,6 @@ tests.o: tests.cpp
 build_tests: $(ALL_TESTS)
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 
-container_tests: CXX_FLAGS += -DSTAND_ALONE
-container_tests: small_container_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
-	
 block_tests: CXX_FLAGS += -DSTAND_ALONE
 block_tests: block_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
@@ -114,12 +118,24 @@ checker_tests: CXX_FLAGS += -DSTAND_ALONE
 checker_tests: equality_checker_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
+comparator_tests: CXX_FLAGS += -DSTAND_ALONE
+comparator_tests: comparator_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
+
+container_tests: CXX_FLAGS += -DSTAND_ALONE
+container_tests: small_container_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
+
 converter_tests: CXX_FLAGS += -DSTAND_ALONE
 converter_tests: data_converter.o data_converter_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
 node_tests: CXX_FLAGS += -DSTAND_ALONE
 node_tests: node_container_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
+sorter_tests: CXX_FLAGS += -DSTAND_ALONE
+sorter_tests: sorter_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
 tree_tests: CXX_FLAGS += -DSTAND_ALONE

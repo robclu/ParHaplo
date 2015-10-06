@@ -19,6 +19,7 @@ public:
     using info_container    = std::vector<Node>;
     using link_container    = std::vector<Link>;
     using atomic_type       = tbb::atomic<size_t>;
+    using iterator          = Node*;
     // ------------------------------------------------------------------------------------------------------
 private:
     size_t              _nodes;                 //!< The number of nodes
@@ -68,6 +69,18 @@ public:
         _node_links.resize((new_size - 1) * new_size / 2);
     }
 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Iterator to the start of the node information
+    /// @return     An iterator to the start of the node information
+    // ------------------------------------------------------------------------------------------------------
+    inline iterator begin() { return &_node_info[0]; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Iterator to one past the end of the node information
+    /// @return     An iterator to one past the end of the node information
+    // ------------------------------------------------------------------------------------------------------
+    inline iterator end() { return &_node_info[_node_info.size() - 1]; }
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of nodes in the container 
     /// @return     The number of nodes in the node container 

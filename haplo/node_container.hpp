@@ -77,25 +77,16 @@ class Node {
 public:
     // -------------------------------------- ALIAS'S -------------------------------------------------------
     using atomic_type   = tbb::atomic<size_t>;
-    using link_pointer  = const std::vector<Link>*;
     // ------------------------------------------------------------------------------------------------------
 private:
     atomic_type     _weight;            //!< The weight of the node (how important it is)
     atomic_type     _worst_case;        //!< The worst case contribution to the score
     atomic_type     _haplo_pos;         //!< The position in the haplotype the node represents
-    link_pointer    _links_ptr;
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor for initialization
     // ------------------------------------------------------------------------------------------------------
-    Node() noexcept : _weight{1}, _worst_case{0}, _haplo_pos{0}, _links_ptr(nullptr) {}
-
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Constructor for assigning the links
-    /// @param[in]  links_ptr   A pointer to the links
-    // ------------------------------------------------------------------------------------------------------
-    Node(link_pointer links) 
-    : _weight{1}, _worst_case{0}, _haplo_pos{0}, _links_ptr(links) {}
+    Node() noexcept : _weight{1}, _worst_case{0}, _haplo_pos{0} {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Destructor for node class
