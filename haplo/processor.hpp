@@ -11,7 +11,8 @@ namespace haplo {
 namespace proc {
     
 static constexpr uint8_t row_dups           = 0x00;
-static constexpr uint8_t col_dups_links     = 0x02;
+static constexpr uint8_t col_dups_links     = 0x01;
+static constexpr uint8_t col_rem_mono       = 0X02;
 
 }       // End namespace proc
 

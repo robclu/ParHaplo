@@ -67,4 +67,15 @@ BOOST_AUTO_TEST_CASE( canGetAndSetNodeWorstCaseValue )
     BOOST_CHECK( tree.node_worst_case(4) == 0  );    
 }
 
+BOOST_AUTO_TEST_CASE( canResizeTree )
+{
+    haplo::Tree<haplo::devices::cpu> tree;
+    
+    BOOST_CHECK( tree.size() == 0 );    
+    
+    tree.resize(12);
+    
+    BOOST_CHECK( tree.size() == 12 );    
+}
+
 BOOST_AUTO_TEST_SUITE_END()

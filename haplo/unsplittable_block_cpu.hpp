@@ -28,8 +28,8 @@ public:
     using node_container        = NodeContainer<devices::cpu>;
     using concurrent_umap       = typename BaseBlock::concurrent_umap;
     // ------------------------------------------------------------------------------------------------------
-    static constexpr size_t THREADS_I = THI;
-    static constexpr size_t THREADS_J = THJ;
+    static constexpr size_t     THREADS_I   = THI;
+    static constexpr size_t     THREADS_J   = THJ;
 private:
     binary_container    _data;              //!< The data for the block
     size_t              _index;             //!< The index of the unsplittable block within the base block
@@ -104,6 +104,8 @@ private:
     /// @brief      Find the duplicate rows
     // ------------------------------------------------------------------------------------------------------
     void find_duplicate_rows();
+    
+    // ------------------------------------------------------------------------------------------------------
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Determines if a row is singul
@@ -137,26 +139,11 @@ void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::print() const
         std::cout << "\n";
     } 
     
-    std::cout << "\n\n| ----------- ROW MPLICITIES -------------------|\n\n";
-    
-    for (size_t r = 0; r < _rows; ++r) {
-        if (_row_multiplicities.find(r) != _row_multiplicities.end()) {
-            std::cout << r << " : " << _row_multiplicities.at(r) << "\n";
-        }
-    }
-    
     std::cout << "\n\n| ----------- ROW DUPS -------------------|\n\n";
     
     for (size_t r = 0; r < _rows; ++r) {
         if (_duplicate_rows.find(r) != _duplicate_rows.end()) {
             std::cout << r << " : " << _duplicate_rows.at(r) << "\n";
-        }
-    }
-    std::cout << "\n\n| ----------- COL MPLICITIES -------------------|\n\n";
-    
-    for (size_t c = 0; c < _cols; ++c) {
-        if (_col_multiplicities.find(c) != _col_multiplicities.end()) {
-            std::cout << c << " : " << _col_multiplicities.at(c) << "\n";
         }
     }
     
@@ -182,25 +169,38 @@ UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::UnsplittableBlock(const Ba
   _start_idx(block.unsplittable_column(index))                                          ,
   _end_idx(block.unsplittable_column(index + 1))                                        ,  
   _cols(block.unsplittable_column(index + 1) - block.unsplittable_column(index) + 1)    ,
-  _rows(0)                                                                              ,
-  _tree(block.unsplittable_column(index + 1) - block.unsplittable_column(index) + 1)    
+  _rows(0)                                                                              
 {
     std::ostringstream error_message;
     error_message   << "Index for unsplittable block past max index\n" 
                     << "\tindex : "     << index 
                     << "\tmax_index : " << block.num_unsplittable_blocks() - 1 << "\n"; 
     
-   // Check that the index is valid 
-   try{
-       if (index > block.num_unsplittable_blocks() - 1) 
-            throw std::out_of_range(error_message.str());
-   } catch (const std::out_of_range& oor) { 
-        std::cerr << "Out of Range error: " << oor.what() << '\n'; 
-   }
-   
-   fill();
-   find_duplicate_rows();
-   find_duplicate_cols();
+    // Check that the index is valid 
+    try{
+        if (index > block.num_unsplittable_blocks() - 1) 
+             throw std::out_of_range(error_message.str());
+    } catch (const std::out_of_range& oor) { 
+         std::cerr << "Out of Range error: " << oor.what() << '\n'; 
+    }
+     
+    fill();
+    
+    std::cout << "ID : " << _index << "\n"; 
+    // Create an object to remove monotone columns
+    if (_monotone_cols.size() > 0) {
+        for (size_t i = 0; i < _cols; ++i) 
+            if (_monotone_cols.find(i) != _monotone_cols.end()) std::cout << i << " ";
+        std::cout << "\n";
+        Processor<ublock_type, proc::col_rem_mono, devices::cpu> mono_removal_processor(*this);
+        mono_removal_processor();
+    }
+    
+    //  Create a tree with a node per column
+    _tree.resize(_cols);   
+     
+    find_duplicate_rows();
+    find_duplicate_cols();
 }
 
 template <typename BaseBlock, size_t THI, size_t THJ> 
@@ -297,8 +297,14 @@ void UnsplittableBlock<BaseBlock, THI, THJ, devices::cpu>::set_row_data(const si
                 for (size_t it_x = 0; it_x < thread_iters_x ; ++it_x) {
                     size_t offset   = it_x * threads_x + thread_idx;
                     size_t col_idx  = _start_idx + offset;
-                   
+                  
                     _data.set(current_data_size + offset, base_block()->operator()(row_idx, col_idx));
+                   
+                    // Check if the column is monotone or NIH
+                    if (base_block()->is_monotone(col_idx + _start_idx - 1))
+                        _monotone_cols[col_idx - 1] = 0;
+                    else if (!base_block()->is_intrin_hetero(col_idx + _start_idx - 1))
+                        _nonih_cols[col_idx - 1] = 0;
                 }
             }
         }

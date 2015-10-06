@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData3 )
     block_type block(input_1);
     
     // Create an unsplittable block from the block out of range -- just to illustrate out of range error
-    haplo::UnsplittableBlock<block_type, 2, 2, haplo::devices::cpu> ublock(block, 2);
+    haplo::UnsplittableBlock<block_type, 1, 1, haplo::devices::cpu> ublock(block, 2);
     
     BOOST_CHECK( ublock(0, 0) == 2 );
     BOOST_CHECK( ublock(0, 1) == 2 );
