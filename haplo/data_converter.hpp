@@ -44,7 +44,8 @@ private:
     std::vector<size_t>     _tBase;
     std::vector<size_t>     _gBase;
     
-    BinaryVector<2>         _chr1_ref_seq;
+    //BinaryVector<2>         _chr1_ref_seq;
+    std::vector<char>           _chr1_ref_seq;
     BinaryVector<2>         _chr2_ref_seq;
     BinaryVector<2>         _chr3_ref_seq;
     BinaryVector<2>         _chr4_ref_seq;
@@ -66,6 +67,8 @@ private:
     std::vector<char>       _chr20_ref_seq;
     std::vector<char>       _chr21_ref_seq;
     std::vector<char>       _chr22_ref_seq;*/
+    
+    std::vector<char>             _chr1_alt_seq;
     
     BinaryVector<2>         _haplotype_one;
     BinaryVector<2>         _haplotype_two;
