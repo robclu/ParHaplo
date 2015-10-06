@@ -15,19 +15,28 @@ using namespace io;
 #define ZERO    0x00
 #define ONE     0x01
 #define TWO     0x02
+#define THREE   0x03
 
 DataConverter::DataConverter(const char* data_file):
 _data(0), _rows(0), _columns(0), _aBase(0), _cBase(0), _tBase(0), _gBase(0)
 {
-    convert_data_to_binary(data_file);
+    convert_simulated_data_to_binary(data_file);
 }
 
 void DataConverter::print() const 
 {
     for (const auto& element : _data) std::cout << element;
+    
+    //std::cout << "Ref: " << std::endl;
+    
+    //for (const auto& element : _refSeq) std::cout << element;
+    
+    //std::cout << std::endl << "Alt: " << std::endl;
+    
+    //for (const auto& element : _altSeq) std::cout << element;
 }
 
-void DataConverter::convert_data_to_binary(const char* data_file)
+void DataConverter::convert_simulated_data_to_binary(const char* data_file)
 {
     // Open file and convert to string (for tokenizer)
     io::mapped_file_source file(data_file);
@@ -56,7 +65,7 @@ void DataConverter::convert_data_to_binary(const char* data_file)
         _rows++;
     }
     
-    determine_ref_sequence();
+    determine_simulated_ref_sequence();
     
     for (const auto& line : lines) {
         process_line(line);
@@ -64,6 +73,43 @@ void DataConverter::convert_data_to_binary(const char* data_file)
     
     if (file.is_open()) file.close();
 }
+    
+void DataConverter::convert_dataset_to_binary(const char* data_file)
+{
+        // Open file and convert to string (for tokenizer)
+        io::mapped_file_source file(data_file);
+        if (!file.is_open()) throw std::runtime_error("Could not open input file =(!\n");
+        
+        std::string data(file.data(), file.size());
+        
+        // Create a tokenizer to tokenize by newline character
+        using tokenizer = boost::tokenizer<boost::char_separator<char>>;
+        boost::char_separator<char> nwline_separator{"\n"};
+        
+        // Tokenize the data into lines and create a
+        tokenizer lines{data, nwline_separator};
+        
+        //_columns = lines.begin()->length();
+        size_t header_length = 5;
+    
+        for (const auto& line : lines) {
+            // std::cout << line << std::endl;
+            if(header_length == 0) {
+                determine_dataset_ref_sequence(line);
+                _rows++;
+            }
+            header_length--;
+        }
+    
+        
+        for (const auto& line : lines) {
+            process_line(line);
+            //row++;
+        }
+        
+        if (file.is_open()) file.close();
+}
+
     
 template <typename TP>    
 void DataConverter::find_base_occurrance(const TP& line)
@@ -81,7 +127,7 @@ void DataConverter::find_base_occurrance(const TP& line)
     }
 }
 
-void DataConverter::determine_ref_sequence()
+void DataConverter::determine_simulated_ref_sequence()
 {
     // Underscores, not camelcase -- base_occurance
     size_t base_occurance[4];
@@ -119,6 +165,83 @@ void DataConverter::determine_ref_sequence()
     
 }
     
+template <typename TP>
+void DataConverter::determine_dataset_ref_sequence(const TP& token_pointer)
+{
+        //Create a tokenizer to tokenize by newline character and another by whitespace
+        using tokenizer = boost::tokenizer<boost::char_separator<char>>;
+        boost::char_separator<char> wspace_separator{" "};
+
+        tokenizer   elements{token_pointer, wspace_separator};
+        size_t column_counter = 0;
+
+    
+        for (auto& e : elements) {
+            
+           
+            // Tokenizer creates a string, but because of the way we tokenized it
+            // we know that it only has 1 element, so convert to char
+                //store the start position in the first element
+                //followed by the first ref base for every position
+                if(e == "chr1") {
+                    
+                    if(column_counter == 1){
+                        //_chr1_ref_seq.push_back(static_cast<size_t>(e));
+                    }
+                    else if(column_counter == 3){
+                        //_chr1_ref_seq.push_back(e[0]);
+                    }
+                    else if(column_counter == 4){
+                        //_chr1_alt_seq.push_back(e[0]);
+                    }
+                    else if(column_counter == 9){
+                        //_haplotype_one.push_back(e[0]);
+                        //_haplotype_one.push_back(e[2]);
+                    }
+                }
+                else {
+                        
+                        std::cerr << "Error reading input data - exiting =(\n";
+                        exit(1);
+                    
+                }
+            
+            column_counter++;
+        }
+}
+                    
+byte DataConverter::convert_char_to_byte(char input)
+{
+    switch(input){
+            case 'a':
+                return ZERO;
+            case 'c':
+                return ONE;
+            case 't':
+                return TWO;
+            case 'g':
+                return THREE;
+    }
+    
+}
+                    
+char DataConverter::convert_byte_to_char(byte input)
+{
+    switch(input){
+        case ZERO:
+            return 'a';
+        case ONE:
+            return 'c';
+        case TWO:
+            return 't';
+        case THREE:
+            return 'g';
+    }
+    
+}
+    
+
+    
     
 template <typename TP>
 void DataConverter::process_line(const TP& line) 
@@ -132,9 +255,11 @@ void DataConverter::process_line(const TP& line)
     for (size_t i = 0; i < _columns; ++i) {
         if(line[i] == _refSeq.at(i)) {
             _data.push_back('1');
-        } else if(line[i] == '-') {
+        }
+        else if(line[i] == '-') {
             _data.push_back('-');
-        } else {
+        }
+        else {
             _data.push_back('0');
         }
         // Add in the space
