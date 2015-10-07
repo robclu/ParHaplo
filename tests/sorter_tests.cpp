@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_SUITE( SorterSuite )
     
 BOOST_AUTO_TEST_CASE( canCorrectlySortNodes )
 {
-    const size_t num_nodes = 10000;
+    const size_t num_nodes = 300;
     
     using link_container = haplo::LinkContainer<haplo::devices::cpu>;
     link_container links;

@@ -41,7 +41,7 @@ public:
     /// @param[in]
     // ------------------------------------------------------------------------------------------------------
     template <typename DataType, typename Comparator>
-    void operator()(DataType* input_start, DataType* input_end, Comparator& comparator);
+    void operator()(DataType* input_start, DataType* input_end, Comparator& comparator) const;
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Parallel sort function
@@ -49,7 +49,7 @@ private:
     template <typename DataType, typename Comparator>
     void para_sort(DataType*    input_start  , DataType*  input_end , 
                    DataType*    output_start , int        sort_type ,
-                   Comparator&  comparator                          ) ;
+                   Comparator&  comparator                          ) const;
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Parallel merge function 
@@ -58,7 +58,7 @@ private:
     void para_merge(DataType*   first_start  , DataType*  first_end    , 
                     DataType*   second_start , DataType*  second_end   ,
                     DataType*   output_start , bool       clean_mem    ,
-                    Comparator& comparator                             );
+                    Comparator& comparator                             ) const;
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Serial sort
@@ -66,7 +66,7 @@ private:
     template <typename DataType, typename Comparator>
     void serial_sort(DataType*   input_start , DataType*  input_end   , 
                      DataType*   output_start, int        sort_type   ,
-                     Comparator& comparator                           );
+                     Comparator& comparator                           ) const;
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Serial merge function 
@@ -74,20 +74,24 @@ private:
     template <typename DataType, typename Comparator>
     void serial_merge(DataType* first_start  , DataType*   first_end    , 
                       DataType* second_start , DataType*   second_end   ,
-                      DataType* output_start , Comparator& comparator   );
+                      DataType* output_start , Comparator& comparator   ) const;
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Serial clean up function, to remove extra buffers
     // ------------------------------------------------------------------------------------------------------
     template <typename DataType>
-    void free_memory(DataType* start, DataType* end) { while (end != start) { --end; (*end).~DataType(); } }
+    void free_memory(DataType* start, DataType* end) const 
+    { 
+        while (end != start) { --end; (*end).~DataType(); } 
+    }
     
 };
     
 // --------------------------------------------- IMPLEMENTATIONS --------------------------------------------
 
 template <typename DataType, typename Comparator>
-void Sorter<devices::cpu>::operator()(DataType* input_start, DataType* input_end, Comparator& comparator)
+void Sorter<devices::cpu>::operator()(DataType*   input_start, DataType* input_end  , 
+                                      Comparator& comparator                        ) const 
 {
     // If we can allocate enough memory for aanother array
     if (Buffer<DataType> output_array = Buffer<DataType>(sizeof(DataType) * (input_end - input_start))) {
@@ -102,7 +106,7 @@ void Sorter<devices::cpu>::operator()(DataType* input_start, DataType* input_end
 template <typename DataType, typename Comparator>
 void Sorter<devices::cpu>::para_sort(DataType*   input_start , DataType*   input_end, 
                                      DataType*   output_start, int         sort_type,
-                                     Comparator& comparator                         )
+                                     Comparator& comparator                         ) const 
 {
     if (input_end - input_start <= _sort_term) {                                            // Serial sort
         serial_sort(input_start, input_end, output_start, sort_type, comparator);
@@ -130,7 +134,7 @@ template <typename DataType, typename Comparator>
 void Sorter<devices::cpu>::para_merge(DataType*   first_start  , DataType*  first_end , 
                                       DataType*   second_start , DataType*  second_end, 
                                       DataType*   output_start , bool       clean_mem ,
-                                      Comparator& comparator                          )
+                                      Comparator& comparator                          ) const
 {
     auto first_size  = first_end  - first_start;
     auto second_size = second_end - second_start;
@@ -165,7 +169,7 @@ void Sorter<devices::cpu>::para_merge(DataType*   first_start  , DataType*  firs
 template <typename DataType, typename Comparator>
 void Sorter<devices::cpu>::serial_sort(DataType*    input_start   , DataType*    input_end     , 
                                        DataType*    output_start  , int          sort_type     ,
-                                       Comparator&  comparator    )
+                                       Comparator&  comparator                                  ) const 
 {
     // Change to std::sort if more performace is required
     std::stable_sort(input_start, input_end, comparator);
@@ -185,7 +189,7 @@ void Sorter<devices::cpu>::serial_sort(DataType*    input_start   , DataType*   
 template <typename DataType, typename Comparator>
 void Sorter<devices::cpu>::serial_merge(DataType*  first_start  , DataType*   first_end       , 
                                         DataType*  second_start , DataType*   second_end      , 
-                                        DataType*  output_start , Comparator& comparator      )
+                                        DataType*  output_start , Comparator& comparator      ) const
 {
     if (first_start != first_end) {                                 // While not at the end of first
         if (second_start != second_end) {                           // While not at the end of second
