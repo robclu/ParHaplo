@@ -92,6 +92,31 @@ public:
     /// @brief      Destructor for node class
     // ------------------------------------------------------------------------------------------------------
     ~Node() noexcept {}
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Copy constructor
+    /// @param[in]  other       The other node to copy from
+    // ------------------------------------------------------------------------------------------------------
+    Node(const Node& other) noexcept 
+    : _weight(other._weight), _worst_case(other._worst_case), _haplo_pos(other._haplo_pos) {}
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Move constructor
+    /// @param[in]  other       The other node to copy from
+    // ------------------------------------------------------------------------------------------------------
+    Node(Node&& other) noexcept 
+    : _weight(std::move(other._weight))         , 
+      _worst_case(std::move(other._worst_case)) , 
+      _haplo_pos(std::move(other._haplo_pos))  {}
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Copy assigment operator
+    /// @param[in]  other       The other node to copy from
+    // ------------------------------------------------------------------------------------------------------
+    void operator=(const Node& other) 
+    {
+        _weight = other.weight(); _worst_case = other.worst_case_value(); _haplo_pos = other.position();
+    }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Accessor for the weight

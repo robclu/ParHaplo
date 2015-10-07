@@ -79,7 +79,7 @@ public:
     /// @brief      Iterator to one past the end of the node information
     /// @return     An iterator to one past the end of the node information
     // ------------------------------------------------------------------------------------------------------
-    inline iterator end() { return &_node_info[_node_info.size() - 1]; }
+    inline iterator end() { return &_node_info[_node_info.size()]; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of nodes in the container 

@@ -13,7 +13,31 @@
 #include "../haplo/node_container_cpu.hpp"
 
 BOOST_AUTO_TEST_SUITE( NodeContainerSuite )
+
+BOOST_AUTO_TEST_CASE( canCopyConstructNode )
+{
+    haplo::Node node_one;
+    node_one.weight()   = 3;
+    node_one.position() = 4;
     
+    haplo::Node node_two(node_one);
+    
+    BOOST_CHECK( node_two.weight()   == 3 );
+    BOOST_CHECK( node_two.position() == 4 );
+}
+
+BOOST_AUTO_TEST_CASE( canMoveConstructNode )
+{
+    haplo::Node node_one;
+    node_one.weight()   = 3;
+    node_one.position() = 4;
+    
+    haplo::Node node_two(std::move(node_one));
+    
+    BOOST_CHECK( node_two.weight()   == 3 );
+    BOOST_CHECK( node_two.position() == 4 );
+}
+
 BOOST_AUTO_TEST_CASE( canCreateNodeContainer )
 {
     haplo::NodeContainer<haplo::devices::cpu> nodes(12);
@@ -141,6 +165,5 @@ BOOST_AUTO_TEST_CASE( canResizeNodeContainer )
     BOOST_CHECK( nodes[0].weight()                   == 2 );
     BOOST_CHECK( nodes[2].weight()                   == 7 );
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()
