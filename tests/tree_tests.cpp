@@ -18,7 +18,11 @@ BOOST_AUTO_TEST_CASE( canCreateATreeAndGetAndSetLinks )
 {
     // Create a tree with 12 nodes
     haplo::Tree<haplo::devices::cpu> tree(12);
- 
+
+    tree.create_link(0, 1);
+    tree.create_link(0, 2);
+    tree.create_link(0, 3);
+    
     tree.link<haplo::links::homo>(0, 1)  = 5;
     tree.link<haplo::links::hetro>(0, 1) = 4;
     

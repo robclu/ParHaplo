@@ -5,7 +5,7 @@
 #ifndef PARHAPLO_NODE_CONTAINER_CPU_HPP
 #define PARHAPLO_NODE_CONTAINER_CPU_HPP
 
-#include "node_container.hpp"
+#include "node.hpp"
 
 #include <vector>
 
@@ -16,27 +16,26 @@ template <>
 class NodeContainer<devices::cpu> {
 public:
     // ------------------------------------------ ALIAS'S ---------------------------------------------------
-    using info_container    = std::vector<Node>;
-    using link_container    = std::vector<Link>;
+    using node_container    = std::vector<Node>;
     using atomic_type       = tbb::atomic<size_t>;
+    using iterator          = Node*;
     // ------------------------------------------------------------------------------------------------------
 private:
     size_t              _nodes;                 //!< The number of nodes
-    info_container      _node_info;             //!< Information for each of the nodes
-    link_container      _node_links;            //!< Data for each of the nodes
+    node_container      _node_info;             //!< Information for each of the nodes
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor
     // ------------------------------------------------------------------------------------------------------
     NodeContainer() noexcept
-    : _nodes(0), _node_info(0), _node_links(0) {}
+    : _nodes(0), _node_info(0) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for creating a node container
     /// @param[in]  nodes   The number of nodes in the container
     // ------------------------------------------------------------------------------------------------------
     NodeContainer(const size_t nodes) noexcept
-    : _nodes(nodes), _node_info(nodes), _node_links((nodes - 1) * nodes / 2)
+    : _nodes(nodes), _node_info(nodes)
     {
         size_t position = 0;
         for (auto& info : _node_info) info.position() = position++;
@@ -53,7 +52,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     template <uint8_t ContainerInstance>
     NodeContainer(NodeContainer<ContainerInstance>&& other) noexcept
-    : _nodes(other._nodes), _node_info(std::move(other._node_info)), _node_links(std::move(other._node_links))    
+    : _nodes(other._nodes), _node_info(std::move(other._node_info)) 
     {
         other._nodes   = 0;
     } 
@@ -65,9 +64,20 @@ public:
     {
         _nodes = new_size;
         _node_info.resize(new_size);
-        _node_links.resize((new_size - 1) * new_size / 2);
     }
 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Iterator to the start of the node information
+    /// @return     An iterator to the start of the node information
+    // ------------------------------------------------------------------------------------------------------
+    inline iterator begin() { return &_node_info[0]; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Iterator to one past the end of the node information
+    /// @return     An iterator to one past the end of the node information
+    // ------------------------------------------------------------------------------------------------------
+    inline iterator end() { return &_node_info[_node_info.size()]; }
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of nodes in the container 
     /// @return     The number of nodes in the node container 
@@ -78,14 +88,8 @@ public:
     /// @brief      Gets the node information (nodes) for the container 
     /// @return     The nodes for the container
     // ------------------------------------------------------------------------------------------------------
-    inline const info_container& nodes() const { return _node_info; }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the node links for the container 
-    /// @return     The node links for the container
-    // ------------------------------------------------------------------------------------------------------
-    inline const link_container& links() const { return _node_links; }
-    
+    inline const node_container& nodes() const { return _node_info; }
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Resets the number of nodes in the container (doesn't do any memory removal, just changes
     ///             the number of nodes for the index mapping
@@ -141,36 +145,6 @@ public:
     inline const atomic_type& worst_case_value(const size_t index) const 
     { 
         return _node_info[index].worst_case_value(); 
-    }
-
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the link between two nodes (the link between nodes 0 and 1 is the same as the link 
-    ///             between nodes 1 and 0 -- always use the smaller index as the first parameter
-    /// @param[in]  node_idx_a    The index of the first node (this must always be < node_idx_b)
-    /// @param[in]  node_idx_b    The index of the second node (this must always be > node_idx_a)
-    /// @return     The link between the nodes
-    // ------------------------------------------------------------------------------------------------------
-    inline const Link& link(const size_t node_idx_a, const size_t node_idx_b) const
-    {
-        const size_t link_idx = _node_links.size() - ((_nodes - node_idx_a) * (_nodes - node_idx_a - 1) / 2) 
-                                + node_idx_b - node_idx_a - 1;
-        return _node_links[link_idx];
-        
-    }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets a non-cost reference to link between two nodes (the link between nodes 0 and 1 is 
-    ///             the same as the link between nodes 1 and 0 -- always use the smaller index as the first 
-    ///             parameter
-    /// @param[in]  node_idx_a    The index of the first node (this must always be < node_idx_b)
-    /// @param[in]  node_idx_b    The index of the second node (this must always be > node_idx_a)
-    /// @return     The link between the nodes
-    // ------------------------------------------------------------------------------------------------------
-    inline Link& link(const size_t node_idx_a, const size_t node_idx_b)
-    {
-        const size_t link_idx = _node_links.size() - ((_nodes - node_idx_a) * (_nodes - node_idx_a - 1) / 2) 
-                                 + node_idx_b - node_idx_a - 1;
-        return _node_links[link_idx]; 
     }
 };
 

@@ -120,9 +120,6 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateRowsInInput )
     // Get the tree which the block created
     auto tree = ublock.tree();
    
-    for (auto& node : tree.nodes() ) 
-        std::cout << node.worst_case_value() << " ";
-    std::cout << "\n";
     // The node weights are the column multiplicities
     BOOST_CHECK( tree.node_weight(0) == 1 );
     BOOST_CHECK( tree.node_weight(1) == 1 );
@@ -148,9 +145,6 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
    
     auto tree = ublock.tree();
 
-    for (auto& node : tree.nodes() ) 
-        std::cout << node.worst_case_value() << " ";
-    std::cout << "\n";
     // The node weights are the column multiplicities
     BOOST_CHECK( tree.node_weight(0) == 2 );
     BOOST_CHECK( tree.node_weight(1) == 1 );
@@ -177,10 +171,6 @@ BOOST_AUTO_TEST_CASE( canFindTreeStartNodeForSearch )
    
     auto tree = ublock.tree();    
 
-    for (auto& node : tree.nodes() ) 
-        std::cout << node.worst_case_value() << " ";
-    std::cout << "\n";
-    
     BOOST_CHECK( tree.max_worst_case()  == 6 );
     BOOST_CHECK( tree.start_node()      == 2 );
 }
