@@ -11,13 +11,15 @@
 #include <iostream>
 
 #include "../haplo/comparators.hpp"
+#include "../haplo/link_container_cpu.hpp"
 #include "../haplo/node_container_cpu.hpp"
 
 BOOST_AUTO_TEST_SUITE( ComparatorSuite )
     
 BOOST_AUTO_TEST_CASE( canCorrectlyCompareNodes )
 {
-    using link_container = std::vector<haplo::Link>;
+    using link_container = haplo::LinkContainer<haplo::devices::cpu>;
+    link_container links;
     
     // Create a node container with 4 nodes
     haplo::NodeContainer<haplo::devices::cpu> nodes(4);
@@ -32,16 +34,12 @@ BOOST_AUTO_TEST_CASE( canCorrectlyCompareNodes )
     // 12 : 3 1
     // 13 : 4 1
     // 23 : 5 1
-    for (size_t i = 0; i < 4; ++i) {
-        for(size_t j = i + 1; j < 4; ++j) {
-            nodes.link(i, j).homo_weight()  = i + j;
-            nodes.link(i, j).hetro_weight() = i;
-        }
-    }
+    for (size_t i = 0; i < 4; ++i) 
+        for(size_t j = i + 1; j < 4; ++j) 
+            links.insert(i, j, haplo::Link(i + j, i));
     
-    // Create a comparator   
-    // use node 0 as the reference node
-    haplo::NodeComparator<link_container> comparator(0, 4, nodes.links());
+    // Create a comparator -- use node 0 as the reference node
+    haplo::NodeComparator<link_container> comparator(0, links);
     
     BOOST_CHECK( comparator(nodes[1], nodes[2]) == false );
     BOOST_CHECK( comparator(nodes[2], nodes[1]) == true  );

@@ -43,7 +43,7 @@ CXX_LDIR  	    := -L/Users/sashatn/Documents/boost_1_59_0/lib
 # 		--compiler-options -Wall                                                       #
 ########################################################################################
 
-CXX_FLAGS 		:= -std=c++11 -Wall -g
+CXX_FLAGS 		:= -std=c++11 -Wall -O3
 NXX_FLAGS       := -arch=sm_30
 PXX_FLAGS       :=
 
@@ -56,6 +56,7 @@ ALL_TESTS       =   small_container_tests.o             \
 					sorter_tests.o                      \
 					tree_tests.o                        \
 					node_container_tests.o              \
+					link_container_tests.o              \
 					unsplittable_block_tests.o          \
 					tests.o 
 
@@ -63,8 +64,8 @@ ALL_TESTS       =   small_container_tests.o             \
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: all block_tests container_tests checker_tests converter_tests node_tests tree_tests \
-		comparator_tests sorter_tests unsplittable_block_tests clean
+.PHONY: all block_tests container_tests checker_tests converter_tests node_tests link_tests \
+		tree_tests comparator_tests sorter_tests unsplittable_block_tests clean
 
 all: build_and_run
 
@@ -87,6 +88,9 @@ data_converter.o: ../haplo/data_converter.cpp
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 	
 data_converter_tests.o: data_converter_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
+link_container_tests.o: link_container_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 node_container_tests.o: node_container_tests.cpp 
@@ -128,6 +132,10 @@ container_tests: small_container_tests.o
 
 converter_tests: CXX_FLAGS += -DSTAND_ALONE
 converter_tests: data_converter.o data_converter_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
+link_tests: CXX_FLAGS += -DSTAND_ALONE
+link_tests: link_container_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
 node_tests: CXX_FLAGS += -DSTAND_ALONE

@@ -9,6 +9,8 @@
 #include "node_container_cpu.hpp"
 #include "tree.hpp"
 
+#include <iostream>
+
 namespace haplo {
 namespace links {
     
@@ -196,8 +198,8 @@ void Tree<devices::cpu>::explore()
     // DEBUGGING for the moment
     std::cout << " - - - - - - - EXPLORING TREE - - - - - - -\n";
     
-    // Get the node to explore
-    atomic_type next_node = _start_node;
+    // The node that's the current reference (for determining how to select nodes)
+    atomic_type ref_node = _start_node;
 }
 
 }           // End namespace haplo

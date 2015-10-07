@@ -5,7 +5,8 @@
 #ifndef PARHAPLO_COMPARATORS_HPP
 #define PARHAPLO_COMPARATORS_HPP
 
-#include "node_container.hpp"
+#include "link_container_cpu.hpp"
+#include "node.hpp"
 
 #include <algorithm>
 
@@ -19,17 +20,17 @@ template <typename LinkContainer>
 class NodeComparator {
 public: 
     // ------------------------------------------ ALIAS'S ---------------------------------------------------
-    using links_reference = const LinkContainer&;
+    using link_container = const LinkContainer;
     // ------------------------------------------------------------------------------------------------------
 private:
     const size_t        _ref_node;          //!< The index that is being used to evaluate against
-    const size_t        _nodes;             //!< The number of nodes which made up the links
-    links_reference     _links;             //!< The links between the nodes
+    link_container&     _links;             //!< The links between the nodes
 public:
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Constructor -- sets the reference node and the links used for comparison
     // ------------------------------------------------------------------------------------------------------
-    explicit NodeComparator(const size_t ref_node, const size_t nodes, links_reference links) 
-    : _ref_node(ref_node), _nodes(nodes), _links(links) {}
+    explicit NodeComparator(const size_t ref_node, link_container& links) 
+    : _ref_node(ref_node), _links(links) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Does the comparison between nodes a and b using the reference node
@@ -39,25 +40,34 @@ public:
     // ------------------------------------------------------------------------------------------------------
     bool operator()(const Node& a, const Node& b) const 
     {
+        if (a.position() == b.position()) return true;
+        
+        bool   a_found = true, b_found = true;
+        size_t a_value = 0   , b_value = 0; 
+        
         // Get the value of a -- casting away atomicity because of read only
         auto lower_idx = std::min(static_cast<const size_t>(a.position()), _ref_node);
         auto upper_idx = std::max(static_cast<const size_t>(a.position()), _ref_node);
         
-        auto link_idx  = _links.size() - ((_nodes - lower_idx) * (_nodes - lower_idx - 1) / 2)
-                           + upper_idx - lower_idx - 1;
+        if (_links.exists(lower_idx, upper_idx)) {
+            auto link = _links.at(lower_idx, upper_idx);      
+            a_value   = link.value() - std::min(link.homo_weight()  ,
+                                                link.hetro_weight() );
+        } else { a_found = false; }
         
-        auto a_value = _links[link_idx].value() - std::min(_links[link_idx].homo_weight()  ,
-                                                           _links[link_idx].hetro_weight() );
     
         // Get the value of b -- casting away atomicity because of read only
         lower_idx = std::min(static_cast<const size_t>(b.position()), _ref_node);
         upper_idx = std::max(static_cast<const size_t>(b.position()), _ref_node);
-        
-        link_idx  = _links.size() - ((_nodes - lower_idx) * (_nodes - lower_idx - 1) / 2)
-                           + upper_idx - lower_idx - 1;
-        
-        auto b_value = _links[link_idx].value() - std::min(_links[link_idx].homo_weight()  ,
-                                                           _links[link_idx].hetro_weight() );
+       
+        if (_links.exists(lower_idx, upper_idx)) {
+            auto link = _links.at(lower_idx, upper_idx);
+            b_value   = link.value() - std::min(link.homo_weight()  ,
+                                                link.hetro_weight() );
+        } else { b_found = false; }
+    
+        if (a_found && !b_found) return true;
+        if (b_found && !a_found) return false;
         
         return a_value > b_value ? true 
                                  : b_value > a_value 
@@ -66,7 +76,6 @@ public:
                                         ? true 
                                         : false;
     }
-    
 };
 
 }               // End namespace haplo

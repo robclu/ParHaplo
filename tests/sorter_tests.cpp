@@ -11,6 +11,7 @@
 #include <chrono>
 #include <iostream>
 
+#include "../haplo/link_container_cpu.hpp"
 #include "../haplo/node_container_cpu.hpp"
 #include "../haplo/sorter_cpu.hpp"
 
@@ -20,9 +21,10 @@ BOOST_AUTO_TEST_SUITE( SorterSuite )
     
 BOOST_AUTO_TEST_CASE( canCorrectlySortNodes )
 {
-    const size_t num_nodes = 350;
+    const size_t num_nodes = 10000;
     
-    using link_container = std::vector<haplo::Link>;
+    using link_container = haplo::LinkContainer<haplo::devices::cpu>;
+    link_container links;
     
     // Create a node container with 4 nodes
     haplo::NodeContainer<haplo::devices::cpu> nodes(num_nodes);
@@ -30,21 +32,20 @@ BOOST_AUTO_TEST_CASE( canCorrectlySortNodes )
     // Set the weights
     for (size_t i = 0; i < num_nodes; ++i) nodes.weight(i) = i + 2;
    
+    std::vector<size_t> iii;
     // Set the links
-    for (size_t i = 0; i < num_nodes; ++i) {
-        for(size_t j = i + 1; j < num_nodes; ++j) {
-            nodes.link(i, j).homo_weight()  = i + j;
-            nodes.link(i, j).hetro_weight() = i;
-        } 
-    }
-    
+    for (size_t i = 0; i < num_nodes; ++i) 
+        for(size_t j = i + 1; j < num_nodes; ++j) 
+            links.insert(i, j, haplo::Link(i + j, i));
+
     // Create a comparator   
     // use node 0 as the reference node
-    haplo::NodeComparator<link_container> comparator(0, num_nodes, nodes.links());
+    haplo::NodeComparator<link_container> comparator(0, links);
     
     // Create the sorter
     haplo::Sorter<haplo::devices::cpu> sorter;
 
+    std::cout << "Starting sort\n";
     // Time the sort    
     high_resolution_clock::time_point start = high_resolution_clock::now(); 
     
