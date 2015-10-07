@@ -21,7 +21,9 @@ static constexpr const char* input_1    = "input_files/input_simulated_2.txt";
 static constexpr const char* input_2    = "input_files/input_simulated_1.txt";
 static constexpr const char* input_3    = "input_files/input_simulated_3.txt";
 static constexpr const char* input_4    = "input_files/input_dataset_1.txt";
+static constexpr const char* input_5    = "input_files/input_dataset_2.txt";
 static constexpr const char* output_1   = "output_files/output_simulated_2.txt";
+static constexpr const char* output_2   = "output_files/output_dataset_2.txt";
 
 BOOST_AUTO_TEST_SUITE( DataConverterSuite )
     
@@ -109,7 +111,7 @@ BOOST_AUTO_TEST_CASE( canMapCharToBinary )
 
 BOOST_AUTO_TEST_CASE( canConvertDataset )
 {
-    haplo::DataConverter converter(input_4);
+    haplo::DataConverter converter(input_4, input_5, output_2);
     converter.printMap();
 }
 

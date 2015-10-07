@@ -19,11 +19,18 @@
     #define     TWO     0x02
 #endif
 
-// !!!! Please do not modift Makefile -- ccompile with make converter_tests to compile only the converter
-// tests
 
 namespace haplo {
     
+    // ------------------------------------------------------------------------------------------------------
+    /// @struct     Base
+    /// @brief      Stores the relevant data per base for a particular position of the reference sequence in the ground truth file
+    /// @param[in]  _ref_base          The reference base (occurrences represent by a 1)
+    /// @param[in]  _alt_base          The alternate base (occurrences represent by a 0)
+    /// @param[in]  _real              Boolean indicating whether a base exists (1) or is assumed (0) for the dataset
+    /// @param[in]  _haplotype_one     Occurrence of base along one chromosome
+    /// @param[in]  _haplotype_two     Occurrence of base along other chromosome
+    // ------------------------------------------------------------------------------------------------------
     struct Base {
         Base()
         {}
@@ -40,103 +47,152 @@ namespace haplo {
             
         }
         
-        char     _ref_base;  // a t c g
-        char     _alt_base;
+        char     _ref_base;  // a, t, c, g
+        char     _alt_base;  // a, t, c, g
         bool     _real;
         size_t   _haplotype_one;
         size_t   _haplotype_two;
 
     };
+    
+    // ------------------------------------------------------------------------------------------------------------------------
+    /// @struct     Read
+    /// @brief      Stores the relevant data per read for a particular dataset
+    /// @param[in]  _end_position          The end position of the read
+    /// @param[in]  _sequence              The sequenced bases for the read
+    /// @param[in]  _binary_sequence       The converted binary sequence for the read (with respect to the reference sequence)
+    // ------------------------------------------------------------------------------------------------------------------------
+    struct Read {
+        Read()
+        {}
+        Read(size_t end_position, std::string seq) : _end_position(end_position), _sequence(seq)
+        {}
+        void print() const {
+            std::cout << "end: " << _end_position << std::endl;
+            std::cout << "seq: " << _sequence << std::endl;
+            std::cout << "bin: " << _binary_sequence << std::endl;
+        }
+        
+        size_t          _end_position;
+        std::string     _sequence; // a, t, c, g
+        std::string     _binary_sequence; // 0, 1
+        
+    };
+
+    using umap_read = std::unordered_map<size_t, std::vector<Read>>;
+    using umap_base = std::unordered_map<size_t, std::vector<Base>>;
+    using chromo_array_reads = std::array<umap_read, 22>;
+    using chromo_array_bases = std::array<umap_base, 22>;
 
     
 // ----------------------------------------------------------------------------------------------------------
-/// @class      InputConverter
-/// @class      Converts the input from ATCG to binary
-// --------------------------------------------------- ------------------------------------------------------
+/// @class      DataConverter
+/// @class      Processes the reference sequence and dataset files and converts from ACTG to binary
+// ----------------------------------------------------------------------------------------------------------
 class DataConverter {
 private:
-    std::vector<char>       _data;                  //!< The converted data
-    size_t                  _rows;                  //!< Number of rows in the input file
-    size_t                  _columns;               //!< Number of columns in the input file
-    size_t                  _chromosome;     //!< Chromosome number identifier
-    // Rename these all as _ref_seq .. _base_a, unless _a_base makes more
-    // sense, but i don't understand what they mean
-    std::vector<char>       _refSeq;
-    std::vector<char>       _altSeq;
-    std::vector<size_t>     _aBase;
-    std::vector<size_t>     _cBase;
-    std::vector<size_t>     _tBase;
-    std::vector<size_t>     _gBase;
+    std::vector<char>       _data;                      //!< The converted data for smaller input files
+    size_t                  _rows;                      //!< Number of rows in the input file
+    size_t                  _columns;                   //!< Number of columns in the input file
+    size_t                  _chromosome;                //!< Chromosome number identifier
+    std::vector<char>       _ref_seq;                   //!< Reference sequence for smaller input files
+    std::vector<char>       _alt_seq;                   //!< Alternate sequence for smaller input files
+    std::vector<size_t>     _base_a;                    //!< Counter for occurrences of base a, indexed by columns for smaller input files
+    std::vector<size_t>     _base_c;                    //!< Counter for occurrences of base c, indexed by columns for smaller input files
+    std::vector<size_t>     _base_t;                    //!< Counter for occurrences of base t, indexed by columns for smaller input files
+    std::vector<size_t>     _base_g;                    //!< Counter for occurrences of base g, indexed by columns for smaller input files
    
-    // Makybe make this an array of unordered maps -- this looks pretty ugly
-    //  
-    //  using umap = std::unorderd_map;
-    //  using chromo_array = std::array<umap, 22>
-    //  
-    //  Then you can declare it above as
-    //  
-    //      chromo_array    _ref_alt_chromosomes -- for example
-    std::unordered_map<size_t, Base> _chr1_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr2_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr3_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr4_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr5_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr6_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr7_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr8_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr9_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr10_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr11_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr12_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr13_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr14_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr15_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr16_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr17_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr18_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr19_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr20_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr21_ref_and_alt_seq;
-    std::unordered_map<size_t, Base> _chr22_ref_and_alt_seq;
+    chromo_array_bases      _ref_alt_chromosomes;       //!< Array of maps to store all the bases for a specific ground truth file of references, indexed by chromosome number
+    chromo_array_reads      _simulated_chromosomes;     //!< Array of maps to store all the reads for a specific dataset file, indexed by chromosome number
+
+    std::vector<size_t>     _start_of_chromosome_reads; //!< Vector of starting positions for each chromosome, indexed by chromosome number
+
 
 public:
     
-    // ----------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Class default constructor
     // ------------------------------------------------------------------------------------------------------
     DataConverter() {};
+
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts input data and outputs it to a file
+    /// @param[in]  data_file_1     Stores the reference sequence (ground truth file)
+    /// @param[in]  data_file_2     Stores all the reads for a dataset (bam file)
+    /// @param[in]  data_file_3     Stores the processed output data (.txt file)
     // ------------------------------------------------------------------------------------------------------
-    DataConverter(const char* data_file);
+    DataConverter(const char* data_file_1, const char* data_file_2, const char* data_file_3);
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Writes the converted data to a file
-    /// @param[in]  filename    The name of the file to write the data to
+    /// @brief      Writes the converted data to a file for smaller input files
+    /// @param[in]  data_file       Stores the processed output data
     // ------------------------------------------------------------------------------------------------------
-    void write_data_to_file(const char* filename ); 
+    void write_data_to_file(const char* data_file);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Writes the converted simulated data to a file for bigger input files
+    /// @param[in]  data_file       Stores the processed output data
+    // ------------------------------------------------------------------------------------------------------
+    void write_simulated_data_to_file(const char* data_file);
     
     // DEBUGGING
     void print() const;
     
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    
+    //
+    // DEBUGGING
     void printMap() const;
     
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Takes in BinaryArray elements and uses the reference sequence to convert back to ACTG
+    /// @param[in]  input       Stores the binary elements
+    /// @return     A vector of characters (ACTG)
+    // ------------------------------------------------------------------------------------------------------
     template <size_t length>
     std::vector<char> convert_data_from_binary(BinaryArray<length, 2> input);
     
-    
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts a character to a byte for mapping
+    /// @param[in]  input       Stores the character (ACTG)
+    /// @return     The byte equivalent of the character
     // ------------------------------------------------------------------------------------------------------
     byte convert_char_to_byte(char input);
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts a byte to a character for mapping
+    /// @param[in]  input       Stores the byte value to be converted
+    /// @return     The character equivalent of the byte
     // ------------------------------------------------------------------------------------------------------
     char convert_byte_to_char(byte input);
 
     
 private:
-    void storeBaseData(size_t chromosome, size_t position, char ref_base, char alt_base, bool real, size_t haplo_one, size_t haplo_two);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Processes the ground truth file to be stored in a map of bases for each chromosome
+    /// @param[in]  data_file       Stores the ground truth file
+    // ------------------------------------------------------------------------------------------------------
+    void process_ground_truth(const char* data_file);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts the CIGAR value of a bam file in order to apply operations to the sequence of each read
+    /// @param[in]  start_position       The start position of a read
+    /// @param[in]  end_position         The end position of a read
+    /// @param[in]  cigar_value          The cigar value of a read
+    /// @param[in]  sequence             The sequence of a read
+    // ------------------------------------------------------------------------------------------------------
+    void process_cigar_value(size_t& start_position, size_t& end_position, std::string& cigar_value, std::string& sequence);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    void store_base_data(size_t chromosome, size_t position, char ref_base, char alt_base, bool real, size_t haplo_one, size_t haplo_two);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    void store_simulated_data(size_t chromosome, size_t start_position, size_t end_position, std::string sequence);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    void process_each_read();
 
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
@@ -144,7 +200,7 @@ private:
     
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
-    void convert_dataset_to_binary(const char* data_file);
+    void read_in_simulated_data(const char* data_file);
     
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
@@ -163,10 +219,14 @@ private:
     // ------------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------------
     template <typename TP>
+    void convert_dataset_to_binary(const TP& token_pointer);
+    
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    template <typename TP>
     void process_line(const TP& token_pointer);
     
 
-    
     
 };
 
@@ -177,10 +237,11 @@ std::vector<char> DataConverter::convert_data_from_binary(BinaryArray<length, 2>
     for(size_t i = 0; i < length; ++i){
         
         if(input.get(i) == ONE) {
-            output.push_back(_refSeq.at(i));
+            output.push_back(_ref_seq.at(i));
         }
+        // i.e. if ZERO
         else {
-            output.push_back(_altSeq.at(i));
+            output.push_back(_alt_seq.at(i));
         }
     }
     
