@@ -6,7 +6,8 @@
 #define PARHAPLO_TREE_CPU_HPP
 
 #include "devices.hpp"
-#include "node_container_cpu.hpp"
+#include "node_selector_cpu.hpp"
+#include "search_node.hpp"
 #include "tree.hpp"
 
 #include <iostream>
@@ -38,25 +39,25 @@ class Tree<devices::cpu> {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
     using node_container    = NodeContainer<devices::cpu>;              // Container for the nodes
-    using info_container    = typename node_container::info_container;  // Vector of nodes
-    using link_container    = typename node_container::link_container;  // Vector of links
+    using link_container    = LinkContainer<devices::cpu>;              // Container for the links
     using atomic_type       = tbb::atomic<size_t>;
     // ------------------------------------------------------------------------------------------------------
 private:
-    node_container      _nodes;                     //!< The nodes in the tree
     atomic_type         _start_node;                //!< The node at which to start the search
     atomic_type         _start_node_worst_case;     //!< The worst case value of the start node
+    node_container      _nodes;                     //!< The nodes in the tree
+    link_container      _links;                     //!< Links between the nodes of the tree
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor
     // ------------------------------------------------------------------------------------------------------
-    Tree() noexcept : _nodes(0), _start_node(0), _start_node_worst_case(0) {}
+    Tree() noexcept : _start_node(0), _start_node_worst_case(0), _nodes(0) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for a tree
     /// @param[in]  nodes   The number of nodes in the tree
     // ------------------------------------------------------------------------------------------------------
-    Tree(const size_t nodes) noexcept : _nodes(nodes), _start_node(0), _start_node_worst_case(0) {}
+    Tree(const size_t nodes) noexcept : _start_node(0), _start_node_worst_case(0), _nodes(nodes) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Desctructor
@@ -94,22 +95,42 @@ public:
     /// @brief      Gets the nodes of the tree
     /// @return     The nodes in the tree
     // ------------------------------------------------------------------------------------------------------
-    inline const info_container& nodes() const { return _nodes.nodes(); }
+    inline const node_container& nodes() const { return _nodes; }
 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Creates a link for the tree
+    /// @param[in]  node_idx_lower    The index of the lower node (index with a lower value)
+    /// @param[in]  node_idx_upper    The index of the upper node (index with a higher value)    
+    // ------------------------------------------------------------------------------------------------------
+    inline void create_link(const size_t node_idx_lower, const size_t node_idx_upper)
+    {
+        _links.insert(node_idx_lower, node_idx_upper);
+    }
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the links of the tree
     /// @return     The links for  the tree
     // ------------------------------------------------------------------------------------------------------
-    inline const link_container& links() const { return _nodes.links(); }
+    inline const link_container& links() const { return _links; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the link between two nodes of the tree
     /// @param[in]  node_idx_lower    The index of the lower node (index with a lower value)
     /// @param[in]  node_idx_upper    The index of the upper node (index with a higher value)
-    /// @tparam     LinkType            Selector for which of the link types to get the value of
+    /// @tparam     LinkType          The type of the link to get
     // ------------------------------------------------------------------------------------------------------
     template <uint8_t LinkType>
     inline atomic_type& link(const size_t node_idx_lower, const size_t node_idx_upper);
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the link between two nodes of the tree
+    /// @param[in]  node_idx_lower    The index of the lower node (index with a lower value)
+    /// @param[in]  node_idx_upper    The index of the upper node (index with a higher value)
+    // ------------------------------------------------------------------------------------------------------    
+    inline Link& link(const size_t node_idx_lower, const size_t node_idx_upper) 
+    {
+        return _links.at(node_idx_lower, node_idx_upper);
+    }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the max of a link between two nodes of the tree
@@ -118,7 +139,12 @@ public:
     // ------------------------------------------------------------------------------------------------------
     inline size_t link_max(const size_t node_idx_lower, const size_t node_idx_upper)
     {
-        return _nodes.link(node_idx_lower, node_idx_upper).value();
+        size_t max = 0;
+        if (_links.exists(node_idx_lower, node_idx_upper)) 
+            max = _links.at(node_idx_lower, node_idx_upper).value();
+        else 
+            max = 0;
+        return max;
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -172,7 +198,7 @@ public:
     void explore();
 private:
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Selects the next node to 
+    /// @brief      Branches to explore two nodes  
 };
 
 // -------------------------------------- IMPLEMENTATIONS ---------------------------------------------------
@@ -181,14 +207,14 @@ template <>
 inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::homo>(const size_t node_idx_lower, 
                                                                   const size_t node_idx_upper)
 {
-    return _nodes.link(node_idx_lower, node_idx_upper).homo_weight();
+    return _links.at(node_idx_lower, node_idx_upper).homo_weight();
 }
 
 template <>
 inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::hetro>(const size_t node_idx_lower, 
                                                                    const size_t node_idx_upper)
 {
-    return _nodes.link(node_idx_lower, node_idx_upper).hetro_weight();
+    return _links.at(node_idx_lower, node_idx_upper).hetro_weight();
 }
 
 // Not specializing this yet -- going to implement branch based parallelism

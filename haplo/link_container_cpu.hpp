@@ -58,7 +58,7 @@ public:
     /// @param[in]  idx_upper       The index of the upper node
     /// @param[in]  link            The link to insert into the container
     // ------------------------------------------------------------------------------------------------------
-    inline void insert(const size_t idx_lower, const size_t idx_upper, const Link& link) 
+    inline void insert(const size_t idx_lower, const size_t idx_upper, const Link& link = Link()) 
     {
         _links[std::make_pair(idx_lower, idx_upper)] = link;
     }
@@ -73,12 +73,24 @@ public:
     {
         return (_links.find(std::make_pair(idx_lower, idx_upper)) != _links.end());
     }
-    
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a link from the container -- no error checking
+    /// @param[in]  idx_lower       The index of the lower node
+    /// @param[in]  idx_upper       The index of the upper node
+    /// @return     The link at the given positions, or an iterator to the end
+    // ------------------------------------------------------------------------------------------------------    
+    inline mapped_type& operator()(const size_t idx_lower, const size_t idx_upper) 
+    {
+        return _links[std::make_pair(idx_lower, idx_upper)];
+    }
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a link from the container 
     /// @param[in]  idx_lower       The index of the lower node
     /// @param[in]  idx_upper       The index of the upper node
     /// @return     The link at the given positions, or an iterator to the end
+    /// @throw      out_of_range    If the index is invalid
     // ------------------------------------------------------------------------------------------------------    
     inline mapped_type& at(const size_t idx_lower, const size_t idx_upper) 
     {
@@ -90,6 +102,7 @@ public:
     /// @param[in]  idx_lower       The index of the lower node
     /// @param[in]  idx_upper       The index of the upper node
     /// @return     The link at the given positions, or an iterator to the end
+    /// @throw      out_of_range    If the index is invalid
     // ------------------------------------------------------------------------------------------------------    
     inline const mapped_type& at(const size_t idx_lower, const size_t idx_upper) const
     {

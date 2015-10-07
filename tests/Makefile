@@ -54,7 +54,9 @@ ALL_TESTS       =   small_container_tests.o             \
 					data_converter_tests.o              \
 					block_tests.o                       \
 					sorter_tests.o                      \
-					inode_selector_tests.o              \
+					node_selector_tests.o               \
+					search_node_tests.o                 \
+					node_manager_tests.o                \
 					tree_tests.o                        \
 					node_container_tests.o              \
 					link_container_tests.o              \
@@ -67,7 +69,7 @@ ALL_TESTS       =   small_container_tests.o             \
 
 .PHONY: all block_tests container_tests checker_tests converter_tests node_constiner_tests      \
 		node_selector_tests link_tests tree_tests comparator_tests sorter_tests                 \
-		unsplittable_block_tests clean
+		search_node_tests node_manager_tests unsplittable_block_tests clean
 
 all: build_and_run
 
@@ -99,6 +101,12 @@ node_container_tests.o: node_container_tests.cpp
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 node_selector_tests.o: node_selector_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
+search_node_tests.o: search_node_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+
+node_manager_tests.o: node_manager_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 	
 small_container_tests.o: small_container_tests.cpp 
@@ -147,7 +155,15 @@ node_container_tests: node_container_tests.o
 node_selector_tests: CXX_FLAGS += -DSTAND_ALONE
 node_selector_tests: node_selector_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-	
+
+search_node_tests: CXX_FLAGS += -DSTAND_ALONE
+search_node_tests: search_node_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
+node_manager_tests: CXX_FLAGS += -DSTAND_ALONE
+node_manager_tests: node_manager_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
 sorter_tests: CXX_FLAGS += -DSTAND_ALONE
 sorter_tests: sorter_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
