@@ -8,23 +8,4 @@ chr1    65797   .       T       C       20      PASS    .       GT      1|1
 chr1    65872   .       T       G       20      PASS    .       GT      1|1
 chr1    66008   .       C       G       20      PASS    .       GT      1|1
 chr1    66162   .       A       T       20      PASS    .       GT      1|1
-chr1    66258   .       A       G       20      PASS    .       GT      1|1
-chr1    66275   .       A       T       20      PASS    .       GT      1|1
-chr1    66293   .       ATA     AAT     20      PASS    .       GT      1|1
-chr1    66312   .       A       T       20      PASS    .       GT      1|1
-chr1    566139  .       A       C       20      PASS    .       GT      1|0
-chr1    662857  .       G       A       20      PASS    .       GT      1|1
-chr1    704367  .       T       C       20      PASS    .       GT      1|1
-chr1    715348  .       T       G       20      PASS    .       GT      1|1
-chr1    715996  .       A       T       20      PASS    .       GT      1|1
-chr2    718386  .       A       G       20      PASS    .       GT      1|1
-chr2    718555  .       T       C       20      PASS    .       GT      1|1
-chr2    723891  .       G       C       20      PASS    .       GT      1|1
-chr2    724137  .       T       TAATGG  20      PASS    OP=724188       GT      1|1
-chr2    704367  .       T       C       20      PASS    .       GT      1|1
-chr2    715348  .       T       G       20      PASS    .       GT      1|1
-chr2    715996  .       A       T       20      PASS    .       GT      1|1
-chr2    718386  .       A       G       20      PASS    .       GT      1|1
-chr2    718555  .       T       C       20      PASS    .       GT      1|1
-chr2    723891  .       G       C       20      PASS    .       GT      1|1
-chr2    724137  .       T       TAATGG  20      PASS    OP=724188       GT      1|1
+
