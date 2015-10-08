@@ -78,13 +78,13 @@ void DataConverter::print_simulated() const
 {
     for (const auto& element : _data) std::cout << element;
     
-    std::cout << "Ref Sequence: " << std::endl;
-    for (const auto& element : _ref_seq) std::cout << element;
+    //std::cout << "Ref Sequence: " << std::endl;
+    //for (const auto& element : _ref_seq) std::cout << element;
     
-    std::cout << std::endl;
+    //std::cout << std::endl;
     
-    std::cout << "Alt Sequence: " << std::endl;
-    for (const auto& element : _alt_seq) std::cout << element;
+    //std::cout << "Alt Sequence: " << std::endl;
+    //for (const auto& element : _alt_seq) std::cout << element;
 }
 
 void DataConverter::convert_simulated_data_to_binary(const char* data_file)
@@ -523,8 +523,62 @@ void DataConverter::process_each_read()
     
 }
 
-    
+
 template <typename TP>
+void DataConverter::process_each_line(const TP& line)
+{
+    std::string start_position;
+    size_t start_position_value;
+    std::string end_position;
+    size_t end_position_value;
+    
+    // Find start position of line
+    for(size_t i = 0; i < line.length(); ++i){
+        if(line[i] != '-'){
+            start_position_value = i + 1;
+            start_position = std::to_string(start_position_value);
+            break;
+        }
+    }
+    
+    // Fine end position of line
+    for(size_t i = 0; i < line.length(); ++i){
+        if(line[line.length() - 1 - i] != '-'){
+            end_position_value = line.length() - i;
+            end_position = std::to_string(end_position_value);
+            break;
+        }
+    }
+    
+    for(int i = 0; i < start_position.length(); ++i){
+        _data.push_back(start_position[i]);
+    }
+    
+    _data.push_back(' ');
+    
+    for(int i = 0; i < end_position.length(); ++i){
+        _data.push_back(end_position[i]);
+    }
+    
+    _data.push_back(' ');
+
+    for (size_t i = start_position_value - 1; i < end_position_value; ++i) {
+        if(line[i] == _ref_seq.at(i)) {
+            _data.push_back('1');
+        }
+        else if(line[i] == '-') {
+            _data.push_back('-');
+        }
+        else {
+            _data.push_back('0');
+        }
+    }
+    // Add in the newline character
+    _data.push_back('\n');
+}
+    
+
+/*template <typename TP>
 void DataConverter::process_each_line(const TP& line)
 {
     for (size_t i = 0; i < line.length(); ++i) {
@@ -543,7 +597,7 @@ void DataConverter::process_each_line(const TP& line)
     }
     // Add in the newline character
     _data.push_back('\n');
-}
+}*/
     
 byte DataConverter::convert_char_to_byte(char input)
 {

@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE( canCreateDataConverter )
     
 }
 
-// Tests conversion from binary haplotype to actg haplotype
+/*// Tests conversion from binary haplotype to actg haplotype
 BOOST_AUTO_TEST_CASE( canConvertDataFromBinary )
 {
     
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE( canConvertDataset )
 {
     haplo::DataConverter converter(input_4, input_5, output_4);
     //converter.print_dataset();
-}
+}*/
 
 
 BOOST_AUTO_TEST_SUITE_END()
