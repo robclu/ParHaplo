@@ -46,6 +46,13 @@ public:
     /// @param      node_index  The index of the node in the node container
     // ------------------------------------------------------------------------------------------------------
     size_t select_node();
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of the position of the last selected node
+    /// @rerturn    The index of the last selected node
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t last_selected_index() const { return _next_node - 1; }
+
 };
 
 // -------------------------------------------- IMPLEMENTATIONS ---------------------------------------------

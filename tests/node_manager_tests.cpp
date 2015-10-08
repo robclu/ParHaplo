@@ -30,17 +30,38 @@ BOOST_AUTO_TEST_CASE( canCreateDefaultManagerAndResize )
     BOOST_CHECK( node_manager.num_nodes() == 20 ); 
 }
 
-BOOST_AUTO_TEST_CASE( canGetAndSetNodes )
+BOOST_AUTO_TEST_CASE( canCreateLevelsOfNodesCorectly )
 {
-    haplo::NodeManager<haplo::devices::cpu> node_manager;
-    node_manager.resize(20);    
+    haplo::NodeManager<haplo::devices::cpu> node_manager(4);   
     
-    // Will be a pointer to the first node
-    auto node = node_manager.get_new_node();
+    // Add a level of nodes with 2 nodes -- in this case this does nothing
+    node_manager.add_node_level(2);
     
-    node->set_index(4);
+    // Default to 3 nodes min, so next node in node 4
+    auto next_index  = node_manager.get_next_node();
+    auto& left_node  = node_manager.node(next_index);
+    auto& right_node = node_manager.node(next_index + 1);
     
-    BOOST_CHECK( node_manager.node(0).index() == 4 );
+    left_node.set_index(4);
+    right_node.set_index(5);
+        
+    BOOST_CHECK( node_manager.node(3).index() == 4 );
+    BOOST_CHECK( node_manager.node(4).index() == 5 );
+    
+    // Ask for a new level with 4 nodes (so 7 nodes total)
+    // only 4 allocated initially so manager should re-allocate
+    node_manager.add_node_level(4);
+    
+    next_index = node_manager.get_next_node();
+    auto& left_node_1  = node_manager.node(next_index);
+    auto& right_node_1 = node_manager.node(next_index + 1);    
+
+    left_node_1.set_index(9);
+    right_node_1.set_index(7);
+    
+    BOOST_CHECK( node_manager.node(5).index()  == 9 );
+    BOOST_CHECK( node_manager.node(6).index()  == 7 );
+    BOOST_CHECK( node_manager.num_nodes()      == 16  );
 }
 
 

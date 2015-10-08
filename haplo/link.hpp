@@ -74,6 +74,12 @@ public:
     /// @return     The value (maximum weight of the node)
     // ------------------------------------------------------------------------------------------------------
     inline size_t value() const { return std::max(_homo_weight, _hetro_weight); }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Returns the min value of the link
+    /// @return     The min value of the link
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t min() const { return std::min(_homo_weight, _hetro_weight); }
 };
 
 

@@ -20,14 +20,6 @@ static constexpr uint8_t hetro  = 0x01;
 
 }               // End namespace links
 
-namespace cores {
-
-static constexpr uint8_t branches   = 0x00;
-static constexpr uint8_t opps       = 0x01;
-static constexpr uint8_t mixed      = 0x03;
-
-}               // End namespace cores
-
 // ----------------------------------------------------------------------------------------------------------
 /// @class      Tree    
 /// @brief      Holds nodes which can then be searched to find the optimal haplotypes
@@ -52,7 +44,8 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor
     // ------------------------------------------------------------------------------------------------------
-    Tree() noexcept : _start_node(0), _start_node_worst_case(0), _nodes(0) {}
+    Tree() noexcept 
+    : _start_node(0), _start_node_worst_case(0), _nodes(0) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for a tree
@@ -192,14 +185,24 @@ public:
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Searches the tree for the best solution 
-    /// @tparam     CoreMapping     How the cores are mapped for the explaoration -- parallellism is used for
-    ///             exploring separate branches, for operation computattions, or a mixture
+    /// @tparam     BranchCores     The number of cores available for parallel brach search
+    /// @tparam     OpCores         The number of cores available for the operations
     // ------------------------------------------------------------------------------------------------------
-    template <uint8_t CoreMapping>
+    template <size_t BranchCores, size_t OpCores>
     void explore();
 private:
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Branches to explore two nodes  
+    /// @brief      Moves down the sub-nodes of the current root node of a subtree tree
+    /// @param[in]  node_manager    The manager of the nodes
+    /// @param[in]  start_index     The index of the start node in the search nodes
+    /// @param[in]  num_subnodes    The number of subnodes to search
+    /// @tparam     BranchCores     The number of cores available for parallel brach search
+    /// @tparam     OpCores         The number of cores available for the operations
+    // ------------------------------------------------------------------------------------------------------
+    template <size_t BranchCores, size_t OpCores>
+    void search_subnodes(manager_type&  node_manager, 
+                         const size_t   start_index ,
+                         const size_t   num_subnodes);
 };
 
 // -------------------------------------- IMPLEMENTATIONS ---------------------------------------------------
@@ -218,8 +221,7 @@ inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::hetro>(const size_t 
     return _links.at(node_idx_lower, node_idx_upper).hetro_weight();
 }
 
-// Not specializing this yet -- going to implement branch based parallelism
-template <uint8_t CoreMapping>
+template <size_t BranchCores, size_t OpCores>
 void Tree<devices::cpu>::explore() 
 {
     manager_type node_manager(_nodes);          // Create a node manager
@@ -231,16 +233,52 @@ void Tree<devices::cpu>::explore()
     atomic_type ref_node = _start_node;
     
     // Get the root node from the node manager
-    auto root_node = node_manager.get_new_node();
+    auto& root_node = node_manager.node(0);
     root_node.set_index(_start_node);                   // Set the index of the root node
     root_node.set_value(0);                             // Setting the value to 0
+    root_node.left()  = 1;
+    root_node.right() = 2;
+   
+    // Determine upper and lower bounds
+   
+    // Pass the upper bounds to the subnodes
     
-    // Determine upper and lower bound
-    
+    // Search the subtrees, start with 2 subtrees -- this runs until the solution is found
+    search_subnodes<BranchCores, OpCores>(node_manager, 1 , 2)
+}
 
-    // Check to see if nodes should be pruned
+template <size_t BranchCores, size_t OpCores>
+void Tree<devices::cpu>::search_subnodes(manager_type&  node_manager, 
+                                         const size_t   start_index ,
+                                         const size_t   num_subnodes)
+{
+    // Check how many branch cores we need
+    const size_t branch_cores = BranchCores > num_subtrees ? num_subtrees : BranchCores;
+    atomic_type  num_branches = 0;      // The number of branches from each of the subnodes
     
-    
+    // Get the index of the 
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, branch_cores),
+        [&](const tbb::blocked_range<size_t>& threads)
+        {
+            for (thread_id = threads.begin(); thread_id != threads.end(); ++thread_id) {
+                size_t thread_iters = ops::get_thread_iterations(thread_id, num_subtrees, branch_cores);
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    const size_t node_idx = start_idx + it * threads + thread_idx;
+                    
+                    auto& node = node_manager.node(node_idx);
+                    node.set_index(node_idx);                       // Set the index of the node
+                    node.type() == types::left                      // Set the node value
+                                ? node.set_value(0) : node.set_value(1);
+                                
+                    // Determine the bounds 
+                    
+                    
+                    
+                }
+            }
+        }
+    );
 }
 
 }           // End namespace haplo
