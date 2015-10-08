@@ -78,6 +78,13 @@ void DataConverter::print_simulated() const
 {
     for (const auto& element : _data) std::cout << element;
     
+    std::cout << "Ref Sequence: " << std::endl;
+    for (const auto& element : _ref_seq) std::cout << element;
+    
+    std::cout << std::endl;
+    
+    std::cout << "Alt Sequence: " << std::endl;
+    for (const auto& element : _alt_seq) std::cout << element;
 }
 
 void DataConverter::convert_simulated_data_to_binary(const char* data_file)
@@ -520,7 +527,7 @@ void DataConverter::process_each_read()
 template <typename TP>
 void DataConverter::process_each_line(const TP& line)
 {
-    for (size_t i = 0; i < _columns; ++i) {
+    for (size_t i = 0; i < line.length(); ++i) {
         
         if(line[i] == _ref_seq.at(i)) {
             _data.push_back('1');
@@ -541,13 +548,13 @@ void DataConverter::process_each_line(const TP& line)
 byte DataConverter::convert_char_to_byte(char input)
 {
     switch(input){
-        case 'A':
+        case 'a':
             return ZERO;
-        case 'C':
+        case 'c':
             return ONE;
-        case 'T':
+        case 't':
             return TWO;
-        case 'G':
+        case 'g':
             return THREE;
     }
     
@@ -565,6 +572,22 @@ char DataConverter::convert_byte_to_char(byte input)
         case THREE:
             return 'g';
         }
+    
+}
+
+std::vector<size_t> DataConverter::convert_data_to_binary(std::vector<char> input)
+{
+    std::vector<size_t> output;
+    for(size_t i = 0; i < input.size(); ++i){
+        
+        if(input.at(i) == _ref_seq.at(i))
+            output.push_back(ONE);
+        // i.e. if ZERO
+        else
+            output.push_back(ZERO);
+    }
+    
+    return output;
     
 }
 

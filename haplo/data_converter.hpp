@@ -157,6 +157,14 @@ public:
     template <size_t length>
     std::vector<char> convert_data_from_binary(BinaryArray<length, 2> input);
     
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Takes in ACTG elements and uses the reference sequence to convert to binary
+    /// @param[in]  input       Stores the characters of the sequence
+    /// @return     A vector of binary elements
+    // ------------------------------------------------------------------------------------------------------
+    std::vector<size_t> convert_data_to_binary(std::vector<char> input);
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Converts a character to a byte for mapping
     /// @param[in]  input       Stores the character (ACTG)
@@ -241,7 +249,7 @@ private:
     /// @param[in]  end_position         The end position of a read
     /// @param[in]  cigar_value          The cigar value of a read
     // ------------------------------------------------------------------------------------------------------
-    void store_read_datacd (size_t chromosome, size_t start_position, size_t end_position, std::string sequence);
+    void store_read_data(size_t chromosome, size_t start_position, size_t end_position, std::string sequence);
 
     
     // ------------------------------------------------------------------------------------------------------
