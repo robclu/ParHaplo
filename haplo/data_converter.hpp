@@ -116,7 +116,7 @@ public:
     DataConverter() {};
 
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Converts input data and outputs it to a file
+    /// @brief      Converts input data for bigger datasets (bam) and outputs it to a file
     /// @param[in]  data_file_1     Stores the reference sequence (ground truth file)
     /// @param[in]  data_file_2     Stores all the reads for a dataset (bam file)
     /// @param[in]  data_file_3     Stores the processed output data (.txt file)
@@ -124,23 +124,30 @@ public:
     DataConverter(const char* data_file_1, const char* data_file_2, const char* data_file_3);
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts input data for smaller datasets and outputs it to a file
+    /// @param[in]  data_file_1     Stores the smaller dataset (.txt file)
+    /// @param[in]  data_file_3     Stores the processed output data (.txt file)
+    // ------------------------------------------------------------------------------------------------------
+    DataConverter(const char* data_file_1, const char* data_file_2);
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Writes the converted data to a file for smaller input files
     /// @param[in]  data_file       Stores the processed output data
     // ------------------------------------------------------------------------------------------------------
-    void write_data_to_file(const char* data_file);
+    void write_simulated_data_to_file(const char* data_file);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Writes the converted simulated data to a file for bigger input files
     /// @param[in]  data_file       Stores the processed output data
     // ------------------------------------------------------------------------------------------------------
-    void write_simulated_data_to_file(const char* data_file);
+    void write_dataset_to_file(const char* data_file);
     
     // DEBUGGING
-    void print() const;
+    void print_simulated() const;
     
     //
     // DEBUGGING
-    void printMap() const;
+    void print_dataset() const;
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Takes in BinaryArray elements and uses the reference sequence to convert back to ACTG
@@ -149,6 +156,14 @@ public:
     // ------------------------------------------------------------------------------------------------------
     template <size_t length>
     std::vector<char> convert_data_from_binary(BinaryArray<length, 2> input);
+    
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Takes in ACTG elements and uses the reference sequence to convert to binary
+    /// @param[in]  input       Stores the characters of the sequence
+    /// @return     A vector of binary elements
+    // ------------------------------------------------------------------------------------------------------
+    std::vector<size_t> convert_data_to_binary(std::vector<char> input);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Converts a character to a byte for mapping
@@ -168,10 +183,56 @@ public:
 private:
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts the simulated input data into a binary equivalent
+    /// @param[in]  data_file       Stores the simulated input data
+    // ------------------------------------------------------------------------------------------------------
+    void convert_simulated_data_to_binary(const char* data_file);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Processes the simulated input and determines a reference sequence
+    // ------------------------------------------------------------------------------------------------------
+    void determine_simulated_ref_sequence();
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the occurrences of the 4 bases (ACTG) in each column of the simulated data
+    /// @param[in]  line       Stores each line passed to be processed
+    // ------------------------------------------------------------------------------------------------------
+    template <typename TP>
+    void find_base_occurrance(const TP& line);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Uses reference sequence to convert processed simulated data to binary
+    /// @param[in]  line       Stores each line passed to be processed
+    // ------------------------------------------------------------------------------------------------------
+    template <typename TP>
+    void process_each_line(const TP& line);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts the dataset input data into a binary equivalent using a given reference sequence
+    /// @param[in]  data_file_1       Stores the reference sequence (ground truth)
+    /// @param[in]  data_file_2       Stores the dataset (bam)
+    // ------------------------------------------------------------------------------------------------------
+    void convert_dataset_to_binary(const char* data_file_1, const char* data_file_2);
+
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Processes the ground truth file to be stored in a map of bases for each chromosome
     /// @param[in]  data_file       Stores the ground truth file
     // ------------------------------------------------------------------------------------------------------
     void process_ground_truth(const char* data_file);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Processes the ground truth file to be stored in a map of bases for each chromosome
+    /// @param[in]  data_file       Stores the ground truth file
+    // ------------------------------------------------------------------------------------------------------
+    template <typename TP>
+    void determine_dataset_ref_sequence(const TP& token_pointer);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Processes the dataset file and extracts the important informationt to be stored in a map of reads
+    /// @param[in]  line       Stores each line passed to be processed
+    // ------------------------------------------------------------------------------------------------------
+    template <typename TP>
+    void process_dataset(const TP& line);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Converts the CIGAR value of a bam file in order to apply operations to the sequence of each read
@@ -183,50 +244,19 @@ private:
     void process_cigar_value(size_t& start_position, size_t& end_position, std::string& cigar_value, std::string& sequence);
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts the CIGAR value of a bam file in order to apply operations to the sequence of each read
+    /// @param[in]  start_position       The start position of a read
+    /// @param[in]  end_position         The end position of a read
+    /// @param[in]  cigar_value          The cigar value of a read
     // ------------------------------------------------------------------------------------------------------
-    void store_base_data(size_t chromosome, size_t position, char ref_base, char alt_base, bool real, size_t haplo_one, size_t haplo_two);
+    void store_read_data(size_t chromosome, size_t start_position, size_t end_position, std::string sequence);
+
     
     // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    void store_simulated_data(size_t chromosome, size_t start_position, size_t end_position, std::string sequence);
-    
-    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Compares datasets reads to created reference bases in order to convert the sequence to  binary sequence
     // ------------------------------------------------------------------------------------------------------
     void process_each_read();
-
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    void convert_simulated_data_to_binary(const char* data_file);
     
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    void read_in_simulated_data(const char* data_file);
-    
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    template <typename TP>
-    void find_base_occurrance(const TP& token_pointer);
-    
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    void determine_simulated_ref_sequence();
-    
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    template <typename TP>
-    void determine_dataset_ref_sequence(const TP& token_pointer);
-    
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    template <typename TP>
-    void convert_dataset_to_binary(const TP& token_pointer);
-    
-    // ------------------------------------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------------------------
-    template <typename TP>
-    void process_line(const TP& token_pointer);
-    
-
     
 };
 
@@ -248,5 +278,5 @@ std::vector<char> DataConverter::convert_data_from_binary(BinaryArray<length, 2>
     return output;
 }
 
-}               // End namespcea haplo
+}               // End namespace haplo
 #endif          // PARAHAPLO_INPUT_CONVERTER_HPP

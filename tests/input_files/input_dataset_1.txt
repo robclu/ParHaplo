@@ -8,4 +8,9 @@ chr1    65797   .       T       C       20      PASS    .       GT      1|1
 chr1    65872   .       T       G       20      PASS    .       GT      1|1
 chr1    66008   .       C       G       20      PASS    .       GT      1|1
 chr1    66162   .       A       T       20      PASS    .       GT      1|1
+chr2    67532   .       A       G       20      PASS    .       GT      1|1
+chr2    68545   .       T       C       20      PASS    .       GT      1|1
+chr2    68743   .       T       G       20      PASS    .       GT      1|1
+chr3    69355   .       C       G       20      PASS    .       GT      1|1
+chr3    73048   .       A       T       20      PASS    .       GT      1|1
 
