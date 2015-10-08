@@ -27,11 +27,12 @@ private:
     atomic_type     _weight;            //!< The weight of the node (how important it is)
     atomic_type     _worst_case;        //!< The worst case contribution to the score
     atomic_type     _haplo_pos;         //!< The position in the haplotype the node represents
+    uint8_t         _haplo_value;       //!< The value of the haplotype for this position
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor for initialization
     // ------------------------------------------------------------------------------------------------------
-    Node() noexcept : _weight{1}, _worst_case{0}, _haplo_pos{0} {}
+    Node() noexcept : _weight{1}, _worst_case{0}, _haplo_pos{0}, _haplo_value{0} {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Destructor for node class
@@ -43,16 +44,18 @@ public:
     /// @param[in]  other       The other node to copy from
     // ------------------------------------------------------------------------------------------------------
     Node(const Node& other) noexcept 
-    : _weight(other._weight), _worst_case(other._worst_case), _haplo_pos(other._haplo_pos) {}
+    : _weight(other._weight)        , _worst_case(other._worst_case),
+      _haplo_pos(other._haplo_pos)  , _haplo_value(other._haplo_value) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Move constructor
     /// @param[in]  other       The other node to copy from
     // ------------------------------------------------------------------------------------------------------
     Node(Node&& other) noexcept 
-    : _weight(std::move(other._weight))         , 
-      _worst_case(std::move(other._worst_case)) , 
-      _haplo_pos(std::move(other._haplo_pos))  {}
+    : _weight(std::move(other._weight))             ,    
+      _worst_case(std::move(other._worst_case))     , 
+      _haplo_pos(std::move(other._haplo_pos))       ,
+      _haplo_value(std::move(other._haplo_value))   {}
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Copy assigment operator
@@ -60,7 +63,8 @@ public:
     // ------------------------------------------------------------------------------------------------------
     void operator=(const Node& other) 
     {
-        _weight = other.weight(); _worst_case = other.worst_case_value(); _haplo_pos = other.position();
+        _weight = other.weight()     ; _worst_case = other.worst_case_value(); 
+        _haplo_pos = other.position(); _haplo_value = other.haplo_value(); 
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -86,6 +90,18 @@ public:
     /// @return     A reference to haplo position
     // ------------------------------------------------------------------------------------------------------
     inline const atomic_type& position() const { return _haplo_pos; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Accessor for the haplo value
+    /// @return     The value of the haplotype at this position
+    // ------------------------------------------------------------------------------------------------------
+    inline uint8_t haplo_value() const { return _haplo_value; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Accessor for the haplo value
+    /// @return     A reference to haplo value
+    // ------------------------------------------------------------------------------------------------------
+    inline void set_haplo_value(const size_t value) { _haplo_value = value & 0x01; }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the value of the node so that it cant be used by sorting function

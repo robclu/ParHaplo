@@ -9,38 +9,33 @@
 #endif
 #include <boost/test/unit_test.hpp>
 
-#include "../haplo/block.hpp"
+//#include "../haplo/block.hpp"
+#include "../haplo/new_block.hpp"
 
-static constexpr const char* input_1 = "input_files/input_unfiltered_1.txt";
-static constexpr const char* input_2 = "input_files/input_unfiltered_2.txt";
-static constexpr const char* input_3 = "input_files/input_singleton_rows.txt";
+static constexpr const char* input_1 = "input_files/input_zero.txt";
 
 BOOST_AUTO_TEST_SUITE( BlockSuite )
     
 BOOST_AUTO_TEST_CASE( canCreateABlockAndGetData )
 {
-    // Define a block type with 10 rows, 12 columns, 1 I-dim thread (default) and 1 J-dim thread (default)
-    using block_type = haplo::Block<10, 12>; 
+    // Define for 28 elements with 1 core for each dimension
+    using block_type = haplo::Block<28>; 
     
     block_type block(input_1);
-    
-    // Debugging 
-    //block.print();
-    
-    // NOTE: Any column with more ones than 0's, the bits get flipped
-    
+        
     BOOST_CHECK( block(0, 0 ) == 1 );
-    BOOST_CHECK( block(0, 1 ) == 0 );
-    BOOST_CHECK( block(1, 0 ) == 2 );
-    BOOST_CHECK( block(1, 1 ) == 1 );
+    BOOST_CHECK( block(0, 1 ) == 1 );
+    BOOST_CHECK( block(1, 0 ) == 3 );
+    BOOST_CHECK( block(1, 1 ) == 0 );
     BOOST_CHECK( block(2, 2 ) == 0 );
     BOOST_CHECK( block(5, 3 ) == 1 );
     BOOST_CHECK( block(8, 4 ) == 0 );  
     BOOST_CHECK( block(8, 5 ) == 2 );  
-    BOOST_CHECK( block(9, 8 ) == 0 );
-    BOOST_CHECK( block(9, 11) == 0 );
+    BOOST_CHECK( block(9, 9 ) == 2 );
+    BOOST_CHECK( block(9, 11) == 1 );
 }
 
+/*
 BOOST_AUTO_TEST_CASE( canDetermineMonotoneColumns )
 {
     // Define a block type with 10 rows, 12 columns, 2 I-dim threads and 2 J-dim threads
@@ -80,5 +75,5 @@ BOOST_AUTO_TEST_CASE( canDetermineSplittableColumns )
     BOOST_CHECK( block.unsplittable_column(2)    == 4  );
     BOOST_CHECK( block.unsplittable_column(3)    == 11 );
 }
-
+*/
 BOOST_AUTO_TEST_SUITE_END()

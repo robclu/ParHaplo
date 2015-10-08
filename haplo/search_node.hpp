@@ -5,6 +5,7 @@
 #ifndef PARHAPLO_SEARCH_NODE_HPP
 #define PARHAPLO_SEARCH_NODE_HPP
 
+#include "bounder.hpp"
 #include <cstdint>
 
 namespace haplo {
@@ -24,12 +25,14 @@ private:
     uint16_t    _lower_bound;       //!< Node lower bound
     size_t      _left;              //!< The index of the left node
     size_t      _right;             //!< The index of the right node
+    size_t      _root;              //!< The index of the root node (so we can go backwards)
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor
     // ------------------------------------------------------------------------------------------------------
     explicit SearchNode() noexcept 
-    : _index(0), _value(0), _type(types::left), _upper_bound(0), _lower_bound(0), _left(0), _right(0) {}
+    : _index(0)      , _value(0), _type(types::left), _upper_bound(0), 
+      _lower_bound(0), _left(0) , _right(0)         , _root(0)       {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for when the parameters are known
@@ -38,8 +41,28 @@ public:
                         const uint16_t upper_bound , const uint16_t lower_bound )
     : _index(index & 0x3FFF)    , _value(value & 0x01)      , _type(type & 0x01), 
       _upper_bound(upper_bound) , _lower_bound(lower_bound) ,
-      _left(0)                  , _right(0)                 {}
+      _left(0)                  , _right(0)                 , _root(0)              
+    {}
 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Sets the bounds of the node 
+    /// @param[in]  bounds      The bounds used for setting
+    // ------------------------------------------------------------------------------------------------------
+    inline void set_bounds(const Bounds& bounds) 
+    {
+        _lower_bound = bounds.lower;
+        _upper_bound = bounds.upper;
+    }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the bounds of the node 
+    /// @return     Gets the bounds for the node 
+    // ------------------------------------------------------------------------------------------------------
+    inline Bounds bounds() const  
+    {
+        return Bounds(_lower_bound, _upper_bound);
+    }
+    
     inline void set_value(const uint8_t value) { _value = value & 0x01; }
     
     inline void set_index(const uint16_t index) { _index = index & 0x3FFF; }
@@ -64,9 +87,13 @@ public:
     
     inline size_t& right() { return _right; }
     
+    inline size_t& root() { return _root; }
+    
     inline size_t left() const { return _left; }
     
     inline size_t right() const { return _right; }
+    
+    inline size_t root() const { return _root; }
 };
 
 }                   // End namespace haplo

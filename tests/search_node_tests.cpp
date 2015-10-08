@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE( canCreateASearchNode )
 {
     haplo::SearchNode node(17, 1, 0, 194, 12);
     
-    BOOST_CHECK( sizeof(node) == 24 );
+    BOOST_CHECK( sizeof(node) == 32 );
 }
 
 BOOST_AUTO_TEST_CASE( canGetIndex ) 
@@ -105,6 +105,15 @@ BOOST_AUTO_TEST_CASE( canGetAndSetType )
     node.set_type(haplo::types::right);
     
     BOOST_CHECK( node.type() == haplo::types::right );
+}
+
+BOOST_AUTO_TEST_CASE( canGetAndSetRoot ) 
+{
+    haplo::SearchNode node;
+ 
+    node.root() = 4;
+    
+    BOOST_CHECK( node.root() == 4 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

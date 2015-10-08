@@ -5,12 +5,13 @@
 #ifndef PARHAPLO_TREE_CPU_HPP
 #define PARHAPLO_TREE_CPU_HPP
 
-#include "devices.hpp"
-#include "node_manager.hpp"
+#include "bounder_cpu.hpp"
+#include "node_manager_cpu.hpp"
 #include "node_selector_cpu.hpp"
 #include "tree.hpp"
 
 #include <iostream>
+#include <limits>
 
 namespace haplo {
 namespace links {
@@ -19,6 +20,17 @@ static constexpr uint8_t homo   = 0x00;
 static constexpr uint8_t hetro  = 0x01;
 
 }               // End namespace links
+
+// Update atomic varibale to min
+template <typename T1, typename T2>
+void atomic_min_update(tbb::atomic<T1>& atomic_var, T2 value)
+{
+    T1 state;
+    do {
+        state = atomic_var;         // Capture state
+        if (state <= value) break;  // Exit earlt
+    } while (atomic_var.compare_and_swap(value, state) != state);
+}
 
 // ----------------------------------------------------------------------------------------------------------
 /// @class      Tree    
@@ -33,6 +45,8 @@ public:
     using node_container    = NodeContainer<devices::cpu>;              // Container for the nodes
     using link_container    = LinkContainer<devices::cpu>;              // Container for the links
     using manager_type      = NodeManager<devices::cpu>;                // Manager for the search nodes
+    using bounder_type      = Bounder<devices::cpu>;                    // Bound calculator type
+    using selector_type     = NodeSelector<devices::cpu>;               // Node selector type
     using atomic_type       = tbb::atomic<size_t>;
     // ------------------------------------------------------------------------------------------------------
 private:
@@ -194,15 +208,19 @@ private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Moves down the sub-nodes of the current root node of a subtree tree
     /// @param[in]  node_manager    The manager of the nodes
+    /// @param[in]  node_selector   The selector for the nodes
+    /// @param[in]  bounder         The bound calculator object
+    /// @param[in]  min_upper_bound The lowest upper bound so far
     /// @param[in]  start_index     The index of the start node in the search nodes
     /// @param[in]  num_subnodes    The number of subnodes to search
     /// @tparam     BranchCores     The number of cores available for parallel brach search
     /// @tparam     OpCores         The number of cores available for the operations
+    /// @return     The index of the optimal node from the previous iteration 
     // ------------------------------------------------------------------------------------------------------
     template <size_t BranchCores, size_t OpCores>
-    void search_subnodes(manager_type&  node_manager, 
-                         const size_t   start_index ,
-                         const size_t   num_subnodes);
+    size_t search_subnodes(manager_type&  node_manager, selector_type& node_selector  ,
+                           bounder_type&  bounder     , atomic_type&   min_upper_bound,
+                           const size_t   start_index , const size_t   num_subnodes );
 };
 
 // -------------------------------------- IMPLEMENTATIONS ---------------------------------------------------
@@ -224,61 +242,115 @@ inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::hetro>(const size_t 
 template <size_t BranchCores, size_t OpCores>
 void Tree<devices::cpu>::explore() 
 {
-    manager_type node_manager(_nodes);          // Create a node manager
+    manager_type    node_manager(_nodes.num_nodes());                   // Create a node manager
+    selector_type   node_selector(_nodes, _links, _start_node);         // Create a node selector
+    bounder_type    bound_calculator(_nodes, _links);                   // Create a bound calculator
     
     // DEBUGGING for the moment
     std::cout << " - - - - - - - EXPLORING TREE - - - - - - -\n";
-    
-    // The node that's the current reference (for determining how to select nodes)
-    atomic_type ref_node = _start_node;
-    
-    // Get the root node from the node manager
-    auto& root_node = node_manager.node(0);
+   
+    // For the first node in the tree                    
+    auto& root_node = node_manager.node(0);             // Get the root 
     root_node.set_index(_start_node);                   // Set the index of the root node
     root_node.set_value(0);                             // Setting the value to 0
-    root_node.left()  = 1;
-    root_node.right() = 2;
+    root_node.left()  = 1; root_node.right() = 2;
    
-    // Determine upper and lower bounds
+    // Start node's upper bound is the total number of elements 
+    root_node.upper_bound() = 7; root_node.lower_bound() = 0;
    
     // Pass the upper bounds to the subnodes
+    auto& left_node = node_manager.node(1);
+    auto& right_node = node_manager.node(2);
+    
+    // Need to do max upper found calculation
+    left_node.upper_bound()  = 7; left_node.lower_bound()  = 0;
+    right_node.upper_bound() = 7; right_node.lower_bound() = 0;
+    
+    // Make left and right point back to root so that we can go backwards out of the recursion
+    left_node.root() = 0; right_node.root() = 0;
     
     // Search the subtrees, start with 2 subtrees -- this runs until the solution is found
-    search_subnodes<BranchCores, OpCores>(node_manager, 1 , 2)
+    search_subnodes<BranchCores, OpCores>(node_manager, node_selector, bound_calculator, 0, 1, 2);
 }
 
 template <size_t BranchCores, size_t OpCores>
-void Tree<devices::cpu>::search_subnodes(manager_type&  node_manager, 
-                                         const size_t   start_index ,
-                                         const size_t   num_subnodes)
+size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , selector_type& node_selector   , 
+                                           bounder_type&  bound_calculator , atomic_type&   min_ubound      ,
+                                           const size_t   start_index      , const size_t   num_subnodes    )
 {
     // Check how many branch cores we need
-    const size_t branch_cores = BranchCores > num_subtrees ? num_subtrees : BranchCores;
-    atomic_type  num_branches = 0;      // The number of branches from each of the subnodes
+    const size_t branch_cores = BranchCores > num_subnodes ? num_subnodes : BranchCores;
+    atomic_type  num_branches{0};                                               // Branches to search
+    atomic_type  min_lbound{0};                                                 // Best lower bound
+    atomic_type  best_index{0};                                                 // Index of best node
+    const size_t search_idx   = node_selector.select_node();                    // Index in node array
+    const size_t haplo_idx    = _nodes[search_idx].position();                  // Haplo var index
+   
+    min_lbound = std::numeric_limits<size_t>::max();                            // Set LB 
     
     // Get the index of the 
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, branch_cores),
         [&](const tbb::blocked_range<size_t>& threads)
         {
-            for (thread_id = threads.begin(); thread_id != threads.end(); ++thread_id) {
-                size_t thread_iters = ops::get_thread_iterations(thread_id, num_subtrees, branch_cores);
+            for (size_t thread_id = threads.begin(); thread_id != threads.end(); ++thread_id) {
+                size_t thread_iters = ops::get_thread_iterations(thread_id, num_subnodes, branch_cores);
                 for (size_t it = 0; it < thread_iters; ++it) {
-                    const size_t node_idx = start_idx + it * threads + thread_idx;
+                    const size_t node_idx = start_index + it * branch_cores + thread_id;
                     
-                    auto& node = node_manager.node(node_idx);
-                    node.set_index(node_idx);                       // Set the index of the node
-                    node.type() == types::left                      // Set the node value
+                    auto& node = node_manager.node(node_idx);                // Get the search node
+                    node.type() == types::left                               // Set the node value
                                 ? node.set_value(0) : node.set_value(1);
-                                
-                    // Determine the bounds 
                     
+                    constexpr size_t bound_threads = OpCores / BranchCores == 0 
+                                                ? 1 : OpCores / BranchCores;
+                                                
+                    // Get the bounds for the node and update them            
+                    auto bounds = bound_calculator.calculate<bound_threads>(haplo_idx, search_idx);
+                    node.upper_bound() -= bounds.upper;
+                    node.lower_bound() += bounds.lower;
                     
-                    
+                    // If the node is not going to be printed, then create children
+                    if (node.lower_bound() <= min_ubound && search_idx != node_selector.last_search_index()) {
+                        size_t left_child_idx = node_manager.get_next_node();
+                        auto& left_child  = node_manager.node(left_child_idx);
+                        auto& right_child = node_manager.node(left_child_idx + 1);
+                        
+                        // Set the start bounds of the left child node
+                        left_child.set_bounds(node.bounds());
+                        right_child.set_bounds(node.bounds());
+                  
+                        // Make the children point back to this node
+                        left_child.root() = node_idx; right_child.root() = node_idx;
+                   
+                        num_branches.fetch_and_add(2);                  // 2 more branches next it
+
+                        atomic_min_update(min_ubound, node.upper_bound());
+                        atomic_min_update(min_lbound, node.lower_bound());
+                        
+                        if (node.lower_bound() == min_lbound) best_index = node_idx;
+                    }
                 }
             }
         }
     );
+    std::cout << "Min Lower : " << min_lbound << "\n";
+    std::cout << "Min Upper : " << min_ubound << "\n";
+    std::cout << "Index     : " << search_idx << "\n";
+    std::cout << "\n";
+    
+    // If we do not have a terminating case, then we must recurse
+    if (num_branches > 2 || search_idx != node_selector.last_search_index()) {
+        best_index = search_subnodes<BranchCores, OpCores>(node_manager                 ,       
+                                                           node_selector                , 
+                                                           bound_calculator             ,  
+                                                           start_index + num_subnodes   , 
+                                                           num_subnodes                 );
+    } 
+    // Otherwise set the best value in the haplo node
+    _nodes[search_idx].set_haplo_value(node_manager.node(best_index).value());
+    
+    return node_manager.node(best_index).root();
 }
 
 }           // End namespace haplo

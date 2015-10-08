@@ -7,6 +7,7 @@
 #define PARAHAPLO_BLOCK_HPP
 
 #include "operations.hpp"
+#include "read_info.hpp"
 #include "small_containers.hpp"
 
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -38,16 +39,20 @@ using namespace io;
 // ----------------------------------------------------------------------------------------------------------
 /// @class      Block 
 /// @brief      Represents a block of input the for which the haplotypes must be determined
-/// @tparam     R       The number of rows in the block
-/// @tparam     C       The number of columns in the block
-/// @tparam     THI     The number of threads to use for dimension I -- default to 1
-/// @tparam     THJ     The number of threads to use for dimension J -- default to 1
-// ----------------------------------------------------------------------------------------------------------
-template <size_t R, size_t C, size_t THI = 1, size_t THJ = 1>
+/// @tparam     Elements    The number of elements in the input data
+/// @param      ThreadsX    The threads for the X direction 
+/// @param      ThreadsY    The threads for the Y direction 
+template <size_t Elements, size_t ThreadsX = 1, size_t ThreadsY = 1>
 class Block {
 public:
     // ----------------------------------------- TYPES ALIAS'S ----------------------------------------------
-    using data_container        = BinaryArray<R * C, 2>;    // R*C Elements, 2 bits per element
+    using data_container        = BinaryArray<Elements, 2>;    
+    using binary_vector         = BinaryVector<2>;
+    using atomic_type           = tbb::atomic<size_t>;
+    using atomic_vector         = tbb::concurrent_vector<size_t>;
+    using read_info_container   = std::vector<ReadInfo>;
+    using snp_info_container    = std::vector<size_t>;
+    
     using binary_container_r    = BinaryArray<C>;           // A container of bits C elements long
     using binary_container_c    = BinaryArray<R>;           // A container of bits R elements long
     using atomic_array_r        = std::array<tbb::atomic<uint>, R>;
@@ -55,10 +60,17 @@ public:
     using atomic_array_2r       = std::array<tbb::atomic<uint>, R * 2>;
     using concurrent_umap       = tbb::concurrent_unordered_map<size_t, size_t>;
     // ------------------------------------------------------------------------------------------------------
-    static constexpr size_t rows    = R;
-    static constexpr size_t columns = C;
 private:
+    size_t              _rows;                  //!< The number of reads in the input data
+    size_t              _cols;                  //!< The number of SNP sites in the container
     data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
+    read_info_container _read_info;             //!< Information about each read
+    snp_info_container  _snp_info;              //!< Information about each snp_site
+    
+
+
+
+    // Old 
     binary_container_c  _haplo_one;             //!< The binary bits which represent the first haplotype
     binary_container_c  _haplo_two;             //!< The bianry bits which represent the second haplotype
     binary_container_r  _alignment;             //!< The binary bits which represent the alignment of the 
@@ -409,13 +421,10 @@ void Block<R, C, THI, THJ>::fill(const char* data_file)
     
     // Tokenize the data into lines
     tokenizer lines{data, nwline_separator};
-
-    // Counter for the row id 
-    size_t row = 0;
    
     // Get the data and store it in the data container 
     for (auto& line : lines)
-        process_data(row++, line);
+        process_data(_rows++, line);
     
     if (file.is_open()) file.close();
 }
@@ -512,8 +521,9 @@ void Block<R, C, THI, THJ>::process_data(size_t row, TP& line)
     boost::char_separator<char> wspace_separator{" "}; 
 
     // Tokenize the line
-    tokenizer  elements{line, wspace_separator};
+    tokenizer elements{line, wspace_separator};
 
+    
     size_t column       = 0;
     size_t row_offset   = row * C;
     
