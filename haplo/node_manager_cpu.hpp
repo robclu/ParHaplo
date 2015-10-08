@@ -35,10 +35,33 @@ private:
     node_container  _nodes;         //!< The nodes to manage
 public:
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Default constructor
+    // ------------------------------------------------------------------------------------------------------
+    explicit NodeManager() noexcept
+    : _free_index{0}, _nodes(0) {}    
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor -- sets the intiial guess at the number of nodes
     // ------------------------------------------------------------------------------------------------------
-    explicit NodeManager(const size_t num_nodes)
+    explicit NodeManager(const size_t num_nodes) noexcept
     : _free_index{0}, _nodes(num_nodes) {}
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the size of the node manager -- number of nodes
+    /// @return     The number of nodes being managed
+    // ------------------------------------------------------------------------------------------------------
+    size_t num_nodes() const { return _nodes.size(); }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Resizes the node container 
+    /// @param[in]  num_nodes   The number of nodes to resize to
+    // ------------------------------------------------------------------------------------------------------
+    void resize(const size_t num_nodes) 
+    {
+        size_t elements = _nodes.size();
+        _nodes.reserve(num_nodes);
+        while (elements++ < num_nodes) _nodes.push_back(SearchNode());
+    }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the index of a free node from the container and leaves the following two nodes free 
@@ -47,10 +70,11 @@ public:
     iterator get_new_node();
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the index of a free node from the container and leaves the following two nodes free 
-    ///             for its left and right sub-nodes
+    /// @brief      Gets a reference to a node
+    /// @param[in]  index   The index of the element to get
+    /// @return     A constant reference to the node
     // ------------------------------------------------------------------------------------------------------
-    const_reference operator[](size_t index) const;
+    const_reference node(const size_t index) const;
 };
 
 
@@ -65,7 +89,7 @@ SearchNode* NodeManager<devices::cpu>::get_new_node()
     return &_nodes[_free_index.fetch_and_add(3)];
 }
 
-const SearchNode& NodeManager<devices::cpu>::operator[](size_t index) const
+const SearchNode& NodeManager<devices::cpu>::node(const size_t index) const
 {
     return _nodes[index];
 }

@@ -6,8 +6,8 @@
 #define PARHAPLO_TREE_CPU_HPP
 
 #include "devices.hpp"
+#include "node_manager.hpp"
 #include "node_selector_cpu.hpp"
-#include "search_node.hpp"
 #include "tree.hpp"
 
 #include <iostream>
@@ -40,6 +40,7 @@ public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
     using node_container    = NodeContainer<devices::cpu>;              // Container for the nodes
     using link_container    = LinkContainer<devices::cpu>;              // Container for the links
+    using manager_type      = NodeManager<devices::cpu>;                // Manager for the search nodes
     using atomic_type       = tbb::atomic<size_t>;
     // ------------------------------------------------------------------------------------------------------
 private:
@@ -221,11 +222,25 @@ inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::hetro>(const size_t 
 template <uint8_t CoreMapping>
 void Tree<devices::cpu>::explore() 
 {
+    manager_type node_manager(_nodes);          // Create a node manager
+    
     // DEBUGGING for the moment
     std::cout << " - - - - - - - EXPLORING TREE - - - - - - -\n";
     
     // The node that's the current reference (for determining how to select nodes)
     atomic_type ref_node = _start_node;
+    
+    // Get the root node from the node manager
+    auto root_node = node_manager.get_new_node();
+    root_node.set_index(_start_node);                   // Set the index of the root node
+    root_node.set_value(0);                             // Setting the value to 0
+    
+    // Determine upper and lower bound
+    
+
+    // Check to see if nodes should be pruned
+    
+    
 }
 
 }           // End namespace haplo
