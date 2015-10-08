@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE( canMapCharToBinary )
 BOOST_AUTO_TEST_CASE( canConvertDataset )
 {
     haplo::DataConverter converter(input_4, input_5, output_2);
-    converter.printMap();
+    converter.print_dataset();
 }
 
 
