@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE( canCreateDataConverter )
     
 }
 
-/*// Tests conversion from binary haplotype to actg haplotype
+// Tests conversion from binary haplotype to actg haplotype
 BOOST_AUTO_TEST_CASE( canConvertDataFromBinary )
 {
     
@@ -165,7 +165,54 @@ BOOST_AUTO_TEST_CASE( canConvertDataset )
 {
     haplo::DataConverter converter(input_4, input_5, output_4);
     //converter.print_dataset();
-}*/
+}
+
+// Check all cases of cigar value are processed properly
+BOOST_AUTO_TEST_CASE( canProcessCigarValue )
+{
+    haplo::DataConverter converter(input_4, input_5, output_4);
+    // example 1 : mid padding, end in S/H, start and mid M
+    size_t start_position = 2;
+    size_t end_position = 10;
+    std::string cigar_value = "2M2P3M4S";
+    std::string sequence = "ACTGACTGA";
+    converter.process_cigar_value(start_position, end_position, cigar_value, sequence);
+    BOOST_CHECK(sequence == "AC22TGA");
+    BOOST_CHECK(start_position == 2);
+    BOOST_CHECK(end_position == 8);
+    
+    // example 2 : mid S/H, beginning padding, mid M
+    start_position = 4;
+    end_position = 15;
+    cigar_value = "2N4M3S2M3H";
+    sequence = "ACTGACTGAACT";
+    converter.process_cigar_value(start_position, end_position, cigar_value, sequence);
+    BOOST_CHECK(sequence == "22ACTG222GA");
+    BOOST_CHECK(start_position == 4);
+    BOOST_CHECK(end_position == 14);
+    
+    // example 3 : beginning S/H, mid padding, mid and end M
+    start_position = 5;
+    end_position = 13;
+    cigar_value = "2H2S3M2N2M";
+    sequence = "ACTGACTTG";
+    converter.process_cigar_value(start_position, end_position, cigar_value, sequence);
+    BOOST_CHECK(sequence == "22ACT22TG");
+    BOOST_CHECK(start_position == 7);
+    BOOST_CHECK(end_position == 15);
+    
+    // example 4 : check I has same action as M
+    start_position = 5;
+    end_position = 13;
+    cigar_value = "2H2S3I2N2I";
+    sequence = "ACTGACTTG";
+    converter.process_cigar_value(start_position, end_position, cigar_value, sequence);
+    BOOST_CHECK(sequence == "22ACT22TG");
+    BOOST_CHECK(start_position == 7);
+    BOOST_CHECK(end_position == 15);
+    
+
+}
 
 
 BOOST_AUTO_TEST_SUITE_END()

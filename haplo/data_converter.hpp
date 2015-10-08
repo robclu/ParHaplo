@@ -178,6 +178,15 @@ public:
     /// @return     The character equivalent of the byte
     // ------------------------------------------------------------------------------------------------------
     char convert_byte_to_char(byte input);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts the CIGAR value of a bam file in order to apply operations to the sequence of each read
+    /// @param[in]  start_position       The start position of a read
+    /// @param[in]  end_position         The end position of a read
+    /// @param[in]  cigar_value          The cigar value of a read
+    /// @param[in]  sequence             The sequence of a read
+    // ------------------------------------------------------------------------------------------------------
+    void process_cigar_value(size_t& start_position, size_t& end_position, std::string& cigar_value, std::string& sequence);
 
     
 private:
@@ -233,15 +242,6 @@ private:
     // ------------------------------------------------------------------------------------------------------
     template <typename TP>
     void process_dataset(const TP& line);
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Converts the CIGAR value of a bam file in order to apply operations to the sequence of each read
-    /// @param[in]  start_position       The start position of a read
-    /// @param[in]  end_position         The end position of a read
-    /// @param[in]  cigar_value          The cigar value of a read
-    /// @param[in]  sequence             The sequence of a read
-    // ------------------------------------------------------------------------------------------------------
-    void process_cigar_value(size_t& start_position, size_t& end_position, std::string& cigar_value, std::string& sequence);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Converts the CIGAR value of a bam file in order to apply operations to the sequence of each read

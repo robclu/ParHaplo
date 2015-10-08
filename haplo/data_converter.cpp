@@ -447,24 +447,36 @@ void DataConverter::process_cigar_value(size_t& start_position, size_t& end_posi
                     temp.insert(0,"2");
                 }
                 
-                // If occurs at the beginning, move start position of sequence (ignoring sequence elements)
-                if(i == 0){
-                    start_position = start_position + current_position_in_read + num_of_operations;
-                    current_position_in_read = current_position_in_read + num_of_operations;
-                }
-                // If occurs at the end, move end position
-                else if(i == operation_positions.size() - 1){
-                    end_position-=num_of_operations;
+                 // If occurs at the beginning, move start position of sequence (ignoring sequence elements)
+                if(value_of_operation == 'S' || value_of_operation == 'H'){
+                    if(i == 0){
+                        start_position = start_position + current_position_in_read + num_of_operations;
+                        current_position_in_read = current_position_in_read + num_of_operations;
+                    }
+                     // If occurs at the end, move end position
+                    else if(i == operation_positions.size() - 1){
+                        end_position-=num_of_operations;
+                        
+                    }
+                    // Otherwise, move to next valid point in sequence
+                    else {
+                        current_position_in_read = current_position_in_read + num_of_operations;
+                        operated_portions.push_back(temp);
+                    }
                 }
                 // Otherwise, store extra string to be added to the sequence
-                else {
+                else{
                     end_position+=num_of_operations;
                     operated_portions.push_back(temp);
+                    
                 }
+               
             }
             // Operation to be done only on the reference therefore extract part of sequence based on num_of_operations
             else if(value_of_operation == 'I'){
                 operated_portions.push_back(sequence.substr(current_position_in_read,num_of_operations));
+                current_position_in_read = current_position_in_read + operations.at(i);
+                
 
             }
        
