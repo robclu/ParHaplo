@@ -60,6 +60,7 @@ ALL_TESTS       =   small_container_tests.o             \
 					tree_tests.o                        \
 					node_container_tests.o              \
 					link_container_tests.o              \
+					bounder_tests.o                     \
 					unsplittable_block_tests.o          \
 					tests.o 
 
@@ -82,6 +83,9 @@ build: build_tests
 block_tests.o: block_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
+bounder_tests.o: bounder_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+	
 comparator_tests.o: comparator_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
@@ -127,7 +131,11 @@ tests.o: tests.cpp
 block_tests: CXX_FLAGS += -DSTAND_ALONE
 block_tests: block_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-	
+
+bounder_tests: CXX_FLAGS += -DSTAND_ALONE
+bounder_tests: bounder_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
 checker_tests: CXX_FLAGS += -DSTAND_ALONE
 checker_tests: equality_checker_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
