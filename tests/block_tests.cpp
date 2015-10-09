@@ -26,7 +26,12 @@ BOOST_AUTO_TEST_CASE( canCreateABlockAndGetData )
     BOOST_CHECK( block(0, 1 ) == 0 );
     BOOST_CHECK( block(1, 0 ) == 3 );
     BOOST_CHECK( block(1, 1 ) == 1 );
+    BOOST_CHECK( block(1, 2 ) == 0 );
+    BOOST_CHECK( block(2, 1 ) == 0 );
     BOOST_CHECK( block(2, 2 ) == 0 );
+    BOOST_CHECK( block(2, 3 ) == 0 );
+    BOOST_CHECK( block(3, 1 ) == 0 );
+    BOOST_CHECK( block(3, 2 ) == 1 );
     BOOST_CHECK( block(5, 3 ) == 1 );
     BOOST_CHECK( block(8, 4 ) == 0 );  
     BOOST_CHECK( block(8, 5 ) == 2 );  

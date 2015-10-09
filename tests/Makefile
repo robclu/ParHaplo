@@ -61,7 +61,7 @@ ALL_TESTS       =   small_container_tests.o             \
 					node_container_tests.o              \
 					link_container_tests.o              \
 					bounder_tests.o                     \
-					unsplittable_block_tests.o          \
+					subblock_tests.o                    \
 					tests.o 
 
 ########################################################################################
@@ -70,7 +70,7 @@ ALL_TESTS       =   small_container_tests.o             \
 
 .PHONY: all block_tests container_tests checker_tests converter_tests node_constiner_tests      \
 		node_selector_tests link_tests tree_tests comparator_tests sorter_tests                 \
-		search_node_tests node_manager_tests unsplittable_block_tests clean
+		search_node_tests node_manager_tests subblock_tests clean
 
 all: build_and_run
 
@@ -122,7 +122,7 @@ sorter_tests.o: sorter_tests.cpp
 tree_tests.o: tree_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
-unsplittable_block_tests.o: unsplittable_block_tests.cpp 
+subblock_tests.o: subblock_tests.cpp
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 tests.o: tests.cpp 
@@ -176,12 +176,12 @@ sorter_tests: CXX_FLAGS += -DSTAND_ALONE
 sorter_tests: sorter_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
+subblock_tests: CXX_FLAGS += -DSTAND_ALONE
+subblock_tests: subblock_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+
 tree_tests: CXX_FLAGS += -DSTAND_ALONE
 tree_tests: tree_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-	
-unsplittable_block_tests: CXX_FLAGS += -DSTAND_ALONE
-unsplittable_block_tests: unsplittable_block_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
 build_tests: $(ALL_TESTS)

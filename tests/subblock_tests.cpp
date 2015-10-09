@@ -1,64 +1,82 @@
 // ----------------------------------------------------------------------------------------------------------
-/// @file   unsplittable_block_tests.cpp
-/// @brief  Test suite for parahaplo unsplittable block tests
+/// @file   subblock_tests.cpp
+/// @brief  Test suite for parahaplo sub-block tests
 // ----------------------------------------------------------------------------------------------------------
 
 #define BOOST_TEST_DYN_LINK
 #ifdef STAND_ALONE
-    #define BOOST_TEST_MODULE BlockTests
+    #define BOOST_TEST_MODULE SubBlockTests
 #endif
 #include <boost/test/unit_test.hpp>
 
-#include "../haplo/unsplittable_block_cpu.hpp"
+#include "../haplo/subblock_cpu.hpp"
 
-static constexpr const char* input_1 = "input_files/input_unfiltered_1.txt";
-static constexpr const char* input_2 = "input_files/input_unfiltered_2.txt";
-static constexpr const char* input_3 = "input_files/input_singleton_rows.txt";
-static constexpr const char* input_4 = "input_files/input_duplicate_rows.txt";
-static constexpr const char* input_5 = "input_files/input_duplicate_cols.txt";
-static constexpr const char* input_6 = "input_files/input_simulated_converted_1.txt";
+static constexpr const char* input_1 = "input_files/input_zero.txt";
 
-
-BOOST_AUTO_TEST_SUITE( UnsplittableBlockSuite )
+BOOST_AUTO_TEST_SUITE( SubBlockSuite )
    
 // NOTE: This test doesn't actually test anything, but the outputs of 
 //       the test should show that an out of range exception was thrown
-BOOST_AUTO_TEST_CASE( errorIsThrownForOutOfRangeUnsplittableBlock  )
+BOOST_AUTO_TEST_CASE( errorIsThrownForOutOfRangeSubBlock  )
 {
-    // Define a 10x12 block with a 2x2 CPU core grid
-    using block_type = haplo::Block<10, 12, 2, 2>;
+    // Define a block for a with 4 CPU cores
+    using block_type = haplo::Block<28, 2, 2>;
     
     // First create the block
     block_type block(input_1);
     
-    // Create an unsplittable block from the block out of range -- just to illustrate out of range error
-    haplo::UnsplittableBlock<block_type, 2, 2, haplo::devices::cpu> ublock(block, 7);
+    // Create a sub-block from the block out of range -- just to illustrate out of range error
+    haplo::SubBlock<block_type, 2, 2, haplo::devices::cpu> sub_block(block, 7);
 }
 
-BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData1 )
+BOOST_AUTO_TEST_CASE( canCreateSubBlockCorrectlyAndGetData1 )
 {
-    // Define a 10x12 block with a 2x2 CPU core grid
-    using block_type = haplo::Block<10, 12, 2, 2>;
+    // Define a block for a with 4 CPU cores
+    using block_type = haplo::Block<28, 2, 2>;
     
     // First create the block
     block_type block(input_1);
-    
-    // Create an unsplittable block from the block out of range -- just to illustrate out of range error
-    haplo::UnsplittableBlock<block_type, 2, 2, haplo::devices::cpu> ublock(block, 0);
 
-    std::cout << "HERE";
+    haplo::SubBlock<block_type, 2, 2, haplo::devices::cpu> subblock(block, 0);
 
-    BOOST_CHECK( ublock(0, 0) == 1 );
-    BOOST_CHECK( ublock(0, 1) == 0 );
-    BOOST_CHECK( ublock(0, 2) == 2 );
-    BOOST_CHECK( ublock(1, 0) == 0 );
-    BOOST_CHECK( ublock(1, 1) == 0 );
-    BOOST_CHECK( ublock(1, 2) == 0 );
-    BOOST_CHECK( ublock(2, 0) == 0 );
-    BOOST_CHECK( ublock(2, 1) == 1 );
-    BOOST_CHECK( ublock(2, 2) == 2 );
+    BOOST_CHECK( subblock(0, 0) == 1 );
+    BOOST_CHECK( subblock(0, 1) == 0 );
+    BOOST_CHECK( subblock(0, 2) == 3 );
+    BOOST_CHECK( subblock(1, 0) == 0 );
+    BOOST_CHECK( subblock(1, 1) == 0 );
+    BOOST_CHECK( subblock(1, 2) == 0 );
+    BOOST_CHECK( subblock(2, 0) == 0 );
+    BOOST_CHECK( subblock(2, 1) == 1 );
+    BOOST_CHECK( subblock(2, 2) == 3 );
 }
 
+BOOST_AUTO_TEST_CASE( canRemoveMonotoneColumns )
+{
+    using block_type    = haplo::Block<28, 4, 4>;
+    using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    
+    block_type      block(input_1);
+    subblock_type   sub_block(input_1, 2);
+               
+    BOOST_CHECK( sub_block(0, 0)  == 3 );
+    BOOST_CHECK( sub_block(0, 1)  == 3 );
+    BOOST_CHECK( sub_block(0, 2)  == 1 );
+    BOOST_CHECK( sub_block(0, 3)  == 1 );
+    BOOST_CHECK( sub_block(1, 0)  == 3 );
+    BOOST_CHECK( sub_block(1, 1)  == 3 );
+    BOOST_CHECK( sub_block(1, 2)  == 0 );
+    BOOST_CHECK( sub_block(1, 3)  == 0 );
+    BOOST_CHECK( sub_block(2, 0)  == 0 );
+    BOOST_CHECK( sub_block(2, 1)  == 1 );
+    BOOST_CHECK( sub_block(2, 2)  == 2 );
+    BOOST_CHECK( sub_block(2, 3)  == 0 );
+    BOOST_CHECK( sub_block(3, 0)  == 3 );
+    BOOST_CHECK( sub_block(3, 1)  == 0 );
+    BOOST_CHECK( sub_block(3, 2)  == 0 );
+    BOOST_CHECK( sub_block(3, 3)  == 0 );
+}
+
+/*
 
 BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData2 )
 {
@@ -176,4 +194,5 @@ BOOST_AUTO_TEST_CASE( canFindTreeStartNodeForSearch )
     BOOST_CHECK( tree.max_worst_case()  == 6 );
     BOOST_CHECK( tree.start_node()      == 2 );
 }
+*/
 BOOST_AUTO_TEST_SUITE_END()

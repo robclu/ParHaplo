@@ -113,6 +113,23 @@ public:
     {
         return i < _cols ? (_snp_info.at(i).type() == IH) : false;
     }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the information for a snp
+    /// @param[in]  i   The index of the snp (column)
+    // ------------------------------------------------------------------------------------------------------
+    inline const SnpInfo& snp_info(const size_t i) const { return _snp_info.at(i); }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the information for a read
+    /// @param[in]  i   The index of the read (row)
+    // ------------------------------------------------------------------------------------------------------
+    inline const ReadInfo& read_info(const size_t i) const { return _read_info[i]; }    
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The number of reads in the block (total number of rows)
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t reads() const { return _rows; }
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Fills the block with data from the input fill
