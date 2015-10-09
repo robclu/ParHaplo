@@ -8,18 +8,19 @@
 
 #include "operations.hpp"
 #include "read_info.hpp"
+#include "snp_info.hpp"
 #include "small_containers.hpp"
 
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/tokenizer.hpp>
 #include <tbb/tbb.h>
 #include <tbb/concurrent_unordered_map.h>
-
-#include <iostream>
+#include <tbb/parallel_sort.h>
 #include <string>
 #include <vector>
-#include <array>
 #include <stdexcept>
+#include <unordered_map>
+#include <utility>
 
 // NOTE: All output the the terminal is for debugging and checking at the moment
 
@@ -42,6 +43,7 @@ using namespace io;
 /// @tparam     Elements    The number of elements in the input data
 /// @param      ThreadsX    The threads for the X direction 
 /// @param      ThreadsY    The threads for the Y direction 
+// ----------------------------------------------------------------------------------------------------------
 template <size_t Elements, size_t ThreadsX = 1, size_t ThreadsY = 1>
 class Block {
 public:
@@ -51,39 +53,18 @@ public:
     using atomic_type           = tbb::atomic<size_t>;
     using atomic_vector         = tbb::concurrent_vector<size_t>;
     using read_info_container   = std::vector<ReadInfo>;
-    using snp_info_container    = std::vector<size_t>;
-    
-    using binary_container_r    = BinaryArray<C>;           // A container of bits C elements long
-    using binary_container_c    = BinaryArray<R>;           // A container of bits R elements long
-    using atomic_array_r        = std::array<tbb::atomic<uint>, R>;
-    using atomic_array_c        = std::array<tbb::atomic<uint>, C>;
-    using atomic_array_2r       = std::array<tbb::atomic<uint>, R * 2>;
-    using concurrent_umap       = tbb::concurrent_unordered_map<size_t, size_t>;
+    using snp_info_container    = tbb::concurrent_unordered_map<size_t, SnpInfo>;
+    using concurrent_umap       = tbb::concurrent_unordered_map<size_t, uint8_t>;
     // ------------------------------------------------------------------------------------------------------
 private:
     size_t              _rows;                  //!< The number of reads in the input data
     size_t              _cols;                  //!< The number of SNP sites in the container
+    size_t              _first_splittable;      //!< 1st nono mono splittable solumn in splittale vector
     data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
-    read_info_container _read_info;             //!< Information about each read
-    snp_info_container  _snp_info;              //!< Information about each snp_site
-    
-
-
-
-    // Old 
-    binary_container_c  _haplo_one;             //!< The binary bits which represent the first haplotype
-    binary_container_c  _haplo_two;             //!< The bianry bits which represent the second haplotype
-    binary_container_r  _alignment;             //!< The binary bits which represent the alignment of the 
-                                                //!< reads to the haplotypes 
-    atomic_array_r      _row_mplicities;        //!< The multiplicites of the rows
-    atomic_array_c      _col_mplicities;        //!< The multiplicites of the columns
-    binary_container_r  _singletons;            //!< If each of the rows is singleton or not
-    binary_container_c  _column_types;          //!< The type of a column, IH or NIH
-    atomic_array_2r     _row_info;              //!< Start and end positions for the row
-    std::vector<uint>   _splittable_columns;    //!< The indices of the splittable columns
-    concurrent_umap     _monotone_columns;      //!< Columns that are monotone and do not need to be searched
-    concurrent_umap     _flipped_columns;       //!< Columns that are monotone and do not need to be searched
-    
+    read_info_container _read_info;             //!< Information about each read (row)
+    snp_info_container  _snp_info;              //!< Information about each snp (col)
+    concurrent_umap     _flipped_cols;          //!< Columns which have been flipped
+    atomic_vector       _splittable_cols;       //!< A vector of splittable columns
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to fill the block with data from the input file
@@ -92,322 +73,117 @@ public:
     Block(const char* data_file);
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Returns an element from the block at a specified position
-    /// @param[in]  row_idx     The index of the row for the element
-    /// @param[in]  col_idx     The index of the column for the element
+    /// @brief      Gets the value of an element, if it exists, otherwise returns 3
+    /// @param[in]  row_idx     The row index of the element
+    /// @param[in]  col_idx     The column index of the element
     // ------------------------------------------------------------------------------------------------------
-    inline byte operator()(size_t row_idx, size_t col_idx) const { return _data.get(row_idx * C + col_idx); }
+    uint8_t operator()(const size_t row_idx, const size_t col_idx) const;
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Returns a constant reference to the data
-    /// @return     A constant reference to the data
+    /// @brief      Gets the number of subblocks in the block
     // ------------------------------------------------------------------------------------------------------
-    inline const data_container& data() const { return _data; }
+    inline size_t num_subblocks() const { return _splittable_cols.size() - _first_splittable; }
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      If a column is monotone 
-    /// @param[in]  col_idx     The index of the column 
-    /// @return     If the column at col_idx is monotone or not
+    /// @brief      Gets the start index of a subblock (or the end index of the previous one) -- returns 0 if
+    ///             the given index is out of range
+    /// @param[in]  i   The index of the subblock 
     // ------------------------------------------------------------------------------------------------------
-    inline bool is_monotone(const uint col_idx) const 
+    inline size_t subblock(const size_t i) const 
     { 
-        return _monotone_columns.find(col_idx) != _monotone_columns.end(); 
+        return i < _splittable_cols.size() ? _splittable_cols[_first_splittable + i] : 0;
     }
     
+    // ------------------------------------------------------------------------------------------------------A
+    /// @brief      Returns true if the requested column is monotone, false otherwise -- returns false if the
+    ///             index is out of range
+    /// @param[in]  i   The index of the column
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the index of the i'th unsplittable column in the block. For example the 3rd
-    ///             unsplittable column may be the 7th column in the block, so this is essentially a mapping
-    ///             interface
-    /// @param[in]  idx     The index of the unsplittable column that is wanted
-    /// @return     The index of the ith unsplittable column's index in the whole block
-    // ------------------------------------------------------------------------------------------------------
-    inline uint unsplittable_column(const uint idx) const 
-    { 
-        // Returning 0 if an out of range error occurs (for now)
-        return idx < _splittable_columns.size() ? _splittable_columns[idx] : 0; 
+    inline bool is_monotone(const size_t i) const 
+    {
+        return i < _cols ? _snp_info.at(i).is_monotone() : false;
     }
     
+    // ------------------------------------------------------------------------------------------------------A
+    /// @brief      Returns true if the requested column is intrinsically herterozygous, false otherwise -- 
+    ///             returns false if the index is out of range
+    /// @param[in]  i   The index of the column
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the number of unsplittable blocks possible from this block
-    /// @return     The number of unsplittable blocks from this block
-    // ------------------------------------------------------------------------------------------------------
-    inline size_t num_unsplittable_blocks() const { return _splittable_columns.size() - 1; }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets if the column is IH or not
-    /// @param[in]  col_idx     The index of the column to check
-    /// @return     If the column is IH or not
-    // ------------------------------------------------------------------------------------------------------
-    inline bool is_intrin_hetero(const size_t col_idx) const 
-    { 
-        return _column_types.get(col_idx) == IH ? true : false;
+    inline bool is_intrin_hetro(const size_t i) const 
+    {
+        return i < _cols ? (_snp_info.at(i).type() == IH) : false;
     }
-   
-    // --------------------- TEMP PRINTING FUNCTIONS ----------------------- 
-    
-    void print() const;
-    
 private:
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Checks if the column shoul be monotone or not, and then sets it to be monotone or not
-    /// @param[in]  col_idx         The index of the column to check if monotone
-    /// @param[in]  num_elements    The number of elements in the column which are 0 and which are 1
-    /// @param[in]  num_not_single  The number of elements in the columns which are part of a non singular row
-    // ------------------------------------------------------------------------------------------------------
-    void check_if_monotone(const uint col_idx, const uint* num_elements, const uint num_not_singular); 
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Creates a vector of indices of the splittable columns
-    /// @param[in]  splittable_info Information about if each of the columns is splittable or not
-    // ------------------------------------------------------------------------------------------------------
-    void create_splittable_column_vector(const binary_container_c& splittable_info);
-
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Determines the types of each of the columns - if the column is intrisically heterozygous,
-    ///             or if it is not intrinsically heterozygous
-    // ------------------------------------------------------------------------------------------------------
-    void determine_column_types();
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Fills the block with data from the input file
+    /// @brief      Fills the block with data from the input fill
     /// @param[in]  data_file   The file to get the data from 
     // ------------------------------------------------------------------------------------------------------
     void fill(const char* data_file);
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Goes over each of the rows and processes the row with the row_process function, to
-    ///             determine the start and end inidces of the row, and if the row is singular or not
-    // ------------------------------------------------------------------------------------------------------
-    void find_row_params(); 
-    
-    // ------------------------------------------------------------------------------------------------------
     /// @brief      Flips all elements of a column if there are more ones than zeros, and records that the
     ///             column has been flipped
+    /// @param[in]  col_idx         The index of the column to flip
+    /// @param[in]  col_start_row   The start row of the column
+    /// @param[in]  col_end_row     The end row of the column
     // ------------------------------------------------------------------------------------------------------
-    void flip_column_bits(const uint col_idx);
+    void flip_column_bits(const size_t col_idx, const size_t col_start_row, const size_t col_end_row);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Processes a line of data
-    /// @param[in]  row_idx     The row number of data which is being processed
-    /// @param      line        The data to proces
-    /// @tparam     TP          The token pointer type
+    /// @param      offset          The offset in the data container of the data
+    /// @param      line            The data to proces
+    /// @tparam     TokenPointer    The token pointer type
+    /// @return     The new offset after processing
     // ------------------------------------------------------------------------------------------------------
-    template <typename TP>
-    void process_data(size_t row, TP& line);
+    template <typename TokenPointer>
+    size_t process_data(size_t offset, TokenPointer& line);
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Processses a snp (column), checking if it is IH or NIH, and if it is montone, or flipping 
+    ///             the bits if it has more ones than zeros
+    // ------------------------------------------------------------------------------------------------------
+    void process_snps(); 
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Processes a row, determining all the necessary parameters, such as the start and end
-    ///             indices, and hence if a row is singleton or not
-    /// @param[in]  row_idx     The row in the data matrix to fill
+    /// @brief      Sets the parameters for a column -- the start and end index
+    /// @param[in]  col_idx     The index of the column to set the parameters for
+    /// @param[in]  row_idx     The index of the row to update in teh column info
+    /// @param[in]  value       The value of the element at row_idx, col_idx
     // ------------------------------------------------------------------------------------------------------
-    void process_row(const size_t row_idx);
+    void set_col_params(const size_t col_idx, const size_t row_idx, const uint8_t value);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Sorts the (small in almost all cases) splittable vector, and removes and montone columns 
+    ///             from the start of the vector
+    // ------------------------------------------------------------------------------------------------------
+    void sort_splittable_cols();
 };
 
 // ---------------------------------------------- IMPLEMENTATIONS -------------------------------------------
 
-// ----------------------------------------------- TESTING --------------------------------------------------
+// ----------------------------------------------- PUBLIC ---------------------------------------------------
 
-template <size_t R, size_t C, size_t THI, size_t THJ>
-void Block<R, C, THI, THJ>::print() const 
-{
-    std::cout << "\n\n|----------STARTING TO PRINT------------|\n";
-    std::cout << "|---------------------------------------|";
-    
-    std::cout << "\n\n|--------------DATA------------|\n\n";
-    
-    for (size_t r = 0; r < R; ++r) {
-        for (size_t c = 0; c < C; ++c) {
-            if (_data.get(r * C +c) != 2 ) {
-                std::cout << static_cast<unsigned>(_data.get(r * C + c)) << " ";
-            } else {
-                std::cout << "- ";
-            }
-        }
-        std::cout << "\n";
-    }
-    
-    std::cout << "\n|-----------SINGLETONS----------|";
-    
-    for (size_t i = 0; i < R; i++) 
-        std::cout << static_cast<unsigned>(_singletons.get(i)) << "\n";
-    
-
-    std::cout << "\n|------------ROW INFO-----------|";
-    
-    for (size_t i = 0; i < R; ++i) 
-        std::cout << i << " : " << _row_info[2 * i] << " : " << _row_info[2 * i + 1] << "\n";
-    
-
-    std::cout << "\n|------------COL TYPES-----------|";
-    
-    for (auto i = 0; i < C; ++i) 
-        std::cout << static_cast<unsigned>(_column_types.get(i)) << " ";
-    std::cout << "\n";
-    
-    std::cout << "\n|------------MONOTONES-----------|";
-    
-    for (auto i = 0; i < C; ++i) 
-        if (_monotone_columns.find(i) != _monotone_columns.end()) std::cout << i << " ";
-    std::cout << "\n";
-
-    std::cout << "\n|------------SPLITTABLE-----------|";
-    
-    for (auto i = 0; i < _splittable_columns.size(); ++i) 
-        std::cout << _splittable_columns[i] << " ";
-    std::cout << "\n";
-
-    std::cout << "\n|------------HAPLOTYPES-----------|";
-    
-    std::cout << "h   : ";
-    for (auto i = 0; i < C; ++i) std::cout << static_cast<unsigned>(_haplo_one.get(i));
-    std::cout << "\nh`  : ";
-    for (auto i = 0; i < C; ++i) std::cout << static_cast<unsigned>(_haplo_two.get(i));
-    std::cout << "\n|---------------------------------------|\n\n";
-        
-}
-
-
-// ------------------------------------------------- PUBLIC -------------------------------------------------
-
-template <size_t R, size_t C, size_t THI, size_t THJ>
-Block<R, C, THI, THJ>::Block(const char* data_file)
-: _row_info{{0}}
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
+Block<Elements, ThreadsX, ThreadsY>::Block(const char* data_file)
+: _rows{0}, _cols{0}, _first_splittable{0}, _read_info{0}, _splittable_cols{0} 
 {
     fill(data_file);                    // Get the data from the input file
-    determine_column_types();           // Determine which columns are splittable, montone, and IH or NIH
+    process_snps();                     // Process the SNPs to determine block params
+} 
+
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
+uint8_t Block<Elements, ThreadsX, ThreadsY>::operator()(const size_t row_idx, const size_t col_idx) const 
+{
+    // If the element exists
+    return _read_info[row_idx].element_exists(col_idx) == true 
+        ? _data.get(_read_info[row_idx].offset() + col_idx - _read_info[row_idx].start_index()) : 0x03;
 } 
 
 // ------------------------------------------------- PRIVATE ------------------------------------------------
 
-template <size_t R, size_t C, size_t THI, size_t THJ>
-void Block<R, C, THI, THJ>::create_splittable_column_vector(const binary_container_c& splittable_info)
-{
-    bool first_found = false;
-    // Go through the splittable columns and make a vector of the start inidices of the splittable columns
-    for (size_t col_idx = 0; col_idx < C; ++col_idx) {
-        if (splittable_info.get(col_idx) == 1) {
-            if (!first_found) {
-                if (_monotone_columns.find(col_idx) == _monotone_columns.end()) { // Not a monotone column
-                        _splittable_columns.push_back(col_idx);
-                        first_found = true;
-                }
-            } else {
-                if (splittable_info.get(col_idx) == 1                           &&  // Column is splittable
-                    _monotone_columns.find(col_idx) == _monotone_columns.end()  &&  // Not monotone
-                    _column_types.get(col_idx) == IH                            ) { // Is an IH column
-                        _splittable_columns.push_back(col_idx);
-                }
-            } 
-            
-            // If the last column is NIH, we need to add it
-            if (col_idx == C - 1                                            &&      // Last column   
-                _column_types.get(col_idx) == NIH                           &&      // NIH column
-                _monotone_columns.find(col_idx) == _monotone_columns.end()  &&      // Not monotone
-                _splittable_columns.back() != col_idx                       ) {     // Not added
-                    _splittable_columns.push_back(col_idx);
-            }
-        }
-    } 
-}
-
-
-
-template <size_t R, size_t C, size_t THI, size_t THJ>
-void Block<R, C, THI, THJ>::check_if_monotone(const uint  col_idx         , 
-                                              const uint* num_elements    , 
-                                              const uint  num_not_single  )
-{
-    // Check if the column in monotone, and if the are NIH
-    // if they are none of these, then they are the default (IH)
-    if (num_elements[0] != 0 && num_elements[1] == 0) {
-        _monotone_columns[col_idx] = 0;
-        
-        // Set the values of the haplotypes at these positions
-        _haplo_one.set(col_idx, 0);
-        _haplo_two.set(col_idx, 0);
-        
-        // These columns also fit the IH category
-        _column_types.set(col_idx, NIH);
-    } else if (num_elements[1] != 0 && num_elements[0] == 0) {
-        _monotone_columns[col_idx] = 0;
-        
-        // Set the value of the haplotypes
-        _haplo_one.set(col_idx, 1);
-        _haplo_two.set(col_idx, 1);
-        
-        _column_types.set(col_idx, NIH);
-    } else if (!(std::min(num_elements[0], num_elements[1]) >= (num_not_single / 2))) {
-        _column_types.set(col_idx, NIH);      
-    }    
-}
-
-template <size_t R, size_t C, size_t THI, size_t THJ>
-void Block<R, C, THI, THJ>::determine_column_types()
-{
-    // We need the row parameters to be set, so find those
-    find_row_params();
-    
-    // We can use all the available cores for this 
-    constexpr size_t threads_x = (THJ + THI) < C ? (THJ + THI) : C;
-
-    // Binary container for if a columns is splittable or not (not by default)
-    binary_container_c splittable_info;
-    
-    // Over each column in the row
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads_x),
-        [&](const tbb::blocked_range<size_t>& thread_ids_x)
-        {
-            for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
-                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, C, threads_x);
-     
-                // For each column we must traverse downwards and check how many non
-                // singular rows there are, and then compare that to the min of the 
-                // number of zeros and ones
-                for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
-                    uint col_idx            = it_x * threads_x + thread_idx;
-                    uint num_elements[2]    = {0, 0};
-                    uint num_not_single     = 0;
-                    bool splittable         = true;
-                    
-                    // For each of the elements in the column (i.e row indices)
-                    for (size_t row_idx = 0; row_idx < R; ++row_idx) {
-                        auto element_value = _data.get(row_idx * C + col_idx);
-                        
-                        // Add to the (0's | 1's &| non singlton) count
-                        if (element_value <= ONE) {
-                            element_value == ZERO ? ++num_elements[0] : ++num_elements[1];
-                            if (_singletons.get(row_idx) == ZERO) ++num_not_single;
-                        }
-                        
-                        // Check for splittable condition
-                        if (_row_info[row_idx * 2]      < col_idx &&         
-                            _row_info[row_idx * 2 + 1]  > col_idx )
-                            splittable = false;
-                    }
-                    
-                    // Check if the column in monotone
-                    check_if_monotone(col_idx, num_elements, num_not_single);
-    
-                    // If there are more ones than zeros and not monotone, flip all elements
-                    if (num_elements[1] > num_elements[0]                           && 
-                        _monotone_columns.find(col_idx) == _monotone_columns.end()  ) {
-                        flip_column_bits(col_idx);
-                    }
-                    
-                    // If the column is splittable, then add it to the splittable list
-                    if (splittable) splittable_info.set(col_idx, 1);
-                }
-            }
-        }
-    );
-   
-    create_splittable_column_vector(splittable_info);
-}
-
-
-template <size_t R, size_t C, size_t THI, size_t THJ>
-void Block<R, C, THI, THJ>::fill(const char* data_file) 
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
+void Block<Elements, ThreadsX, ThreadsY>::fill(const char* data_file)
 {
     // Open file and convert to string (for tokenizer)
     io::mapped_file_source file(data_file);
@@ -421,100 +197,25 @@ void Block<R, C, THI, THJ>::fill(const char* data_file)
     
     // Tokenize the data into lines
     tokenizer lines{data, nwline_separator};
+    
+    // Create a counter for the offset in the data container
+    size_t offset = 0;
    
     // Get the data and store it in the data container 
-    for (auto& line : lines)
-        process_data(_rows++, line);
+    for (auto& line : lines) {
+        offset = process_data(offset, line);
+        ++_rows;
+    }
     
     if (file.is_open()) file.close();
-}
-
-template <size_t R, size_t C, size_t THI, size_t THJ>
-void Block<R, C, THI, THJ>::find_row_params()
-{
-    // Check that we aren't trying to use more threads than rows or columns
-
-    constexpr size_t threads_y = THI < R ? THI : R;
     
-    // Over each of the rows
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads_y), 
-        [&](const tbb::blocked_range<size_t>& thread_ids_y)
-        {
-            for (size_t thread_idy = thread_ids_y.begin(); thread_idy != thread_ids_y.end(); ++thread_idy) {
-                size_t thread_iters_y = ops::get_thread_iterations(thread_idy, R, threads_y);
-                
-                for (size_t it_y = 0; it_y < thread_iters_y; ++it_y) {
-                    size_t  row_idx = it_y * threads_y + thread_idy;
-                    
-                    // Prcocess the row, determining all the necessary parameters
-                    process_row(row_idx);
-                }
-            }
-        }
-    );
+    // Set the number of columns 
+    _cols = _snp_info.size();    
 }
 
-template <size_t R, size_t C, size_t THI, size_t THJ>
-void Block<R, C, THI, THJ>::flip_column_bits(const uint col_idx)
-{
-    for (uint row_idx = 0; row_idx < R; ++row_idx) {
-        auto element_value = _data.get(row_idx * C + col_idx);
-        if (element_value <= ONE) {
-            element_value == ZERO 
-                ? _data.set(row_idx * C + col_idx, ONE)
-                : _data.set(row_idx * C + col_idx, ZERO);
-        }
-    }
-    // Add that this column was flipped
-    _flipped_columns[col_idx] = 0;
-}
-
-template <size_t R, size_t C, size_t THI, size_t THJ>
-void Block<R, C, THI, THJ>::process_row(const size_t row_idx)
-{
-    // Determine the number of threads (this function is called by parallel
-    // rows so the number of threads each instance can use is limited)
-    constexpr size_t threads_x = (THJ / THI) < C ? (THJ / THI) : C;
-
-    // Over each column in the row
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads_x),
-        [&](const tbb::blocked_range<size_t>& thread_ids_x)
-        {
-            for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
-                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, C, threads_x);
-                int start_idx = -1, end_idx = -1;
-     
-                // Go through the row elements, checking if each of the element is 
-                // a 0 or a 1 so that we can later detrmine if a col is IH or NIH
-                for (size_t it_x = 0; it_x < thread_iters_x; ++it_x) {
-                    auto col_idx       = it_x * threads_x + thread_idx;
-                    auto element_value = _data.get(row_idx * C + col_idx);
-                    
-                    // If the element has a valid value then we 
-                    // can set the start and end index appropriately
-                    if (element_value <= 1) {
-                        if (start_idx == -1) 
-                            start_idx = col_idx;
-                        end_idx = col_idx;
-                    }
-                }
-                // Set the row paramters - the start and the end of the row
-                // as well as if the row is a singleton or not (has 1 element)
-                if (start_idx != end_idx) {
-                    _row_info[2 * row_idx]     = start_idx;
-                    _row_info[2 * row_idx + 1] = end_idx;
-                } else {
-                    _singletons.set(row_idx, 1);        // Row is singleton
-                }
-            }
-        }
-    );
-}
-
-template <size_t R, size_t C, size_t THI, size_t THJ> template <typename TP>
-void Block<R, C, THI, THJ>::process_data(size_t row, TP& line) 
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY> template <typename TokenPointer>
+size_t Block<Elements, ThreadsX, ThreadsY>::process_data(size_t         offset  ,
+                                                         TokenPointer&  line    )
 {
     // Create a tokenizer to tokenize by newline character and another by whitespace
     using tokenizer = boost::tokenizer<boost::char_separator<char>>;
@@ -523,28 +224,146 @@ void Block<R, C, THI, THJ>::process_data(size_t row, TP& line)
     // Tokenize the line
     tokenizer elements{line, wspace_separator};
 
-    
-    size_t column       = 0;
-    size_t row_offset   = row * C;
-    
-    for (auto& e : elements) {
-        // Tokenizer creates a string, but because of the way we tokenized it
-        // we know that it only has 1 element, so convert to char
-        switch (e[0]) {
+    std::string read_data;
+    size_t start_index = 0, end_index = 0, counter = 0;
+    for (auto token : elements) {
+        if (counter == 0) 
+            start_index = stoul(token);
+        else if (counter == 1)
+            end_index = stoul(token);
+        else
+            read_data = token;
+        counter++;
+    }
+    _read_info.emplace_back(_rows, start_index, end_index, offset);
+
+    size_t col_idx = start_index;    
+    // Put data into the data vector
+    for (const auto& element : read_data) {
+        switch (element) {
             case '0':
-                _data.set(row_offset + column, ZERO);
+                _data.set(offset++, ZERO);
+                set_col_params(col_idx, _rows, ZERO);
                 break;
             case '1':
-                _data.set(row_offset + column, ONE);
+                _data.set(offset++, ONE);
+                set_col_params(col_idx,_rows, ONE);
                 break;
             case '-':
-                _data.set(row_offset + column, TWO);
+                _data.set(offset++, TWO);
                 break;
             default:
                 std::cerr << "Error reading input data - exiting =(\n";
                 exit(1);
-        } ++column;
+        } ++col_idx;
     }
+    return offset;
+}
+
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
+void Block<Elements, ThreadsX, ThreadsY>::set_col_params(const size_t  col_idx,
+                                                         const size_t  row_idx,
+                                                         const uint8_t value  )
+{
+    if (_snp_info.find(col_idx) == _snp_info.end()) {
+        // Not in map, so set start index to row index
+        _snp_info[col_idx] = SnpInfo(row_idx, 0);
+    } else {
+        // In map, so start is set, set end 
+        _snp_info[col_idx].end_index() = row_idx;
+    }
+    // Update the value counter
+    value == ZERO ? _snp_info[col_idx].zeros()++
+                  : _snp_info[col_idx].ones()++;
+}
+
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
+void Block<Elements, ThreadsX, ThreadsY>::process_snps()
+{
+    // We can use all the available cores for this 
+    //const size_t threads = (ThreadsX + ThreadsY) < _cols ? (ThreadsX + ThreadsY) : _cols;
+    const size_t threads = 1;
+    
+    // Binary container for if a columns is splittable or not (not by default)
+    binary_vector splittable_info(_cols);
+    
+    // Over each column in the row
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads),
+        [&](const tbb::blocked_range<size_t>& thread_ids)
+        {
+            for (size_t thread_id = thread_ids.begin(); thread_id != thread_ids.end(); ++thread_id) {
+                size_t thread_iters = ops::get_thread_iterations(thread_id, _cols, threads);
+    
+                // For each column we need to "walk" downwards and check how many non singular rows there are 
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    size_t col_idx      = it * threads + thread_id;
+                    size_t non_single   = 0;                                // Number of non singular columns
+                    bool   splittable   = true;                             // Assume splittable
+                    auto&  col_info     = _snp_info[col_idx];
+                    
+                    // For each of the elements in the column 
+                    for (size_t row_idx = col_info.start_index(); row_idx <= col_info.end_index(); ++row_idx) {
+                        if (_read_info[row_idx].length() != 1) 
+                            ++non_single;
+                            
+                        // Check for the splittable condition
+                        if (_read_info[row_idx].start_index() < col_idx && 
+                            _read_info[row_idx].end_index()   > col_idx  )
+                                splittable = false;
+                    }
+                  
+                    // If the column fits the non-intrinsically heterozygous criteria, change the type
+                    if (std::min(col_info.zeros(), col_info.ones()) >= (non_single / 2))
+                        col_info.set_type(NIH);
+                        
+                    // If there atre more 1's than 0's flip all the bits
+                    if (col_info.ones() > col_info.zeros() && !col_info.is_monotone()) 
+                        flip_column_bits(col_idx, col_info.start_index(), col_info.end_index());
+                    
+                    // If the column is splittable, add it to the splittable info 
+                    if (splittable && !col_info.is_monotone()) _splittable_cols.push_back(col_idx);
+                }
+            }
+        }
+    );
+    // Need to sort the splittable columns in ascending order
+    sort_splittable_cols();
+}
+
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
+void Block<Elements, ThreadsX, ThreadsY>::flip_column_bits(const size_t col_idx       , 
+                                                           const size_t col_start_row ,
+                                                           const size_t col_end_row   )
+{
+    for (size_t row_idx = col_start_row; row_idx <= col_end_row; ++row_idx) {
+        size_t mem_offset    = _read_info[row_idx].offset() + col_idx - _read_info[row_idx].start_index(); 
+        auto   element_value = _data.get(mem_offset);
+        
+        // Check that the element is not a gap, then set it
+        if (element_value <= ONE) {                             
+            element_value == ZERO 
+                ? _data.set(mem_offset, ONE)
+                : _data.set(mem_offset, ZERO);
+        }
+    }
+    // Add that this column was flipped
+    _flipped_cols[col_idx] = 0;
+}
+
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
+void Block<Elements, ThreadsX, ThreadsY>::sort_splittable_cols()
+{
+    // Sort the splittable vector -- this is still NlgN, so not really parallel
+    tbb::parallel_sort(_splittable_cols.begin(), _splittable_cols.end(), std::less<size_t>());
+    
+    // Set the start index to be the first non-monotone column
+    // tbb doesn't have erase and it'll be slow to erase from the front
+    while (_snp_info[_splittable_cols[_first_splittable]].is_monotone()) ++_first_splittable;
+    
+    // Check that the last column is in the vector (just some error checking incase)
+    if (_splittable_cols[_splittable_cols.size() - 1] != _cols -1) 
+        _splittable_cols.push_back(_cols - 1);
 }
 
 
