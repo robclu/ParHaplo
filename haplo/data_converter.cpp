@@ -123,6 +123,21 @@ void DataConverter::convert_simulated_data_to_binary(const char* data_file)
         process_each_line(line);
     }
     
+    size_t total_num_elements_value = 0;
+    std::string total_num_elements;
+    
+    for(const auto& elements: _elements_per_line){
+        total_num_elements_value+=elements;
+    }
+    
+    total_num_elements = std::to_string(total_num_elements_value);
+    
+    
+    for(int i = 0; i < total_num_elements.length(); ++i){
+        _data.push_back(total_num_elements[i]);
+    }
+
+    
     if (file.is_open()) file.close();
 }
     
@@ -571,6 +586,8 @@ void DataConverter::process_each_line(const TP& line)
             break;
         }
     }
+    
+    _elements_per_line.push_back(end_position_value - start_position_value + 1);
     
     for(int i = 0; i < start_position.length(); ++i){
         _data.push_back(start_position[i]);

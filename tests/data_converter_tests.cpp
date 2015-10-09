@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE( canCreateDataConverter )
         while (std::getline(output, line))
             ++number_of_lines_output;
         
-        BOOST_CHECK(number_of_lines_input == number_of_lines_output);
+        BOOST_CHECK(number_of_lines_input + 1 == number_of_lines_output);
         
     }
     

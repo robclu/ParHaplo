@@ -92,6 +92,7 @@ namespace haplo {
 class DataConverter {
 private:
     std::vector<char>       _data;                      //!< The converted data for smaller input files
+    std::vector<size_t>     _elements_per_line;          //!< Number of elements in a single line of smaller input files
     size_t                  _rows;                      //!< Number of rows in the input file
     size_t                  _columns;                   //!< Number of columns in the input file
     size_t                  _chromosome;                //!< Chromosome number identifier
