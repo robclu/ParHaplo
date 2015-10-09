@@ -123,6 +123,21 @@ void DataConverter::convert_simulated_data_to_binary(const char* data_file)
         process_each_line(line);
     }
     
+    size_t total_num_elements_value = 0;
+    std::string total_num_elements;
+    
+    for(const auto& elements: _elements_per_line){
+        total_num_elements_value+=elements;
+    }
+    
+    total_num_elements = std::to_string(total_num_elements_value);
+    
+    
+    for(int i = 0; i < total_num_elements.length(); ++i){
+        _data.push_back(total_num_elements[i]);
+    }
+
+    
     if (file.is_open()) file.close();
 }
     
@@ -362,7 +377,7 @@ void DataConverter::process_dataset(const TP& token_pointer)
     }
     // Process informaton and store data
     if(_chromosome >= 1 && _chromosome <= 22 ){
-        end_position = start_position + sequence.length();
+        end_position = start_position + sequence.length() - 1;
         process_cigar_value(start_position, end_position, cigar_value, sequence);
         store_read_data(_chromosome, start_position, end_position, sequence);
     }
@@ -442,30 +457,40 @@ void DataConverter::process_cigar_value(size_t& start_position, size_t& end_posi
             // Add string of gaps (2s) based on num_of_operations
             else if (value_of_operation== 'D' || value_of_operation == 'N' || value_of_operation == 'P' || value_of_operation == 'S' || value_of_operation == 'H' ){
                 
-                temp.clear(); // Re-allocate space for string
-                for(int index = 0; index < num_of_operations; ++index){
-                    temp.insert(0,"2");
-                }
-                
-                 // If occurs at the beginning, move start position of sequence (ignoring sequence elements)
-                if(value_of_operation == 'S' || value_of_operation == 'H'){
+                // assume S only occurs at the beginning or end
+                if(value_of_operation == 'S'){
+                                // If occurs at the beginning, move start position of sequence (ignoring sequence elements)
                     if(i == 0){
-                        start_position = start_position + current_position_in_read + num_of_operations;
+                        //start_position = start_position + current_position_in_read + num_of_operations;
                         current_position_in_read = current_position_in_read + num_of_operations;
+                        end_position-=num_of_operations;
                     }
-                     // If occurs at the end, move end position
+                    // If occurs at the end, move end position
                     else if(i == operation_positions.size() - 1){
                         end_position-=num_of_operations;
                         
                     }
                     // Otherwise, move to next valid point in sequence
-                    else {
+                    /*else {
                         current_position_in_read = current_position_in_read + num_of_operations;
                         operated_portions.push_back(temp);
-                    }
+                    }*/
+
+                    
+                    
                 }
+                else if(value_of_operation == 'H'){
+                    //do nothing
+                }
+                
                 // Otherwise, store extra string to be added to the sequence
                 else{
+                    
+                    temp.clear(); // Re-allocate space for string
+                    for(int index = 0; index < num_of_operations; ++index){
+                        temp.insert(0,"2");
+                    }
+
                     end_position+=num_of_operations;
                     operated_portions.push_back(temp);
                     
@@ -561,6 +586,8 @@ void DataConverter::process_each_line(const TP& line)
             break;
         }
     }
+    
+    _elements_per_line.push_back(end_position_value - start_position_value + 1);
     
     for(int i = 0; i < start_position.length(); ++i){
         _data.push_back(start_position[i]);
@@ -683,6 +710,7 @@ void DataConverter::write_dataset_to_file(const char* filename)
     myfile.open (filename);
     size_t start_position = 0;              // To indicate lowest read in map
     size_t num_of_elements_in_map = 0;      // To keep track of how many remaining reads left to print
+    size_t num_of_element_in_file = 0;
     
     for(int chromosome = 0; chromosome < 1; ++chromosome){
         
@@ -693,7 +721,9 @@ void DataConverter::write_dataset_to_file(const char* filename)
                 if (_simulated_chromosomes.at(chromosome).find(i) != _simulated_chromosomes.at(chromosome).end()) {
                     for(int vec = 0; vec < _simulated_chromosomes.at(chromosome).at(i).size(); ++vec){
                         //std::cout << i << " " << _chr1_simulated_data.at(i).at(vec)._end_position << " " << _chr1_simulated_data.at(i).at(vec)._binary_sequence << std::endl;
+                        num_of_element_in_file+=(_simulated_chromosomes.at(chromosome).at(i).at(vec)._binary_sequence.length());
                         myfile << i << " " << _simulated_chromosomes.at(chromosome).at(i).at(vec)._end_position << " " << _simulated_chromosomes.at(chromosome).at(i).at(vec)._binary_sequence << std::endl;
+                        
                     }
                     num_of_elements_in_map--;
                     
@@ -702,6 +732,7 @@ void DataConverter::write_dataset_to_file(const char* filename)
                     break;
                 
         }
+        myfile << num_of_element_in_file << std::endl;
     }
     
     myfile.close();
