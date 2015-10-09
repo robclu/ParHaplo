@@ -115,6 +115,13 @@ public:
     /// @return     The node at the given index
     // ------------------------------------------------------------------------------------------------------
     const Node& operator[](size_t index) const { return _node_info[index]; };
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a node (it's information which can be compared to links and other nodes)
+    /// @param[in]  index   The index of the node to get
+    /// @return     The node at the given index
+    // ------------------------------------------------------------------------------------------------------
+    Node& operator[](size_t index) { return _node_info[index]; };
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the weight of the node at container position index (const refernce)

@@ -52,6 +52,12 @@ public:
     /// @rerturn    The index of the last selected node
     // ------------------------------------------------------------------------------------------------------
     inline size_t last_selected_index() const { return _next_node - 1; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of last node to be searched
+    /// @rerturn    The index of the last node to search
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t last_search_index() const { return _nodes.num_nodes(); }
 
 };
 
