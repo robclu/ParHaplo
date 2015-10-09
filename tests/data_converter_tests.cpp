@@ -180,36 +180,40 @@ BOOST_AUTO_TEST_CASE( canProcessCigarValue )
     BOOST_CHECK(sequence == "AC22TGA");
     BOOST_CHECK(start_position == 2);
     BOOST_CHECK(end_position == 8);
+    BOOST_CHECK(sequence.length() == (end_position - start_position + 1));
     
     // example 2 : mid S/H, beginning padding, mid M
     start_position = 4;
-    end_position = 15;
-    cigar_value = "2N4M3S2M3H";
-    sequence = "ACTGACTGAACT";
+    end_position = 9;
+    cigar_value = "2N4M2M3H";
+    sequence = "ACTGAC";
     converter.process_cigar_value(start_position, end_position, cigar_value, sequence);
-    BOOST_CHECK(sequence == "22ACTG222GA");
+    BOOST_CHECK(sequence == "22ACTGAC");
     BOOST_CHECK(start_position == 4);
-    BOOST_CHECK(end_position == 14);
+    BOOST_CHECK(end_position == 11);
+    BOOST_CHECK(sequence.length() == (end_position - start_position + 1));
     
     // example 3 : beginning S/H, mid padding, mid and end M
     start_position = 5;
-    end_position = 13;
-    cigar_value = "2H2S3M2N2M";
-    sequence = "ACTGACTTG";
+    end_position = 11;
+    cigar_value = "2S3M2N2M";
+    sequence = "ACTGACT";
     converter.process_cigar_value(start_position, end_position, cigar_value, sequence);
-    BOOST_CHECK(sequence == "22ACT22TG");
-    BOOST_CHECK(start_position == 7);
-    BOOST_CHECK(end_position == 15);
+    BOOST_CHECK(sequence == "TGA22CT");
+    BOOST_CHECK(start_position == 5);
+    BOOST_CHECK(end_position == 11);
+    BOOST_CHECK(sequence.length() == (end_position - start_position + 1));
     
     // example 4 : check I has same action as M
     start_position = 5;
-    end_position = 13;
-    cigar_value = "2H2S3I2N2I";
-    sequence = "ACTGACTTG";
+    end_position = 11;
+    cigar_value = "2M3I2N2I";
+    sequence = "ACTGACT";
     converter.process_cigar_value(start_position, end_position, cigar_value, sequence);
-    BOOST_CHECK(sequence == "22ACT22TG");
-    BOOST_CHECK(start_position == 7);
-    BOOST_CHECK(end_position == 15);
+    BOOST_CHECK(sequence == "ACTGA22CT");
+    BOOST_CHECK(start_position == 5);
+    BOOST_CHECK(end_position == 13);
+    BOOST_CHECK(sequence.length() == (end_position - start_position + 1));
     
 
 }
