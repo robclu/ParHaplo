@@ -572,7 +572,7 @@ void DataConverter::process_each_line(const TP& line)
     // Find start position of line
     for(size_t i = 0; i < line.length(); ++i){
         if(line[i] != '-'){
-            start_position_value = i + 1;
+            start_position_value = i;
             start_position = std::to_string(start_position_value);
             break;
         }
@@ -581,7 +581,7 @@ void DataConverter::process_each_line(const TP& line)
     // Fine end position of line
     for(size_t i = 0; i < line.length(); ++i){
         if(line[line.length() - 1 - i] != '-'){
-            end_position_value = line.length() - i;
+            end_position_value = line.length() - i - 1;
             end_position = std::to_string(end_position_value);
             break;
         }
@@ -601,7 +601,7 @@ void DataConverter::process_each_line(const TP& line)
     
     _data.push_back(' ');
 
-    for (size_t i = start_position_value - 1; i < end_position_value; ++i) {
+    for (size_t i = start_position_value; i < end_position_value + 1; ++i) {
         if(line[i] == _ref_seq.at(i)) {
             _data.push_back('1');
         }
@@ -722,7 +722,7 @@ void DataConverter::write_dataset_to_file(const char* filename)
                     for(int vec = 0; vec < _simulated_chromosomes.at(chromosome).at(i).size(); ++vec){
                         //std::cout << i << " " << _chr1_simulated_data.at(i).at(vec)._end_position << " " << _chr1_simulated_data.at(i).at(vec)._binary_sequence << std::endl;
                         num_of_element_in_file+=(_simulated_chromosomes.at(chromosome).at(i).at(vec)._binary_sequence.length());
-                        myfile << i << " " << _simulated_chromosomes.at(chromosome).at(i).at(vec)._end_position << " " << _simulated_chromosomes.at(chromosome).at(i).at(vec)._binary_sequence << std::endl;
+                        myfile << i - 1 << " " << _simulated_chromosomes.at(chromosome).at(i).at(vec)._end_position - 1 << " " << _simulated_chromosomes.at(chromosome).at(i).at(vec)._binary_sequence << std::endl;
                         
                     }
                     num_of_elements_in_map--;
