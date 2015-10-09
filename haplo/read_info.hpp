@@ -57,7 +57,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the length of the read 
     // ------------------------------------------------------------------------------------------------------
-    inline size_t length() const { return _end_idx - _start_idx; }
+    inline size_t length() const { return _end_idx - _start_idx + 1; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns true if the element is in the read
