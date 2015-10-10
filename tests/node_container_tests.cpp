@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE( canSetAndGetNodeContainerWeights )
 }
 
 
-BOOST_AUTO_TEST_CASE( canMoveNodeContainerWithAssigmentOperator )
+BOOST_AUTO_TEST_CASE( canMoveNodeContainer )
 {
     using node_container = haplo::NodeContainer<haplo::devices::cpu>;
     node_container nodes(4);
@@ -102,25 +102,6 @@ BOOST_AUTO_TEST_CASE( canGetWorstCaseValueOfANode )
     nodes.worst_case_value(2) = 12;
     
     BOOST_CHECK( nodes.worst_case_value(2) == 12 );
-}
-
-BOOST_AUTO_TEST_CASE( canResizeNodeContainer )
-{
-    using node_container = haplo::NodeContainer<haplo::devices::cpu>;
-    node_container nodes;
-    
-    BOOST_CHECK( nodes.num_nodes() == 0 );
-    
-    nodes.resize(4);
-       
-    nodes.worst_case_value(2)   = 12;
-    nodes.weight(0)             = 2;
-    nodes.weight(2)             = 7; 
-    
-    BOOST_CHECK( nodes.num_nodes()          == 4  );
-    BOOST_CHECK( nodes.worst_case_value(2)  == 12 ); 
-    BOOST_CHECK( nodes.weight(0)            == 2  );
-    BOOST_CHECK( nodes.weight(2)            == 7  );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

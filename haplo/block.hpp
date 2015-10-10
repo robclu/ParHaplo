@@ -284,7 +284,7 @@ void Block<Elements, ThreadsX, ThreadsY>::set_col_params(const size_t  col_idx,
 {
     if (_snp_info.find(col_idx) == _snp_info.end()) {
         // Not in map, so set start index to row index
-        _snp_info[col_idx] = SnpInfo(row_idx, 0);
+        _snp_info[col_idx] = SnpInfo(row_idx, row_idx);
     } else {
         // In map, so start is set, set end 
         _snp_info[col_idx].end_index() = row_idx;

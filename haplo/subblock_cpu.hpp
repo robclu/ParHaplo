@@ -32,9 +32,11 @@ public:
     static constexpr size_t     THREADS_X   = ThreadsX;
     static constexpr size_t     THREADS_Y   = ThreadsY;
 private:
+    size_t              _num_nih;           //!< The number of NIH columns
     size_t              _index;             //!< The index of the unsplittable block within the base block
-    size_t              _cols;              //!< The number of columns in the unsplittable block
-    size_t              _rows;              //!< The number of rows in the unsplittable block 
+    size_t              _cols;              //!< The number of columns in the sub block
+    size_t              _rows;              //!< The number of rows in the sub block 
+    size_t              _elements;          //!< The number of elements in the sub block
     binary_vector       _data;              //!< The data for the block
     read_info_container _read_info;         //!< The information for each of the reads (rows)
     snp_info_container  _snp_info;          //!< The information for each of the snps (columns)
@@ -77,12 +79,12 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Searches the tree to find the haplotypes
     // ------------------------------------------------------------------------------------------------------
-    inline void find_haplotypes() { _tree.explore<ThreadsX, ThreadsY>(_data.size()); }
+    inline void find_haplotypes() { _tree.explore<ThreadsX, ThreadsY>(_elements, _num_nih); }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of elements in the subblock
     // ------------------------------------------------------------------------------------------------------
-    inline size_t size() const { return _data.size(); }
+    inline size_t size() const { return _elements; }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      prints the subblock
@@ -155,9 +157,11 @@ template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY>
 SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock& block, 
                                                                 const size_t     index) 
 : BaseBlock(block)                                              , 
+  _num_nih(0)                                                   ,
   _index(index)                                                 , 
   _cols(block.subblock(index + 1) - block.subblock(index) + 1)  ,
   _rows(0)                                                      ,                        
+  _elements(0)                                                  ,
   _data(0)                                                      ,
   _read_info(0)                                                 ,
   _tree(block.subblock(index + 1) - block.subblock(index) + 1)
@@ -218,6 +222,7 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::fill()
             if (read_length > 1) {
                 _read_info.emplace_back(_rows, 0, 0, offset);
                 offset = add_elements(row_idx, read_length, mono_weights, offset);
+                _elements += _read_info[_rows].length();
                 ++_rows;
             }
         }
@@ -288,7 +293,7 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::set_col_params(const
 {
     if (_snp_info.find(col_idx) == _snp_info.end()) {
         // Not in map, so set start index to row index
-        _snp_info[col_idx] = SnpInfo(row_idx, 0);
+        _snp_info[col_idx] = SnpInfo(row_idx, row_idx);
     } else {
         // In map, so start is set, set end 
         _snp_info[col_idx].end_index() = row_idx;
@@ -320,14 +325,20 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::determine_haplo_link
    
     // Start from the last column and go backwards 
     for (size_t col_idx = _cols; col_idx > 0; --col_idx) {
-        // Set the haplotype position for the tree
-        //_tree.node_haplo_pos(col_idx - 1) = col_idx - 1;
-            
+        // Set the number of elements for the nodes and their positions
+        _tree.node(col_idx - 1).position() = col_idx - 1;
+        _tree.node(col_idx - 1).elements() = _snp_info[col_idx - 1].length();
+    
+        std::cout << "NL: " << col_idx - 1 << " " << _tree.node(col_idx - 1).elements() << "\n";
+        
+        // Check if the columns is IH, and set it if necessary
+        if (!base_block()->is_intrin_hetro(col_idx - 1 + base_start_index())) {
+            _tree.node(col_idx - 1).type() = 1;
+            ++_num_nih;
+        }
         // Process the column with the column processor to determine
         // duplicate columns and initialize the tree links and weights
         col_processor(col_idx - 1);
-       
-        // TODO : Add NIH option for nodes and add it to the searcher 
     }
 }
 

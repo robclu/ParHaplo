@@ -27,12 +27,15 @@ private:
     atomic_type     _weight;            //!< The weight of the node (how important it is)
     atomic_type     _worst_case;        //!< The worst case contribution to the score
     atomic_type     _haplo_pos;         //!< The position in the haplotype the node represents
+    size_t          _num_elements;      //!< The number of elements in the col the node represents
     uint8_t         _haplo_value;       //!< The value of the haplotype for this position
+    uint8_t         _is_intrin;         //!< If the node is intrinsically heterozygoud
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor for initialization
     // ------------------------------------------------------------------------------------------------------
-    Node() noexcept : _weight{1}, _worst_case{0}, _haplo_pos{0}, _haplo_value{0} {}
+    Node() noexcept : 
+    _weight{1}, _worst_case{0}, _haplo_pos{0}, _num_elements(0),_haplo_value{0}, _is_intrin{1} {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Destructor for node class
@@ -44,8 +47,8 @@ public:
     /// @param[in]  other       The other node to copy from
     // ------------------------------------------------------------------------------------------------------
     Node(const Node& other) noexcept 
-    : _weight(other._weight)        , _worst_case(other._worst_case),
-      _haplo_pos(other._haplo_pos)  , _haplo_value(other._haplo_value) {}
+    : _weight(other._weight)            , _worst_case(other._worst_case)   , _haplo_pos(other._haplo_pos)  , 
+      _num_elements(other._num_elements),  _haplo_value(other._haplo_value), _is_intrin(other._is_intrin) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Move constructor
@@ -55,7 +58,9 @@ public:
     : _weight(std::move(other._weight))             ,    
       _worst_case(std::move(other._worst_case))     , 
       _haplo_pos(std::move(other._haplo_pos))       ,
-      _haplo_value(std::move(other._haplo_value))   {}
+      _num_elements(std::move(other._num_elements)) ,
+      _haplo_value(std::move(other._haplo_value))   ,
+      _is_intrin(std::move(other._is_intrin)) {}
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Copy assigment operator
@@ -63,8 +68,9 @@ public:
     // ------------------------------------------------------------------------------------------------------
     void operator=(const Node& other) 
     {
-        _weight = other.weight()     ; _worst_case = other.worst_case_value(); 
-        _haplo_pos = other.position(); _haplo_value = other.haplo_value(); 
+        _weight = other.weight()            ; _worst_case = other.worst_case_value(); 
+        _haplo_pos = other.position()       ; _num_elements = other.elements();
+        _haplo_value = other.haplo_value()  ; _is_intrin = other.type();
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -120,6 +126,26 @@ public:
     /// @return     A reference to the worst case value of the node
     // ------------------------------------------------------------------------------------------------------
     inline atomic_type& worst_case_value() { return _worst_case; };
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The type of the column -- IH or not IH
+    // ------------------------------------------------------------------------------------------------------
+    inline uint8_t type() const { return _is_intrin; };
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The type of the column -- IH or not IH
+    // ------------------------------------------------------------------------------------------------------
+    inline uint8_t& type() { return _is_intrin; };
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The number of elements in the column the node represents
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t elements() const { return _num_elements; };
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      The number of elements in the column the node represents
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t& elements() { return _num_elements; };
 };
 
 // ----------------------------------------------------------------------------------------------------------

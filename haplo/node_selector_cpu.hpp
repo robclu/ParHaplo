@@ -77,11 +77,8 @@ NodeSelector<devices::cpu>::NodeSelector(node_container&        nodes       ,
  
 size_t NodeSelector<devices::cpu>::select_node()
 {
-    auto smaller = std::min(_ref_node, _next_node);
-    auto bigger  = std::max(_ref_node, _next_node);
-    
     // If next node is not related to ref node -- resort
-    if (!_links.exists(smaller, bigger) && _next_node < _nodes.num_nodes()) {
+    if (!_links.exists(_ref_node, _next_node) && _next_node < _nodes.num_nodes()) {
         ++_ref_node;                                                        // Move the referene node up
         node_comparator comparator(_ref_node, _links);                      // Create a comparator
         _sorter(_nodes.begin() + _next_node, _nodes.end(), comparator);     // Sort the unsearched nodes

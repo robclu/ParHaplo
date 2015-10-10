@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE( canFindHaplotypes )
     using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
     
     block_type      block(input_zero);
-    subblock_type   sub_block(block, 2);
+    subblock_type   sub_block(block, 0);
 
     sub_block.print();
     

@@ -40,30 +40,38 @@ public:
     // ------------------------------------------------------------------------------------------------------
     bool operator()(const Node& a, const Node& b) const 
     {
-        if (a.position() == b.position()) return true;
+        if (a.type() == 0 && b.type() == 1) return false;                   // A is an NIH column
+        if (a.type() == 1 && b.type() == 0) return true;                    // B is an NIH column
+        if (a.position() == b.position()) return true;                      // Same node
         
         bool   a_found = true, b_found = true;
-        size_t a_value = 0   , b_value = 0; 
+        size_t a_value = 0, b_value = 0, a_min, b_min;
         
         if (_links.exists(a.position(), _ref_node)) {
             auto link = _links.at(a.position(), _ref_node);      
             a_value   = link.max() - link.min();
+            a_min     = link.min(); 
         } else { a_found = false; }
        
         if (_links.exists(b.position(), _ref_node)) {
             auto link = _links.at(b.position(), _ref_node);
             b_value   = link.max() - link.min();
+            b_min     = link.min();
         } else { b_found = false; }
     
-        if (a_found && !b_found) return true;
-        if (b_found && !a_found) return false;
+        if (a_found && !b_found) return true;                           // Link for a but not b
+        if (b_found && !a_found) return false;                          // Link for b but not a 
         
         return a_value > b_value ? true 
                                  : b_value > a_value 
                                     ? false 
-                                    : a.weight() >= b.weight() 
-                                        ? true 
-                                        : false;
+                                    : a_min < b_min 
+                                        ? true
+                                        : b_min < a_min
+                                            ? false 
+                                            : a.weight() >= b.weight() 
+                                                ? true 
+                                                : false;
     }
 };
 

@@ -263,6 +263,7 @@ inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::hetro>(const size_t 
 template <size_t BranchCores, size_t OpCores>
 void Tree<devices::cpu>::explore(const size_t min_upper_bound, const size_t num_nih) 
 {  
+    std::cout << "NN " << _nodes.num_nodes() << "\n";
     manager_type    node_manager(_nodes.num_nodes());                           // Create a node manager
     selector_type   node_selector(_nodes, _links, _start_node);                 // Create a node selector
     bounder_type    bound_calculator(_nodes, _links, node_manager.nodes());     // Create a bound calculator
@@ -279,16 +280,12 @@ void Tree<devices::cpu>::explore(const size_t min_upper_bound, const size_t num_
     root_node.set_index(_start_node);                   // Set the index of the root node
     root_node.set_value(0);                             // Setting the value to 0
     root_node.left()  = 1; root_node.right() = 2;
-  
-    std::cout << "SN : " << _start_node << "\n";
-    
+   
     // Start node's upper bound is the total number of elements 
-    root_node.upper_bound() = min_upper_bound - _nodes[0].elements(); root_node.lower_bound() = 0;
-  
-    std::cout << "SUB : " << root_node.upper_bound() << "\n";
-    
+    root_node.upper_bound() = min_upper_bound; root_node.lower_bound() = 0;
+   
     // Pass the upper bounds to the subnodes
-    auto& left_node  = node_manager.node(1);
+    auto& left_node = node_manager.node(1);
     auto& right_node = node_manager.node(2);
     
     // Need to do max upper found calculation
@@ -297,12 +294,11 @@ void Tree<devices::cpu>::explore(const size_t min_upper_bound, const size_t num_
     
     // Make left and right point back to root so that we can go backwards out of the recursion
     left_node.root() = 0; right_node.root() = 0;
-    left_node.set_type(0); right_node.set_type(1);
     
     // Make sure there is enough memory for another level of nodes
     node_manager.add_node_level(2);
     
-    // Search the sutrees, start with 2 subtrees -- this runs until the solution is found
+    // Search the subtrees, start with 2 subtrees -- this runs until the solution is found
     search_subnodes<BranchCores, OpCores>(node_manager, node_selector, bound_calculator, min_ubound, 1, 2);
 }
 
@@ -332,22 +328,23 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
             for (size_t thread_id = threads.begin(); thread_id != threads.end(); ++thread_id) {
                 size_t thread_iters = ops::get_thread_iterations(thread_id, num_subnodes, branch_cores);
                 for (size_t it = 0; it < thread_iters; ++it) {
-                    const size_t node_idx   = start_index + it * branch_cores + thread_id;
-                    auto& node              = node_manager.node(node_idx);              // Node to search
+                    const size_t node_idx = start_index + it * branch_cores + thread_id;
+                    std::cout << node_idx << "\n";
+                    
+                    auto& node = node_manager.node(node_idx);                // Get the search node
+                    node.type() == types::left                               // Set the node value
+                                ? node.set_value(0) : node.set_value(1);
                     
                     constexpr size_t bound_threads = OpCores / BranchCores == 0 
                                                 ? 1 : OpCores / BranchCores;
                                                 
                     // Get the bounds for the node and update them            
                     auto bounds = bound_calculator.calculate<bound_threads>(node, haplo_idx, search_idx);
-                    node.upper_bound() -= (_nodes[search_idx].elements() - bounds.lower);
+                    node.upper_bound() -= bounds.upper;
                     node.lower_bound() += bounds.lower;
                     
-                    std::cout << node_idx << " " << node.lower_bound() << " " << node.upper_bound() << 
-                         " " << _nodes[search_idx].elements() << " BNDS\n";
-                    
                     // If the node is not going to be printed, then create children
-                    if (node.lower_bound() <= min_ubound && search_idx != node_selector.last_search_index() - 1) {
+                    if (node.lower_bound() <= min_ubound && search_idx != node_selector.last_search_index()) {
                         size_t left_child_idx = node_manager.get_next_node();
                         auto& left_child  = node_manager.node(left_child_idx);
                         auto& right_child = node_manager.node(left_child_idx + 1);
@@ -358,27 +355,24 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
                   
                         // Make the children point back to this node
                         left_child.root() = node_idx; right_child.root() = node_idx;
-                        left_child.set_type(0); right_child.set_type(1);
                    
                         num_branches.fetch_and_add(2);                  // 2 more branches next it
-                    }
-                    atomic_min_update(min_ubound, node.upper_bound());
-                    atomic_min_update(min_lbound, node.lower_bound());
+
+                        atomic_min_update(min_ubound, node.upper_bound());
+                        atomic_min_update(min_lbound, node.lower_bound());
                         
-                    if (node.lower_bound() == min_lbound) {
-                        best_index = node_idx; best_value = node.type();
+                        if (node.lower_bound() == min_lbound) {
+                            best_index = node_idx;
+                            best_value = node.type();
+                        }
                     }
                 }
             }
         }
     );
-   
-    std::cout << "UB : " << min_ubound << "\n";
-    std::cout << "LB : " << min_lbound << "\n";
-    std::cout << "LI : " << node_selector.last_search_index() << "\n";
     
     // If we do not have a terminating case, then we must recurse
-    if (num_branches > 2 && search_idx != node_selector.last_search_index() - _num_nih - 1) {
+    if (num_branches > 2 && search_idx != node_selector.last_search_index() - _num_nih) {
         // Make sure that we have enough space for the next level of nodes
         node_manager.add_node_level(num_branches);
         
@@ -390,11 +384,11 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
                                                            num_branches                 );
     } 
     // Otherwise set the best value in the haplo node
-    _nodes[search_idx].set_haplo_value(node_manager.node(best_index).type());
+    _nodes[search_idx].set_haplo_value(node_manager.node(best_index).value());
    
     std::cout << "Index      : "  << haplo_idx << "\n";
     std::cout << "Num NIH    : "  << _num_nih  << "\n";
-    std::cout << "Best Value : "  << static_cast<unsigned>(node_manager.node(best_index).type()) << "\n";
+    std::cout << "Best Value : "  << static_cast<unsigned>(node_manager.node(best_index).value()) << "\n";
     std::cout << "\n";
     return node_manager.node(best_index).root();
 }

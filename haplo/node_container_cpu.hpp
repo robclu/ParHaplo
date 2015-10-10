@@ -52,7 +52,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     template <uint8_t ContainerInstance>
     NodeContainer(NodeContainer<ContainerInstance>&& other) noexcept
-    : _nodes(other._nodes), _node_info(std::move(other._node_info)) 
+    : _nodes(std::move(other._nodes)), _node_info(std::move(other._node_info)) 
     {
         other._nodes   = 0;
     } 
