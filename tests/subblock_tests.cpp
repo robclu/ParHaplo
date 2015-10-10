@@ -11,7 +11,8 @@
 
 #include "../haplo/subblock_cpu.hpp"
 
-static constexpr const char* input_1 = "input_files/input_zero.txt";
+static constexpr const char* input_zero = "input_files/input_zero.txt";
+static constexpr const char* input_one  = "input_files/input_one.txt";
 
 BOOST_AUTO_TEST_SUITE( SubBlockSuite )
    
@@ -23,7 +24,7 @@ BOOST_AUTO_TEST_CASE( errorIsThrownForOutOfRangeSubBlock  )
     using block_type = haplo::Block<28, 2, 2>;
     
     // First create the block
-    block_type block(input_1);
+    block_type block(input_zero);
     
     // Create a sub-block from the block out of range -- just to illustrate out of range error
     haplo::SubBlock<block_type, 2, 2, haplo::devices::cpu> sub_block(block, 7);
@@ -35,7 +36,7 @@ BOOST_AUTO_TEST_CASE( canCreateSubBlockCorrectlyAndGetData1 )
     using block_type = haplo::Block<28, 2, 2>;
     
     // First create the block
-    block_type block(input_1);
+    block_type block(input_zero);
 
     haplo::SubBlock<block_type, 2, 2, haplo::devices::cpu> subblock(block, 0);
 
@@ -55,8 +56,8 @@ BOOST_AUTO_TEST_CASE( canRemoveMonotoneColumns )
     using block_type    = haplo::Block<28, 4, 4>;
     using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
     
-    block_type      block(input_1);
-    subblock_type   sub_block(input_1, 2);
+    block_type      block(input_zero);
+    subblock_type   sub_block(block, 2);
                
     BOOST_CHECK( sub_block(0, 0)  == 3 );
     BOOST_CHECK( sub_block(0, 1)  == 3 );
@@ -74,6 +75,31 @@ BOOST_AUTO_TEST_CASE( canRemoveMonotoneColumns )
     BOOST_CHECK( sub_block(3, 1)  == 0 );
     BOOST_CHECK( sub_block(3, 2)  == 0 );
     BOOST_CHECK( sub_block(3, 3)  == 0 );
+}
+
+
+BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateRowsInInput )
+{
+    using block_type     = haplo::Block<33, 4, 4>;
+    using sub_block_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    
+    block_type      block(input_one);
+    sub_block_type  sub_block(block, 0);
+    
+    // Get the tree which the block created
+    auto tree = sub_block.tree();
+   
+    // The node weights are the column multiplicities
+    BOOST_CHECK( tree.node_weight(0) == 1 );
+    BOOST_CHECK( tree.node_weight(1) == 1 );
+    BOOST_CHECK( tree.node_weight(2) == 1 );
+    BOOST_CHECK( tree.node_weight(3) == 1 );
+   
+    // The worst case values are the links between the nodes
+    BOOST_CHECK( tree.node_worst_case(0) == 3 );
+    BOOST_CHECK( tree.node_worst_case(1) == 3 );
+    BOOST_CHECK( tree.node_worst_case(2) == 6 );
+    BOOST_CHECK( tree.node_worst_case(3) == 2 );
 }
 
 /*
@@ -95,64 +121,9 @@ BOOST_AUTO_TEST_CASE( canCreateUnsplittableBlockCorrectlyAndGetData2 )
     BOOST_CHECK( ublock(1, 0)  == 1 );
     BOOST_CHECK( ublock(1, 1)  == 0 );
 }
+*/
 
-BOOST_AUTO_TEST_CASE( canRemoveMonotoneColumns )
-{
-    // Define a 10x12 block with a 2x2 CPU core grid
-    using block_type = haplo::Block<10, 12, 2, 2>;
-    
-    // First create the block
-    block_type block(input_1);
-   
-    // Use 4 cores for x and 4 for y 
-    haplo::UnsplittableBlock<block_type, 4, 4, haplo::devices::cpu> ublock(block, 2);
-    
-    BOOST_CHECK( ublock.size() == 16 );
-    BOOST_CHECK( ublock(0, 0)  == 2 );
-    BOOST_CHECK( ublock(0, 1)  == 2 );
-    BOOST_CHECK( ublock(0, 2)  == 1 );
-    BOOST_CHECK( ublock(0, 3)  == 1 );
-    BOOST_CHECK( ublock(1, 0)  == 2 );
-    BOOST_CHECK( ublock(1, 1)  == 2 );
-    BOOST_CHECK( ublock(1, 2)  == 0 );
-    BOOST_CHECK( ublock(1, 3)  == 0 );
-    BOOST_CHECK( ublock(2, 0)  == 0 );
-    BOOST_CHECK( ublock(2, 1)  == 1 );
-    BOOST_CHECK( ublock(2, 2)  == 2 );
-    BOOST_CHECK( ublock(2, 3)  == 0 );
-    BOOST_CHECK( ublock(3, 0)  == 2 );
-    BOOST_CHECK( ublock(3, 1)  == 0 );
-    BOOST_CHECK( ublock(3, 2)  == 0 );
-    BOOST_CHECK( ublock(3, 3)  == 0 );
-}
-
-
-BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateRowsInInput )
-{
-    // Define a 12x12 block with a 4x4 CPU core grid
-    using block_type = haplo::Block<12, 12, 4, 4>;
-    
-    // First create the block (using duplicate row input)
-    block_type block(input_4);
-    
-    haplo::UnsplittableBlock<block_type, 4, 4, haplo::devices::cpu> ublock(block, 0);
-    
-    // Get the tree which the block created
-    auto tree = ublock.tree();
-   
-    // The node weights are the column multiplicities
-    BOOST_CHECK( tree.node_weight(0) == 1 );
-    BOOST_CHECK( tree.node_weight(1) == 1 );
-    BOOST_CHECK( tree.node_weight(2) == 1 );
-    BOOST_CHECK( tree.node_weight(3) == 1 );
-   
-    // The worst case values are the links between the nodes
-    BOOST_CHECK( tree.node_worst_case(0) == 3 );
-    BOOST_CHECK( tree.node_worst_case(1) == 3 );
-    BOOST_CHECK( tree.node_worst_case(2) == 6 );
-    BOOST_CHECK( tree.node_worst_case(3) == 2 );
-}
-
+/*
 BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
 {
     // Define a 10x14 block with a 4x4 CPU core grid

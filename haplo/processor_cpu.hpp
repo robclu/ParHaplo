@@ -57,10 +57,10 @@ private:
 template <typename FriendType>
 void Processor<FriendType, proc::row_dups, devices::cpu>::operator()(const size_t row_idx) 
 {
-    constexpr size_t THI = friend_type::THREADS_I; constexpr size_t THJ = friend_type::THREADS_J;
+    constexpr size_t THX = friend_type::THREADS_X; constexpr size_t THY = friend_type::THREADS_Y;
     
-    const size_t threads_y = THI < (_friend._rows - row_idx - 1) 
-                           ? THI : (_friend._rows - row_idx - 1);
+    const size_t threads_y = THY < (_friend._rows - row_idx - 1) 
+                           ? THY : (_friend._rows - row_idx - 1);
     
     tbb::atomic<size_t> multiplicity{1};        // The number of rows equal to this row
     
@@ -79,8 +79,8 @@ void Processor<FriendType, proc::row_dups, devices::cpu>::operator()(const size_
                     // If the row below this is not a duplicate
                     if (_friend._duplicate_rows.find(row_idx_bot) == _friend._duplicate_rows.end()) {
                         // The number of threads that we can use to process the two columns
-                        const size_t threads_x = (THJ / threads_y + (THJ % threads_y)) < _friend._cols 
-                                               ? (THJ / threads_y + (THJ % threads_y)) : _friend._cols;
+                        const size_t threads_x = (THX / threads_y + (THX % threads_y)) < _friend._cols 
+                                               ? (THX / threads_y + (THX % threads_y)) : _friend._cols;
                                                     
                         // Check if the columns are duplicates (also determines link values)
                         if (compare_rows(row_idx, row_idx_bot, threads_x) == true) {
@@ -104,25 +104,43 @@ bool Processor<FriendType, proc::row_dups, devices::cpu>::compare_rows(const siz
 {
     tbb::atomic<bool> rows_equal{true};
     
+    size_t start_col, end_col;
+    
+    // Look for early exit
+    if (_friend._read_info[row_idx_top].start_index() != _friend._read_info[row_idx_bot].start_index()) {
+        return false;
+    } else { 
+        start_col = std::min(_friend._read_info[row_idx_top].start_index(),
+                             _friend._read_info[row_idx_bot].start_index());
+    }
+    if (_friend._read_info[row_idx_top].end_index() != _friend._read_info[row_idx_bot].end_index()) {
+        return false;
+    } else { 
+        end_col = std::max(_friend._read_info[row_idx_top].end_index(),
+                           _friend._read_info[row_idx_bot].end_index());
+    }    
+    const size_t total_cols = end_col - start_col;
+
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_x),
         [&](const tbb::blocked_range<size_t>& thread_ids_x) 
         {   
             for (size_t thread_idx = thread_ids_x.begin(); thread_idx != thread_ids_x.end(); ++thread_idx) {
-                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, _friend._cols, threads_x); 
+                size_t thread_iters_x = ops::get_thread_iterations(thread_idx, total_cols, threads_x); 
                 
                 for (size_t it_x = 0; it_x < thread_iters_x && rows_equal; ++it_x) {
-                    size_t col_idx = it_x * threads_x + thread_idx;
+                    size_t col_idx = it_x * threads_x + thread_idx + start_col;
                    
                     // If the columns aren't duplicates
                     if (_friend._duplicate_cols.find(col_idx) == _friend._duplicate_cols.end()) {
                         // If the values at these two positions are equivalent
-                        const size_t offset_top = row_idx_top * _friend._cols + col_idx;
-                        const size_t offset_bot = row_idx_bot * _friend._cols + col_idx;
+                        auto value_top = _friend(row_idx_top, col_idx);
+                        auto value_bot = _friend(row_idx_bot, col_idx);
                         
-                        if (_friend._data.get(offset_top) != _friend._data.get(offset_bot)) {
-                            // Not duplicate rows, we can return
+                        // Check that that all threads terminate here and that it is not a source of error
+                        if (value_top != value_bot) {
                             rows_equal = false;
+                            break;
                         }
                     }
                 }
@@ -177,10 +195,10 @@ private:
 template <typename FriendType>
 void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const size_t col_idx)
 {
-    constexpr size_t THI = friend_type::THREADS_I; constexpr size_t THJ = friend_type::THREADS_J;
+    constexpr size_t THY = friend_type::THREADS_Y; constexpr size_t THX = friend_type::THREADS_X;
     
-    const size_t threads_x = THJ < (_friend._cols - col_idx - 1) 
-                           ? THJ : (_friend._cols - col_idx - 1);
+    const size_t threads_x = THX < (_friend._cols - col_idx - 1) 
+                           ? THX : (_friend._cols - col_idx - 1);
     
     tbb::atomic<size_t> multiplicity{1};        // The number of columns equal tothis column
     
@@ -199,8 +217,8 @@ void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const
                     // If the column to the right is not a duplicate
                     if (_friend._duplicate_cols.find(col_idx_right) == _friend._duplicate_cols.end()) {
                         // The number of threads that we can use to process the two columns
-                        const size_t threads_y = (THI / threads_x + (THI % threads_x)) < _friend._rows 
-                                               ? (THI / threads_x + (THI % threads_x)) : _friend._rows;
+                        const size_t threads_y = (THY / threads_x + (THY % threads_x)) < _friend._rows 
+                                               ? (THY / threads_x + (THY % threads_x)) : _friend._rows;
                                                     
                         // Check if the columns are duplicates (also determines link values)
                         if (compare_columns(col_idx, col_idx_right, threads_y) == true) {
@@ -215,8 +233,6 @@ void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const
     );
     // Set the weight of the node in the tree to be the multiplicity
     _tree.node_weight(col_idx) = multiplicity;
-    // Set the multiplicity of the column
-    _friend._col_multiplicities[col_idx] = multiplicity; 
 }
 
 template <typename FriendType>
@@ -224,39 +240,50 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                                                                                 const size_t col_idx_right  ,
                                                                                 const size_t threads_y      )
 {
-    tbb::atomic<bool>   cols_equal{true};
+    tbb::atomic<bool> cols_equal{true};
+   
+    // Find the start row for the comparison 
+    size_t start_row = std::min(_friend._snp_info[col_idx_left].start_index(),
+                                _friend._snp_info[col_idx_right].start_index());
+    
+    // Find the end row for the comparison
+    size_t end_row = std::max(_friend._snp_info[col_idx_left].end_index(),
+                              _friend._snp_info[col_idx_right].end_index());
+
+    // We could have exited early, but then we would not be able to determine the links
+    const size_t total_rows = end_row - start_row;
     
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_y),
         [&](const tbb::blocked_range<size_t>& thread_ids_y) 
         {   
             for (size_t thread_idy = thread_ids_y.begin(); thread_idy != thread_ids_y.end(); ++thread_idy) {
-                size_t thread_iters_y = ops::get_thread_iterations(thread_idy, _friend._rows, threads_y); 
+                size_t thread_iters_y = ops::get_thread_iterations(thread_idy, total_rows, threads_y); 
                 
                 for (size_t it_y = 0; it_y < thread_iters_y; ++it_y) {
-                    size_t row_idx = it_y * threads_y + thread_idy;
+                    size_t row_idx = it_y * threads_y + thread_idy + start_row;
                     
                     // If the rows aren't duplicates
                     if (_friend._duplicate_rows.find(row_idx) == _friend._duplicate_rows.end()) {
                        // If the values at these two positions are equivalent
-                        const size_t offset_left  = row_idx * _friend._cols + col_idx_left;
-                        const size_t offset_right = row_idx * _friend._cols + col_idx_right;
+                       auto value_left  = _friend(row_idx, col_idx_left);
+                       auto value_right = _friend(row_idx, col_idx_right);
                         
-                        if (_friend._data.get(offset_left) == _friend._data.get(offset_right)) {
+                        if (value_left == value_right) {
                             // Could be a duplicate, check if the value are valid for a link
-                            if (_friend._data.get(offset_left) <= 1 && _friend._data.get(offset_right) <= 1) {
+                            if (value_left <= 1 && value_right <= 1) {
                                 // Optimal if the values are the same
                                 _tree.link<links::homo>(col_idx_left, col_idx_right)
-                                    += _friend._row_multiplicities[row_idx];
+                                += _friend._row_multiplicities[row_idx];
                             }
-                        } else if (_friend._data.get(offset_left) != _friend._data.get(offset_right)) {
+                        } else if (value_left != value_right) {
                             //  Definitely can't be a duplicate 
                             cols_equal = false;
                             // Check if the values are valid for a link
-                            if (_friend._data.get(offset_left) <= 1 && _friend._data.get(offset_right) <= 1) {
+                            if (value_left <= 1 && value_right <= 1) {
                                 // Optimal if the values are opposite
                                 _tree.link<links::hetro>(col_idx_left, col_idx_right)
-                                    += _friend._row_multiplicities[row_idx];
+                                += _friend._row_multiplicities[row_idx];
                             }                            
                         }
                     }
@@ -281,59 +308,6 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
         }
     }
     return static_cast<bool>(cols_equal);
-}
-
-// ------------------------------------- COLUMNS : REMOVE MONTONES ------------------------------------------
-
-template <typename FriendType>
-class Processor<FriendType, proc::col_rem_mono, devices::cpu> {
-public:
-    // ----------------------------------------------- ALIAS'S ----------------------------------------------
-    using tree_type     = Tree<devices::cpu>;
-    using friend_type   = FriendType;
-    // ------------------------------------------------------------------------------------------------------
-private:
-    friend_type&     _friend;           //!< The friend class this class has access to to process
-    
-public:    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Contructor -- sets the friend class to operate on
-    /// @param[in]  friend_class    The class to do the processing for
-    // ------------------------------------------------------------------------------------------------------
-    Processor(friend_type& friend_class) : _friend(friend_class) {}
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Operator to invoke the processing on the friend class, the processing looks through all
-    ///             the monotone columns and removes them
-    /// @param[in]  col_idx     The index of the column in the friend class to process
-    // ------------------------------------------------------------------------------------------------------
-    void operator()();
-};
-
-// ------------------------------------------ IMPLEMENTATION ------------------------------------------------
-
-template <typename FriendType>
-void Processor<FriendType, proc::col_rem_mono, devices::cpu>::operator()() 
-{
-    const size_t cols_before            = _friend._cols;
-    size_t       elements               = _friend._cols * _friend._rows;
-    size_t       cols_removed           = 0;
-    size_t       col_idx_with_removal   = 0;
-    
-    // Unroll the column deteltion process
-    while (col_idx_with_removal < elements) {
-        size_t col_idx_without_removal = (col_idx_with_removal + cols_removed) % cols_before;
-        
-        if (_friend._monotone_cols.find(col_idx_without_removal) != _friend._monotone_cols.end() ) {
-            // Montone column so remove it 
-            _friend._data.remove_element(col_idx_with_removal);
-            ++cols_removed;
-            --elements;
-        } else {
-            ++col_idx_with_removal;     // Just move to the next element
-        }
-    }
-    _friend._cols -= _friend._monotone_cols.size();
 }
 
 }               // End namespace haplo

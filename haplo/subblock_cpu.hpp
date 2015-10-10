@@ -19,7 +19,7 @@ template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY>
 class SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu> : public BaseBlock {
 public:
     // ------------------------------------------- ALIAS'S --------------------------------------------------`
-    using ublock_type           = SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>;
+    using sub_block_type        = SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>;
     using atomic_type           = tbb::atomic<size_t>;
     using tree_type             = Tree<devices::cpu>;
     using binary_vector         = BinaryVector<2>;              
@@ -29,18 +29,22 @@ public:
     using read_info_container   = typename BaseBlock::read_info_container;
     using snp_info_container    = typename BaseBlock::snp_info_container;
     // ------------------------------------------------------------------------------------------------------
-    static constexpr size_t     THREADS_I   = ThreadsX;
-    static constexpr size_t     THREADS_J   = ThreadsY;
+    static constexpr size_t     THREADS_X   = ThreadsX;
+    static constexpr size_t     THREADS_Y   = ThreadsY;
 private:
+    size_t              _index;             //!< The index of the unsplittable block within the base block
+    size_t              _cols;              //!< The number of columns in the unsplittable block
+    size_t              _rows;              //!< The number of rows in the unsplittable block 
     binary_vector       _data;              //!< The data for the block
     read_info_container _read_info;         //!< The information for each of the reads (rows)
     snp_info_container  _snp_info;          //!< The information for each of the snps (columns)
-    size_t              _index;             //!< The index of the unsplittable block within the base block
-    size_t              _cols;              //!< The number of columns in the unsplittable block
-    size_t              _rows;              //!< The number of rows in the unsplittable block
-    
-    tree_type           _tree;                  //!< The tree to be solved for the block
+    tree_type           _tree;              //!< The tree to be solved for the block
 
+    // These variables are for making the processing faster
+    concurrent_umap     _duplicate_rows;        //!< Map of duplicate rows 
+    concurrent_umap     _duplicate_cols;        //!< Map of duplicate cols
+    concurrent_umap     _row_multiplicities;    //!< How many duplicates each row has
+    
     // Friend class that can process rows and columns    
     template <typename FriendType, byte ProcessType, byte DeviceType>
     friend class Processor;
@@ -81,12 +85,7 @@ private:
     /// @return     A pointer the the block which is a base class of this unsplittable block
     // ------------------------------------------------------------------------------------------------------
     const BaseBlock* base_block() const { return static_cast<const BaseBlock*>(this); }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Fills the data for the unsplittable block with the releavant data from the base block
-    // ------------------------------------------------------------------------------------------------------
-    void fill();
-    
+
     //-------------------------------------------------------------------------------------------------------
     /// @brief      Gets the start column index of the subblock in the base block
     // ------------------------------------------------------------------------------------------------------
@@ -97,6 +96,21 @@ private:
     //-------------------------------------------------------------------------------------------------------
     inline size_t base_end_index() const { return base_block()->subblock(_index + 1); }
 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the links between the nodes representing the haplotype solution
+    // ------------------------------------------------------------------------------------------------------
+    void determine_haplo_links();
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Fills the data for the unsplittable block with the releavant data from the base block
+    // ------------------------------------------------------------------------------------------------------
+    void fill();
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Find the duplicate rows
+    // ------------------------------------------------------------------------------------------------------
+    void find_duplicate_rows();
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Sets the parameters for a column -- the start and end index
     /// @param[in]  col_idx     The index of the column to set the parameters for
@@ -124,10 +138,11 @@ template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY>
 SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock& block, 
                                                                 const size_t     index) 
 : BaseBlock(block)                                              , 
-  _data(0)                                                      , 
   _index(index)                                                 , 
   _cols(block.subblock(index + 1) - block.subblock(index) + 1)  ,
-  _rows(0)                                                                              
+  _rows(0)                                                      ,                        
+  _data(0)                                                      ,
+  _read_info(0)
 {
     std::ostringstream error_message;
     error_message   << "Index for unsplittable block past max index\n" 
@@ -143,12 +158,9 @@ SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock&
     }
     
     fill();                                             // Fill the block with data
-    
-    //  Create a tree with a node per column
-    _tree.resize(_cols);   
-     
-   // find_duplicate_rows();
-   // find_duplicate_cols();
+    _tree.resize(_cols);                                // Create a tree with a node per column
+   find_duplicate_rows();                               // Find the duplicate rows and the row mltiplicities
+   determine_haplo_links();                             // Find the links between haplotype positions
 }
 
 template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY> 
@@ -264,6 +276,39 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::set_col_params(const
     // Update the value counter
     value == ZERO ? _snp_info[col_idx].zeros()++
                   : _snp_info[col_idx].ones()++;
+}
+
+template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY>
+void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::find_duplicate_rows()
+{
+    // Create a processor for the rows to determine duplicates
+    Processor<sub_block_type, proc::row_dups, devices::cpu> row_processor(*this);
+    
+    // For each of the rows, from back to front
+    for (size_t row_idx = _rows; row_idx > 0; --row_idx) {
+        // Process the row for duplicates -- done in parallel
+        row_processor(row_idx - 1);
+    }
+}
+
+template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY> 
+void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::determine_haplo_links()
+{
+    // Create a column processor to operate on the columns of the sub-block,
+    // finding duplicate columns and determining the haplotype links
+    Processor<sub_block_type, proc::col_dups_links, devices::cpu> col_processor(*this, _tree);
+   
+    // Start from the last column and go backwards 
+    for (size_t col_idx = _cols; col_idx > 0; --col_idx) {
+        // Set the haplotype position for the tree
+        _tree.node_haplo_pos(col_idx - 1) = col_idx - 1;
+            
+        // Process the column with the column processor to determine
+        // duplicate columns and initialize the tree links and weights
+        col_processor(col_idx - 1);
+       
+        // TODO : Add NIH option for nodes and add it to the searcher 
+    }
 }
 
 }               // End namespace haplo
