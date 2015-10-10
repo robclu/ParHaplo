@@ -328,8 +328,6 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::determine_haplo_link
         // Set the number of elements for the nodes and their positions
         _tree.node(col_idx - 1).position() = col_idx - 1;
         _tree.node(col_idx - 1).elements() = _snp_info[col_idx - 1].length();
-    
-        std::cout << "NL: " << col_idx - 1 << " " << _tree.node(col_idx - 1).elements() << "\n";
         
         // Check if the columns is IH, and set it if necessary
         if (!base_block()->is_intrin_hetro(col_idx - 1 + base_start_index())) {

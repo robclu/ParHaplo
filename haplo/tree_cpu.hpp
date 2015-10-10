@@ -48,6 +48,7 @@ public:
     using bounder_type      = Bounder<devices::cpu>;                    // Bound calculator type
     using selector_type     = NodeSelector<devices::cpu>;               // Node selector type
     using atomic_type       = tbb::atomic<size_t>;
+    using atomic_binvec     = tbb::concurrent_vector<bool>;             // Atomic binary vector
     // ------------------------------------------------------------------------------------------------------
 private:
     atomic_type         _num_nih;                   //!< Number of NIH columns
@@ -55,6 +56,9 @@ private:
     atomic_type         _start_node_worst_case;     //!< The worst case value of the start node
     node_container      _nodes;                     //!< The nodes in the tree
     link_container      _links;                     //!< Links between the nodes of the tree
+    atomic_binvec       _haplo_one;                 //!< The one haplotpye (h)
+    atomic_binvec       _haplo_two;                 //!< The other haplotype (h')
+    atomic_binvec       _alignments;                //!< The alignemnts of the reads
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor
@@ -225,6 +229,11 @@ public:
     // ------------------------------------------------------------------------------------------------------
     template <size_t BranchCores, size_t OpCores>
     void explore(const size_t max_upped_bound, const size_t num_nih);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts the solution into a binary vector from the unordered nodes
+    // ------------------------------------------------------------------------------------------------------
+    void format_haplotypes();
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Moves down the sub-nodes of the current root node of a subtree tree
@@ -397,6 +406,22 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
     std::cout << "Best Value : "  << static_cast<unsigned>(node_manager.node(best_index).type()) << "\n";
     std::cout << "\n";
     return node_manager.node(best_index).root();
+}
+
+void Tree<devices::cpu>::format_haplotypes() 
+{
+    // Go through the nodes and put the correct position into the binary vector 
+    _haplo_one.resize(_nodes.num_nodes()); _haplo_two.resize(_nodes.num_nodes());
+    
+    for (auto& node : _nodes.nodes()) {
+        if (node.type() == 1) {                                             // Node is IH
+            _haplo_one[node.position()] = node.haplo_value();
+            _haplo_two[node.position()] = !node.haplo_value();
+        } else {                                                            // Node is NIH
+            _haplo_one[node.position()] = node.haplo_value();
+            _haplo_two[node.position()] = node.haplo_value();            
+        }
+    }
 }
 
 }           // End namespace haplo
