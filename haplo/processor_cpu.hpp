@@ -119,7 +119,7 @@ bool Processor<FriendType, proc::row_dups, devices::cpu>::compare_rows(const siz
         end_col = std::max(_friend._read_info[row_idx_top].end_index(),
                            _friend._read_info[row_idx_bot].end_index());
     }    
-    const size_t total_cols = end_col - start_col;
+    const size_t total_cols = end_col - start_col + 1;
 
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_x),
@@ -195,11 +195,10 @@ private:
 template <typename FriendType>
 void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const size_t col_idx)
 {
-    constexpr size_t THY = friend_type::THREADS_Y; constexpr size_t THX = friend_type::THREADS_X;
+    constexpr size_t THX = friend_type::THREADS_X; constexpr size_t THY = friend_type::THREADS_Y;
     
     const size_t threads_x = THX < (_friend._cols - col_idx - 1) 
                            ? THX : (_friend._cols - col_idx - 1);
-    
     tbb::atomic<size_t> multiplicity{1};        // The number of columns equal tothis column
     
     tbb::parallel_for(
@@ -219,7 +218,6 @@ void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const
                         // The number of threads that we can use to process the two columns
                         const size_t threads_y = (THY / threads_x + (THY % threads_x)) < _friend._rows 
                                                ? (THY / threads_x + (THY % threads_x)) : _friend._rows;
-                                                    
                         // Check if the columns are duplicates (also determines link values)
                         if (compare_columns(col_idx, col_idx_right, threads_y) == true) {
                             // Right is a duplicate of col_idx
@@ -240,8 +238,8 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                                                                                 const size_t col_idx_right  ,
                                                                                 const size_t threads_y      )
 {
-    tbb::atomic<bool> cols_equal{true};
-   
+    tbb::atomic<bool> cols_equal{true}; tbb::atomic<bool> link_created{false};
+    
     // Find the start row for the comparison 
     size_t start_row = std::min(_friend._snp_info[col_idx_left].start_index(),
                                 _friend._snp_info[col_idx_right].start_index());
@@ -251,7 +249,7 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                               _friend._snp_info[col_idx_right].end_index());
 
     // We could have exited early, but then we would not be able to determine the links
-    const size_t total_rows = end_row - start_row;
+    const size_t total_rows = end_row - start_row + 1;
     
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, threads_y),
@@ -259,19 +257,23 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
         {   
             for (size_t thread_idy = thread_ids_y.begin(); thread_idy != thread_ids_y.end(); ++thread_idy) {
                 size_t thread_iters_y = ops::get_thread_iterations(thread_idy, total_rows, threads_y); 
-                
+              
                 for (size_t it_y = 0; it_y < thread_iters_y; ++it_y) {
                     size_t row_idx = it_y * threads_y + thread_idy + start_row;
                     
                     // If the rows aren't duplicates
                     if (_friend._duplicate_rows.find(row_idx) == _friend._duplicate_rows.end()) {
-                       // If the values at these two positions are equivalent
-                       auto value_left  = _friend(row_idx, col_idx_left);
-                       auto value_right = _friend(row_idx, col_idx_right);
+                        // If the values at these two positions are equivalent
+                        auto value_left   = _friend(row_idx, col_idx_left);
+                        auto value_right  = _friend(row_idx, col_idx_right);
                         
                         if (value_left == value_right) {
                             // Could be a duplicate, check if the value are valid for a link
                             if (value_left <= 1 && value_right <= 1) {
+                                if (!link_created) {
+                                    _tree.create_link(col_idx_left, col_idx_right);
+                                    link_created = true;
+                                }
                                 // Optimal if the values are the same
                                 _tree.link<links::homo>(col_idx_left, col_idx_right)
                                 += _friend._row_multiplicities[row_idx];
@@ -281,6 +283,10 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                             cols_equal = false;
                             // Check if the values are valid for a link
                             if (value_left <= 1 && value_right <= 1) {
+                                if (!link_created) {
+                                    _tree.create_link(col_idx_left, col_idx_right);
+                                    link_created = true;
+                                }
                                 // Optimal if the values are opposite
                                 _tree.link<links::hetro>(col_idx_left, col_idx_right)
                                 += _friend._row_multiplicities[row_idx];
@@ -293,15 +299,14 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
     );
     if (!cols_equal) {
         // Determine the contribution to the worst case value for these columns
-        const size_t worst_case_value = _tree.link_max(col_idx_left, col_idx_right) -       // Max of the links
-            std::min(_tree.link<links::homo>(col_idx_left, col_idx_right) ,                 // Min of the links
-                     _tree.link<links::hetro>(col_idx_left, col_idx_right));
-
-        // Add to their worst case values
-        _tree.node_worst_case(col_idx_left)  += worst_case_value * _tree.node_weight(col_idx_right);
-        _tree.node_worst_case(col_idx_right) += worst_case_value;
+        const size_t worst_case_value = _tree.link_max(col_idx_left, col_idx_right) -
+                                        _tree.link_min(col_idx_left, col_idx_right);
         
-        // Check if either of these nodes has the maximum worst case value
+        // Add to their worst case values
+        _tree.node_worst_case(col_idx_left).fetch_and_add(worst_case_value * _tree.node_weight(col_idx_right));
+        _tree.node_worst_case(col_idx_right).fetch_and_add(worst_case_value);
+        
+        // Check if the right node is the global worst case
         if (_tree.node_worst_case(col_idx_right) * _tree.node_weight(col_idx_right) > _tree.max_worst_case()) {
             _tree.max_worst_case()  = _tree.node_worst_case(col_idx_right) * _tree.node_weight(col_idx_right);
             _tree.start_node()      = col_idx_right;

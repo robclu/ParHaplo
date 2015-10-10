@@ -16,7 +16,7 @@ template <>
 class NodeContainer<devices::cpu> {
 public:
     // ------------------------------------------ ALIAS'S ---------------------------------------------------
-    using node_container    = std::vector<Node>;
+    using node_container    = tbb::concurrent_vector<Node>;
     using atomic_type       = tbb::atomic<size_t>;
     using iterator          = Node*;
     // ------------------------------------------------------------------------------------------------------
@@ -35,7 +35,7 @@ public:
     /// @param[in]  nodes   The number of nodes in the container
     // ------------------------------------------------------------------------------------------------------
     NodeContainer(const size_t nodes) noexcept
-    : _nodes(nodes), _node_info(nodes)
+    : _nodes(nodes), _node_info(nodes + 1)
     {
         size_t position = 0;
         for (auto& info : _node_info) info.position() = position++;
@@ -58,12 +58,12 @@ public:
     } 
 
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Resizes the node container
+    /// @brief      Reszes the node container
     // ------------------------------------------------------------------------------------------------------
     inline void resize(const size_t new_size) 
     {
         _nodes = new_size;
-        _node_info.resize(new_size);
+        _node_info.resize(new_size + 1);
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -76,13 +76,13 @@ public:
     /// @brief      Iterator to one past the end of the node information
     /// @return     An iterator to one past the end of the node information
     // ------------------------------------------------------------------------------------------------------
-    inline iterator end() { return &_node_info[_node_info.size()]; }
+    inline iterator end() { return &_node_info[_node_info.size() - 1]; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of nodes in the container 
     /// @return     The number of nodes in the node container 
     // ------------------------------------------------------------------------------------------------------
-    inline size_t num_nodes() const { return _nodes; }
+    inline size_t num_nodes() const { return _node_info.size() - 1; }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the node information (nodes) for the container 
@@ -149,7 +149,7 @@ public:
     /// @param[in]  idx     The index of the node to get the worst case value of
     /// @return     The worst case value of the node at the index
     // ------------------------------------------------------------------------------------------------------
-    inline const atomic_type& worst_case_value(const size_t index) const 
+    inline atomic_type worst_case_value(const size_t index) const 
     { 
         return _node_info[index].worst_case_value(); 
     }

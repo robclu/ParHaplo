@@ -62,12 +62,6 @@ public:
     explicit SubBlock(const BaseBlock& block, const size_t index);
    
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the size of the block (total number of elements)
-    /// @return     The number of elements in the block
-    // ------------------------------------------------------------------------------------------------------
-    inline size_t size() const { return _rows * _cols; }
-
-    // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the value of the element at position row_idx, col_idx
     /// @param[in]  row_idx     The index of the row of the element
     /// @param[in]  col_idx     The index of the column of the element
@@ -78,7 +72,30 @@ public:
     /// @brief      Gets a constant reference to the tree for the block
     /// @return     A constant ference to the tree for the block
     // ------------------------------------------------------------------------------------------------------
-    const tree_type& tree() const { return _tree; }
+    inline const tree_type& tree() const { return _tree; }
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Searches the tree to find the haplotypes
+    // ------------------------------------------------------------------------------------------------------
+    inline void find_haplotypes() { _tree.explore<ThreadsX, ThreadsY>(_data.size()); }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Returns the number of elements in the subblock
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t size() const { return _data.size(); }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      prints the subblock
+    // ------------------------------------------------------------------------------------------------------
+    void print() const 
+    {
+        for (size_t r = 0; r < _rows; ++r) {
+            for (size_t c = 0; c < _cols; ++c) 
+                std::cout << static_cast<unsigned>(operator()(r, c)) << " ";
+            std::cout << "\n";
+        }
+    }
+
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a pointer to the block which is a base class of this unsplittable block
@@ -142,7 +159,8 @@ SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock&
   _cols(block.subblock(index + 1) - block.subblock(index) + 1)  ,
   _rows(0)                                                      ,                        
   _data(0)                                                      ,
-  _read_info(0)
+  _read_info(0)                                                 ,
+  _tree(block.subblock(index + 1) - block.subblock(index) + 1)
 {
     std::ostringstream error_message;
     error_message   << "Index for unsplittable block past max index\n" 
@@ -158,9 +176,9 @@ SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock&
     }
     
     fill();                                             // Fill the block with data
-    _tree.resize(_cols);                                // Create a tree with a node per column
-   find_duplicate_rows();                               // Find the duplicate rows and the row mltiplicities
-   determine_haplo_links();                             // Find the links between haplotype positions
+    _tree.resize(_cols);                                // Resize the tree incase there were monotones
+    find_duplicate_rows();                              // Find the duplicate rows and the row mltiplicities
+    determine_haplo_links();                            // Find the links between haplotype positions
 }
 
 template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY> 
@@ -184,6 +202,8 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::fill()
         if (base_block()->is_monotone(col_idx)) ++monos_found;
         mono_weights[col_idx - base_start_index()] = monos_found;
     }
+    // Subtract the number of monotone columns from the total columns
+    _cols -= monos_found;
     
     // Go over each of the data rows and check for singularity
     for (size_t row_idx = 0; row_idx < base_block()->reads(); ++row_idx) {
@@ -301,7 +321,7 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::determine_haplo_link
     // Start from the last column and go backwards 
     for (size_t col_idx = _cols; col_idx > 0; --col_idx) {
         // Set the haplotype position for the tree
-        _tree.node_haplo_pos(col_idx - 1) = col_idx - 1;
+        //_tree.node_haplo_pos(col_idx - 1) = col_idx - 1;
             
         // Process the column with the column processor to determine
         // duplicate columns and initialize the tree links and weights

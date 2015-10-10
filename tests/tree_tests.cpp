@@ -29,6 +29,7 @@ BOOST_AUTO_TEST_CASE( canCreateATreeAndGetAndSetLinks )
     tree.link<haplo::links::hetro>(0, 3) += 4;
     
     BOOST_CHECK( tree.link<haplo::links::homo>(0, 1)   == 5 );
+    BOOST_CHECK( tree.link<haplo::links::homo>(1, 0)   == 5 );
     BOOST_CHECK( tree.link<haplo::links::homo>(0, 2)   == 0 );
     BOOST_CHECK( tree.link<haplo::links::hetro>(0, 1)  == 4 );
     BOOST_CHECK( tree.link<haplo::links::hetro>(0, 2)  == 0 );

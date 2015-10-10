@@ -298,8 +298,7 @@ template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
 void Block<Elements, ThreadsX, ThreadsY>::process_snps()
 {
     // We can use all the available cores for this 
-    //const size_t threads = (ThreadsX + ThreadsY) < _cols ? (ThreadsX + ThreadsY) : _cols;
-    const size_t threads = 1;
+    const size_t threads = (ThreadsX + ThreadsY) < _cols ? (ThreadsX + ThreadsY) : _cols;
     
     // Binary container for if a columns is splittable or not (not by default)
     binary_vector splittable_info(_cols);

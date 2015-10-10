@@ -61,7 +61,12 @@ public:
         _nodes.reserve(num_nodes);
         while (elements++ < num_nodes) _nodes.push_back(SearchNode());
     }
-    
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a constant reference to the nodes that are being managed
+    // ------------------------------------------------------------------------------------------------------
+    const node_container& nodes() const { return _nodes; }
+     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the index of the next node, adn makes space for another after it -- the left and
     ///             subnodes of the tree

@@ -113,7 +113,7 @@ public:
     /// @brief      The worst case value of the node (const reference)
     /// @return     A const reference to the worst case value of the node
     // ------------------------------------------------------------------------------------------------------
-    inline const atomic_type& worst_case_value() const { return _worst_case; };
+    inline atomic_type worst_case_value() const { return _worst_case; };
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      The worst case value of the node

@@ -41,4 +41,22 @@ BOOST_AUTO_TEST_CASE( canUseLinkContainer )
     BOOST_CHECK( links.exists(0, 1) == false );
 }
 
+BOOST_AUTO_TEST_CASE( sortKeysSorrtely )
+{
+    using link_container = haplo::LinkContainer<haplo::devices::cpu>;
+    link_container links;
+    
+    haplo::Link new_link;
+    new_link.homo_weight() = 12;
+    
+    // insert the new link 
+    links.insert(1, 2, new_link);
+    
+    // Check that link 1->2 == 2 -> 1
+    BOOST_CHECK( links.exists(1, 2)           == true );
+    BOOST_CHECK( links.exists(2, 1)           == true );
+    BOOST_CHECK( links.at(1, 2).homo_weight() == 12 );
+    BOOST_CHECK( links.at(2, 1).homo_weight() == 12 );
+        
+}
 BOOST_AUTO_TEST_SUITE_END()

@@ -45,25 +45,14 @@ public:
         bool   a_found = true, b_found = true;
         size_t a_value = 0   , b_value = 0; 
         
-        // Get the value of a -- casting away atomicity because of read only
-        auto lower_idx = std::min(static_cast<const size_t>(a.position()), _ref_node);
-        auto upper_idx = std::max(static_cast<const size_t>(a.position()), _ref_node);
-        
-        if (_links.exists(lower_idx, upper_idx)) {
-            auto link = _links.at(lower_idx, upper_idx);      
-            a_value   = link.value() - std::min(link.homo_weight()  ,
-                                                link.hetro_weight() );
+        if (_links.exists(a.position(), _ref_node)) {
+            auto link = _links.at(a.position(), _ref_node);      
+            a_value   = link.max() - link.min();
         } else { a_found = false; }
-        
-    
-        // Get the value of b -- casting away atomicity because of read only
-        lower_idx = std::min(static_cast<const size_t>(b.position()), _ref_node);
-        upper_idx = std::max(static_cast<const size_t>(b.position()), _ref_node);
        
-        if (_links.exists(lower_idx, upper_idx)) {
-            auto link = _links.at(lower_idx, upper_idx);
-            b_value   = link.value() - std::min(link.homo_weight()  ,
-                                                link.hetro_weight() );
+        if (_links.exists(b.position(), _ref_node)) {
+            auto link = _links.at(b.position(), _ref_node);
+            b_value   = link.max() - link.min();
         } else { b_found = false; }
     
         if (a_found && !b_found) return true;

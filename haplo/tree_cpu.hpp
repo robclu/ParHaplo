@@ -142,17 +142,22 @@ public:
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the max of a link between two nodes of the tree
-    /// @param[in]  node_idx_lower    The index of the lower node (index with a lower value)
-    /// @param[in]  node_idx_upper    The index of the upper node (index with a higher value)
+    /// @param[in]  node_idx_one    The index of the one of the nodes
+    /// @param[in]  node_idx_two    The index of another node
     // ------------------------------------------------------------------------------------------------------
-    inline size_t link_max(const size_t node_idx_lower, const size_t node_idx_upper)
+    inline size_t link_max(const size_t node_idx_one, const size_t node_idx_two)
     {
-        size_t max = 0;
-        if (_links.exists(node_idx_lower, node_idx_upper)) 
-            max = _links.at(node_idx_lower, node_idx_upper).value();
-        else 
-            max = 0;
-        return max;
+        return _links.exists(node_idx_one, node_idx_two) ? _links.at(node_idx_one, node_idx_two).max() : 0;
+    }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the min of a link between two nodes of the tree
+    /// @param[in]  node_idx_one    The index of the one of the nodes
+    /// @param[in]  node_idx_two    The index of another node
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t link_min(const size_t node_idx_one, const size_t node_idx_two)
+    {
+        return _links.exists(node_idx_one, node_idx_two) ? _links.at(node_idx_one, node_idx_two).min() : 0;
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -168,6 +173,13 @@ public:
     /// @return     The worst case value of the node at the index
     // ------------------------------------------------------------------------------------------------------
     inline atomic_type& node_worst_case(const size_t idx) { return _nodes.worst_case_value(idx); }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the worst case value of a node
+    /// @param[in]  idx     The index of the node
+    /// @return     The worst case value of the node at the index
+    // ------------------------------------------------------------------------------------------------------
+    inline atomic_type node_worst_case(const size_t idx) const { return _nodes.worst_case_value(idx); }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the haplotype position of a node -- the position in the haplotype a node represents
@@ -184,13 +196,6 @@ public:
     inline const atomic_type& node_weight(const size_t idx) const { return _nodes.weight(idx); }
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the worst case value of a node
-    /// @param[in]  idx     The index of the node
-    /// @return     The worst case value of the node at the index
-    // ------------------------------------------------------------------------------------------------------
-    inline const atomic_type& node_worst_case(const size_t idx) const { return _nodes.worst_case_value(idx); }
-    
-    // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the haplotype position of a node -- the position in the haplotype a node represents
     /// @param[in]  node_idx    The index of the node to get the haplotype position of
     /// @return     The position the node represents in the haplotype
@@ -199,11 +204,12 @@ public:
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Searches the tree for the best solution 
+    /// @param[in]  min_upper_bound The min (or starting) upper bound
     /// @tparam     BranchCores     The number of cores available for parallel brach search
     /// @tparam     OpCores         The number of cores available for the operations
     // ------------------------------------------------------------------------------------------------------
     template <size_t BranchCores, size_t OpCores>
-    void explore();
+    void explore(const size_t max_upped_bound);
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Moves down the sub-nodes of the current root node of a subtree tree
@@ -240,11 +246,15 @@ inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::hetro>(const size_t 
 }
 
 template <size_t BranchCores, size_t OpCores>
-void Tree<devices::cpu>::explore() 
-{
+void Tree<devices::cpu>::explore(const size_t min_upper_bound) 
+{  
+    std::cout << "NN " << _nodes.num_nodes() << "\n";
     manager_type    node_manager(_nodes.num_nodes());                   // Create a node manager
     selector_type   node_selector(_nodes, _links, _start_node);         // Create a node selector
     bounder_type    bound_calculator(_nodes, _links);                   // Create a bound calculator
+    atomic_type     min_ubound{0};                                      // Starting min upper bound
+    
+    min_ubound = min_upper_bound;                                       // Set the upper bound
     
     // DEBUGGING for the moment
     std::cout << " - - - - - - - EXPLORING TREE - - - - - - -\n";
@@ -256,21 +266,24 @@ void Tree<devices::cpu>::explore()
     root_node.left()  = 1; root_node.right() = 2;
    
     // Start node's upper bound is the total number of elements 
-    root_node.upper_bound() = 7; root_node.lower_bound() = 0;
+    root_node.upper_bound() = min_upper_bound; root_node.lower_bound() = 0;
    
     // Pass the upper bounds to the subnodes
     auto& left_node = node_manager.node(1);
     auto& right_node = node_manager.node(2);
     
     // Need to do max upper found calculation
-    left_node.upper_bound()  = 7; left_node.lower_bound()  = 0;
-    right_node.upper_bound() = 7; right_node.lower_bound() = 0;
+    left_node.upper_bound()  = root_node.upper_bound(); left_node.lower_bound()  = 0;
+    right_node.upper_bound() = root_node.upper_bound(); right_node.lower_bound() = 0;
     
     // Make left and right point back to root so that we can go backwards out of the recursion
     left_node.root() = 0; right_node.root() = 0;
     
+    // Make sure there is enough memory for another level of nodes
+    node_manager.add_node_level(2);
+    
     // Search the subtrees, start with 2 subtrees -- this runs until the solution is found
-    search_subnodes<BranchCores, OpCores>(node_manager, node_selector, bound_calculator, 0, 1, 2);
+    search_subnodes<BranchCores, OpCores>(node_manager, node_selector, bound_calculator, min_ubound, 1, 2);
 }
 
 template <size_t BranchCores, size_t OpCores>
@@ -285,7 +298,9 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
     atomic_type  best_index{0};                                                 // Index of best node
     const size_t search_idx   = node_selector.select_node();                    // Index in node array
     const size_t haplo_idx    = _nodes[search_idx].position();                  // Haplo var index
-   
+  
+    std::cout << search_idx << "\n";
+    
     min_lbound = std::numeric_limits<size_t>::max();                            // Set LB 
     
     // Get the index of the 
@@ -297,6 +312,7 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
                 size_t thread_iters = ops::get_thread_iterations(thread_id, num_subnodes, branch_cores);
                 for (size_t it = 0; it < thread_iters; ++it) {
                     const size_t node_idx = start_index + it * branch_cores + thread_id;
+                    std::cout << node_idx << "\n";
                     
                     auto& node = node_manager.node(node_idx);                // Get the search node
                     node.type() == types::left                               // Set the node value
@@ -336,16 +352,21 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
     );
     std::cout << "Min Lower : " << min_lbound << "\n";
     std::cout << "Min Upper : " << min_ubound << "\n";
-    std::cout << "Index     : " << search_idx << "\n";
+    std::cout << "Index     : " << haplo_idx << "\n";
+    std::cout << "Best      : " << best_index << "\n";
     std::cout << "\n";
     
     // If we do not have a terminating case, then we must recurse
     if (num_branches > 2 || search_idx != node_selector.last_search_index()) {
+        // Make sure that we have enough space for the next level of nodes
+        node_manager.add_node_level(num_branches);
+        
         best_index = search_subnodes<BranchCores, OpCores>(node_manager                 ,       
                                                            node_selector                , 
                                                            bound_calculator             ,  
+                                                           min_ubound                   , 
                                                            start_index + num_subnodes   , 
-                                                           num_subnodes                 );
+                                                           num_branches                 );
     } 
     // Otherwise set the best value in the haplo node
     _nodes[search_idx].set_haplo_value(node_manager.node(best_index).value());

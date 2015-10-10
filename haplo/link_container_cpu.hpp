@@ -54,59 +54,69 @@ public:
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Insert a link into the link container 
-    /// @param[in]  idx_lower       The index of the lower node
-    /// @param[in]  idx_upper       The index of the upper node
+    /// @param[in]  idx_one       The index of the first node
+    /// @param[in]  idx_two       The index of the second node
     /// @param[in]  link            The link to insert into the container
     // ------------------------------------------------------------------------------------------------------
-    inline void insert(const size_t idx_lower, const size_t idx_upper, const Link& link = Link()) 
+    inline void insert(const size_t idx_one, const size_t idx_two, const Link& link = Link()) 
     {
-        _links[std::make_pair(idx_lower, idx_upper)] = link;
+        _links[sort_pair(idx_one, idx_two)] = link;
     }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets if a key is present in the container 
-    /// @param[in]  idx_lower       The index of the lower node
-    /// @param[in]  idx_upper       The index of the upper node
+    /// @param[in]  idx_two       The index of the lower node
+    /// @param[in]  idx_two       The index of the upper node
     /// @return     If the link is in the map
     // ------------------------------------------------------------------------------------------------------    
-    inline bool exists(const size_t idx_lower, const size_t idx_upper) const 
+    inline bool exists(const size_t idx_one, const size_t idx_two) const 
     {
-        return (_links.find(std::make_pair(idx_lower, idx_upper)) != _links.end());
+        return (_links.find(sort_pair(idx_one, idx_two)) != _links.end());
     }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a link from the container -- no error checking
-    /// @param[in]  idx_lower       The index of the lower node
-    /// @param[in]  idx_upper       The index of the upper node
+    /// @param[in]  idx_one       The index of the lower node
+    /// @param[in]  idx_two       The index of the upper node
     /// @return     The link at the given positions, or an iterator to the end
     // ------------------------------------------------------------------------------------------------------    
-    inline mapped_type& operator()(const size_t idx_lower, const size_t idx_upper) 
+    inline mapped_type& operator()(const size_t idx_one, const size_t idx_two) 
     {
-        return _links[std::make_pair(idx_lower, idx_upper)];
+        return _links[sort_pair(idx_one, idx_two)];
     }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a link from the container 
-    /// @param[in]  idx_lower       The index of the lower node
-    /// @param[in]  idx_upper       The index of the upper node
+    /// @param[in]  idx_one       The index of the lower node
+    /// @param[in]  idx_two       The index of the upper node
     /// @return     The link at the given positions, or an iterator to the end
     /// @throw      out_of_range    If the index is invalid
     // ------------------------------------------------------------------------------------------------------    
-    inline mapped_type& at(const size_t idx_lower, const size_t idx_upper) 
+    inline mapped_type& at(const size_t idx_one, const size_t idx_two) 
     {
-        return _links.at(std::make_pair(idx_lower, idx_upper));
+        return _links.at(sort_pair(idx_one, idx_two));
     }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a link from the container 
-    /// @param[in]  idx_lower       The index of the lower node
-    /// @param[in]  idx_upper       The index of the upper node
+    /// @param[in]  idx_one       The index of the lower node
+    /// @param[in]  idx_two       The index of the upper node
     /// @return     The link at the given positions, or an iterator to the end
     /// @throw      out_of_range    If the index is invalid
     // ------------------------------------------------------------------------------------------------------    
-    inline const mapped_type& at(const size_t idx_lower, const size_t idx_upper) const
+    inline const mapped_type& at(const size_t idx_one, const size_t idx_two) const
     {
-        return _links.at(std::make_pair(idx_lower, idx_upper));
+        return _links.at(sort_pair(idx_one, idx_two));
+    }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Takes two link indices for a links and sorts them into a pair
+    /// @param[in]  idx_one     The first index
+    /// @param[in]  idx_two     The second index
+    // ------------------------------------------------------------------------------------------------------
+    inline const std::pair<size_t, size_t> sort_pair(const size_t idx_one, const size_t idx_two) const 
+    {
+        return std::make_pair(std::min(idx_one, idx_two), std::max(idx_one, idx_two));
     }
 };
 

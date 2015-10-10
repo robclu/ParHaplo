@@ -13,13 +13,6 @@
 #include "../haplo/search_node.hpp"
 
 BOOST_AUTO_TEST_SUITE( SearchNodeSuite )
-    
-BOOST_AUTO_TEST_CASE( canCreateASearchNode )
-{
-    haplo::SearchNode node(17, 1, 0, 194, 12);
-    
-    BOOST_CHECK( sizeof(node) == 32 );
-}
 
 BOOST_AUTO_TEST_CASE( canGetIndex ) 
 {

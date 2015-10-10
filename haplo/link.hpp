@@ -73,7 +73,7 @@ public:
     /// @brief      Returns the value of the link so that it cant be used bya sorting function
     /// @return     The value (maximum weight of the node)
     // ------------------------------------------------------------------------------------------------------
-    inline size_t value() const { return std::max(_homo_weight, _hetro_weight); }
+    inline size_t max() const { return std::max(_homo_weight, _hetro_weight); }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the min value of the link
