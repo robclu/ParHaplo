@@ -21,12 +21,20 @@
 static constexpr const char* input_1    = "input_files/input_simulated_1.txt";
 static constexpr const char* input_2    = "input_files/input_simulated_2.txt";
 static constexpr const char* input_3    = "input_files/input_simulated_3.txt";
-static constexpr const char* input_4    = "input_files/input_dataset_1.txt";
-static constexpr const char* input_5    = "input_files/input_dataset_2.txt";
+static constexpr const char* input_4    = "input_files/input_simulated_4.txt";
+static constexpr const char* input_5    = "input_files/input_simulated_5.txt";
+static constexpr const char* input_6    = "input_files/input_dataset_1.txt";
+static constexpr const char* input_7    = "input_files/input_dataset_2.txt";
 static constexpr const char* output_1   = "output_files/output_simulated_1.txt";
 static constexpr const char* output_2   = "output_files/output_simulated_2.txt";
 static constexpr const char* output_3   = "output_files/output_simulated_3.txt";
-static constexpr const char* output_4   = "output_files/output_dataset_1.txt";
+static constexpr const char* output_4   = "output_files/output_simulated_4.txt";
+static constexpr const char* output_5   = "output_files/output_simulated_5.txt";
+static constexpr const char* output_6   = "output_files/output_dataset_1.txt";
+static constexpr const char* answer_letters_4    = "input_files/input_simulated_4_answer.txt";
+static constexpr const char* answer_letters_5    = "input_files/input_simulated_5_answer.txt";
+static constexpr const char* answer_binary_4    = "output_files/output_simulated_4_answer.txt";
+static constexpr const char* answer_binary_5    = "output_files/ouput_simulated_5_answer.txt";
 
 BOOST_AUTO_TEST_SUITE( DataConverterSuite )
 
@@ -34,8 +42,11 @@ BOOST_AUTO_TEST_SUITE( DataConverterSuite )
 BOOST_AUTO_TEST_CASE( canCreateDataConverter )
 {
     
-    std::vector<const char*> inputs = {input_1, input_2, input_3};
-    std::vector<const char*> outputs = {output_1, output_2, output_3};
+    std::vector<const char*> inputs = {input_1, input_2, input_3, input_4, input_5};
+    std::vector<const char*> outputs = {output_1, output_2, output_3, output_4, output_5};
+    std::vector<const char*> answers_letters = {answer_letters_4, answer_letters_5};
+    std::vector<const char*> answers_binary = {answer_binary_4, answer_binary_5};
+
 
     for(size_t i = 0; i < inputs.size(); ++i){
         haplo::DataConverter converter(inputs.at(i), outputs.at(i));
@@ -58,6 +69,36 @@ BOOST_AUTO_TEST_CASE( canCreateDataConverter )
             ++number_of_lines_output;
         
         BOOST_CHECK(number_of_lines_input + 1 == number_of_lines_output);
+        
+        std::vector<char> input_string;
+        std::vector<size_t> output_value;
+        
+        if(i == 3 || i == 4){
+            
+            std::ifstream infile(answers_letters.at(i-3));
+            std::ofstream outfile(answers_binary.at(i-3));
+            std::string line;
+            while(infile >> line){
+                for(int len = 0; len < line.length(); ++len){
+                    input_string.push_back(line[len]);
+                }
+                
+                output_value = converter.convert_data_to_binary(input_string);
+                
+                for(int vec = 0; vec < output_value.size(); ++vec){
+                    outfile << output_value.at(vec);
+                }
+                outfile << std::endl;
+                    
+                input_string.clear();
+                output_value.clear();
+                
+            
+            }
+        
+          }
+    
+
         
     }
     
@@ -163,14 +204,14 @@ BOOST_AUTO_TEST_CASE( canMapCharToBinary )
 
 BOOST_AUTO_TEST_CASE( canConvertDataset )
 {
-    haplo::DataConverter converter(input_4, input_5, output_4);
+    haplo::DataConverter converter(input_6, input_7, output_6);
     //converter.print_dataset();
 }
 
 // Check all cases of cigar value are processed properly
 BOOST_AUTO_TEST_CASE( canProcessCigarValue )
 {
-    haplo::DataConverter converter(input_4, input_5, output_4);
+    haplo::DataConverter converter(input_6, input_7, output_6);
     // example 1 : mid padding, end in S/H, start and mid M
     size_t start_position = 2;
     size_t end_position = 10;

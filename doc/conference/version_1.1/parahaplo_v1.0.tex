@@ -340,7 +340,7 @@ robert.clucas@students.wits.ac.za}
 \IEEEauthorblockA{University of the Witwatersrand\\ 
 School of Electrical and Information Engineering\\ 
 Johannesburg, South Africa\\ 
-sasha.naidoo@students.wits.ac.za} 
+sasha.naidoo2@students.wits.ac.za} 
 } 
  
 % conference papers do not typically use \thanks and this command 
@@ -372,6 +372,9 @@ sasha.naidoo@students.wits.ac.za}
 \maketitle 
  
 \begin{abstract} 
+Haplotyping is an important problem in bioinformatics, and can significantly impact areas such as disease diagnosis and drug discovery. Organisms such as humans have two copies of each chromosome, and haplotyping partitions genotype calls between the two chromosomes. The Minimum error correction (MEC) formulation of the haplotype assembly (HA) problem is NP-hard and involves correcting the minimum number of SNPs to infer the haplotypes from a set of aligned reads. Most existing solutions either make assumptions to reduce complexity, or require impractical computation times. In this work, we present Parahaplo, a parallel tree-based solver for the general case HA problem — where columns are both heterozygous and homozygous, and reads may contain multiple gaps.
+	
+Input matrices obtained from DNA sequencing technology are typically extremely large, up to hundreds of Gigabytes, and hence cannot fit into GPU memory. To overcome this, Parahaplo uses many-core CPUs to split the input matrices into uncorrelated sub-blocks, which are then represented as a binary tree, where each node is a position in the haplotype. Additionally, the CPUs find the root node of each tree, as well as the correlation between the haplotype positions. The trees for each sub-block are solved in parallel on the GPUs using a parallel, breadth first branch-and-bound algorithm. The breadth first search utilises the massively-parallel nature of GPUs and ensures the tree is always balanced, minimizing the number of underutilized cores and limiting thread synchronization. Highly parallel bounding operators are designed to efficiently determine the upper and lower bound, allowing nodes which cannot provide an optimal solution to be pruned early in the search, limiting the size of the search tree.
     
 \end{abstract} 
  
@@ -398,12 +401,49 @@ Parahaplo is a parallel tree-based solver for the haplotype assembly problem, de
 hetrogenous systems ...
 % You must have at least 2 lines in the paragraph with the drop letter 
 % (should never be an issue) 
+
  
-\subsection{Subsection Heading Here} 
- 
-\subsubsection{Subsubsection Heading Here} 
- 
-\section{Type style and Fonts} 
+\section{Background and Literature Review} 
+
+\subsection{Haplotype Assembly Problem}
+
+actual problem
+
+solutions
+
+\subsection{Hardware Implementations}
+cpu
+
+gpu 
+
+cpu-gpu
+\section{Parahaplo Solver}
+data transferral diagram
+
+\subsection{Data Processing and Manipulation}
+
+\subsubsection{Data Conversion}
+
+\subsubsection{Block Decomposition}
+
+\subsubsection{Data Correlation}
+
+\subsection{Solving}
+
+\subsubsection{Node Selection}
+
+\subsubsection{Tree Creation}
+Memory management
+
+\subsubsection{Tree Search}
+
+\section{Results}
+Plain cpu
+cpu-gpu
+
+small datasets, large datasets
+
+\section{Future Recommendations}
 
 \section{Conclusion} 
 The conclusion goes here. this is more of the conclusion 
