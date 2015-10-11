@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015) (preloaded format=pdflatex 2015.7.22)  11 OCT 2015 16:25
+This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015) (preloaded format=pdflatex 2015.7.22)  11 OCT 2015 17:25
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**parahaplo_v1.0.tex
-(./parahaplo_v1.0.tex
+**parahaplo_v1.1.tex
+(./parahaplo_v1.1.tex
 LaTeX2e <2015/01/01>
 Babel <3.9l> and hyphenation patterns for 79 languages loaded.
 (./IEEEtran.cls
@@ -197,8 +197,8 @@ Package: subfigure 2002/03/15 v2.1.5 subfigure package
 \Urlmuskip=\muskip11
 Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
 )
-(./parahaplo_v1.0.aux)
-\openout1 = `parahaplo_v1.0.aux'.
+(./parahaplo_v1.1.aux)
+\openout1 = `parahaplo_v1.1.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 322.
 LaTeX Font Info:    ... okay on input line 322.
@@ -218,7 +218,7 @@ Missing character: There is no â in font ptmb7t!
 Missing character: There is no € in font ptmb7t!
 Missing character: There is no ” in font ptmb7t!
 
-No file parahaplo_v1.0.bbl.
+No file parahaplo_v1.1.bbl.
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -234,7 +234,7 @@ Before submitting the final camera ready copy, remember to:
 
 
 ]
-(./parahaplo_v1.0.aux) ) 
+(./parahaplo_v1.1.aux) ) 
 Here is how much of TeX's memory you used:
  1954 strings out of 493089
  28552 string characters out of 6134842
@@ -248,7 +248,7 @@ e/8r.enc}</usr/local/texlive/2015/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><
 /usr/local/texlive/2015/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/loca
 l/texlive/2015/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/
 2015/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on parahaplo_v1.0.pdf (1 page, 54284 bytes).
+Output written on parahaplo_v1.1.pdf (1 page, 54284 bytes).
 PDF statistics:
  25 PDF objects out of 1000 (max. 8388607)
  17 compressed objects within 1 object stream
