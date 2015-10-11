@@ -252,7 +252,6 @@ private:
     // ------------------------------------------------------------------------------------------------------
     void store_read_data(size_t chromosome, size_t start_position, size_t end_position, std::string sequence);
 
-    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Compares datasets reads to created reference bases in order to convert the sequence to  binary sequence
     // ------------------------------------------------------------------------------------------------------
