@@ -64,7 +64,8 @@ BOOST_AUTO_TEST_CASE( canRemoveMonotoneColumns )
     
     block_type      block(input_zero);
     subblock_type   sub_block(block, 2);
-               
+              
+    BOOST_CHECK( sub_block.base_start_row() == 4 ); 
     BOOST_CHECK( sub_block(0, 0)  == 3 );
     BOOST_CHECK( sub_block(0, 1)  == 3 );
     BOOST_CHECK( sub_block(0, 2)  == 1 );
@@ -159,8 +160,7 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
     // 1 and 3 are duplicates - we don't care about their values
     BOOST_CHECK( tree.node(0).worst_case_value() == 3 );
     BOOST_CHECK( tree.node(1).worst_case_value() == 3 );
-    std::cout << tree.node(2).worst_case_value() << "\n";;
-    BOOST_CHECK( tree.node(2).worst_case_value() == 4 );
+    BOOST_CHECK( tree.node(2).worst_case_value() == 3 );
 }
 
 BOOST_AUTO_TEST_CASE( canFindStartNodeForTree )
@@ -178,6 +178,23 @@ BOOST_AUTO_TEST_CASE( canFindStartNodeForTree )
     BOOST_CHECK( tree.start_node()      == 2 );
 }
 
+BOOST_AUTO_TEST_CASE( canFindBaseStartRow )
+{
+    using block_type    = haplo::Block<28, 4, 4>;
+    using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    
+    block_type      block(input_zero);
+    subblock_type   sub_block(block, 1);
+
+    std::cout << block.num_subblocks() << "\nNS";
+    
+    sub_block.find_haplotypes();
+
+    std::cout << sub_block.base_start_row() << "\n";
+    
+    BOOST_CHECK( sub_block.base_start_row() == 2 );
+}
+
 BOOST_AUTO_TEST_CASE( canFindHaplotypes )
 {
     using block_type    = haplo::Block<1658, 4, 4>;
@@ -185,6 +202,8 @@ BOOST_AUTO_TEST_CASE( canFindHaplotypes )
     
     block_type      block(input_four);
     subblock_type   sub_block(block, 1);
+
+    std::cout << sizeof(sub_block) << "\n";
     
     // Time the selection
     high_resolution_clock::time_point start = high_resolution_clock::now();     

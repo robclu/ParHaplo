@@ -60,11 +60,17 @@ private:
     size_t              _rows;                  //!< The number of reads in the input data
     size_t              _cols;                  //!< The number of SNP sites in the container
     size_t              _first_splittable;      //!< 1st nono mono splittable solumn in splittale vector
+    size_t              _last_aligned;          //!< The last aligned value
     data_container      _data;                  //!< Container for { '0' | '1' | '-' } data variables
     read_info_container _read_info;             //!< Information about each read (row)
     snp_info_container  _snp_info;              //!< Information about each snp (col)
     concurrent_umap     _flipped_cols;          //!< Columns which have been flipped
     atomic_vector       _splittable_cols;       //!< A vector of splittable columns
+    
+    // Solutions for the entire block 
+    binary_vector       _haplo_one;             //!< The first haplotype
+    binary_vector       _haplo_two;             //!< The second haplotype
+    binary_vector       _alignments;            //!< The alignments of the reads
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to fill the block with data from the input file
@@ -91,7 +97,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     inline size_t subblock(const size_t i) const 
     { 
-        return i < _splittable_cols.size() ? _splittable_cols[_first_splittable + i] : 0;
+        return i < _splittable_cols.size() - _first_splittable ? _splittable_cols[_first_splittable + i] : 0;
     }
     
     // ------------------------------------------------------------------------------------------------------A
@@ -130,7 +136,15 @@ public:
     /// @brief      The number of reads in the block (total number of rows)
     // ------------------------------------------------------------------------------------------------------
     inline size_t reads() const { return _rows; }
-  
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Merges the haplotype solution of a sub block into the final solution
+    /// @param[in]  sub_block       The sub-block to get the solution from 
+    /// @tparam     SubBlockType    The type of the sub-block
+    // ------------------------------------------------------------------------------------------------------
+    template <typename SubBlockType>
+    void merge_haplotype(const SubBlockType& sub_block);
+    
     void print()
     {
         for (size_t r = 0; r < _rows; ++r) {
@@ -141,7 +155,25 @@ public:
         
         for (size_t c = 0; c < _cols; ++c) 
             std::cout << static_cast<unsigned>(_snp_info[c].type()) << " ";
+        std::cout << "\n\n";
+        
+        for (auto e : _splittable_cols)
+            std::cout << e << " ";
         std::cout << "\n";
+        std::cout << _first_splittable << "\n";
+    }
+    
+    void print_haplotypes() const 
+    {
+        for (auto i = 0; i < _haplo_one.size() + 6; ++i) std::cout << "-";
+        std::cout << "\nh  : "; 
+        for (auto i = 0; i < _haplo_one.size(); ++i) std::cout << static_cast<unsigned>(_haplo_one.get(i));
+        std::cout << "\nh` : ";
+        for (auto i = 0; i < _haplo_two.size(); ++i) std::cout << static_cast<unsigned>(_haplo_two.get(i));
+        std::cout << "\n";
+        for (auto i = 0; i < _haplo_two.size() + 6; ++i) std::cout << "-";
+        std::cout << "\n";
+        for (auto i = 0; i < _alignments.size(); ++i) std::cout << static_cast<unsigned>(_alignments.get(i)) << "\n";
     }
 private:
     // ------------------------------------------------------------------------------------------------------
@@ -196,10 +228,13 @@ private:
 
 template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
 Block<Elements, ThreadsX, ThreadsY>::Block(const char* data_file)
-: _rows{0}, _cols{0}, _first_splittable{0}, _read_info{0}, _splittable_cols{0} 
+: _rows{0}, _cols{0}, _first_splittable{0}, _last_aligned{0}, _read_info{0}, _splittable_cols{0} 
 {
     fill(data_file);                    // Get the data from the input file
     process_snps();                     // Process the SNPs to determine block params
+    
+    // Resize the haplotypes
+    _haplo_one.resize(_cols); _haplo_two.resize(_cols); _alignments.resize(_rows);
 } 
 
 template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
@@ -209,6 +244,56 @@ uint8_t Block<Elements, ThreadsX, ThreadsY>::operator()(const size_t row_idx, co
     return _read_info[row_idx].element_exists(col_idx) == true 
         ? _data.get(_read_info[row_idx].offset() + col_idx - _read_info[row_idx].start_index()) : 0x03;
 } 
+
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY> template <typename SubBlockType>
+void Block<Elements, ThreadsX, ThreadsY>::merge_haplotype(const SubBlockType& sub_block)
+{
+    const size_t start_col = _splittable_cols[sub_block.index() + _first_splittable];            
+    const size_t end_col   = _splittable_cols[sub_block.index() + _first_splittable + 1];        
+    size_t sub_haplo_idx   = 0;                             // Haplo idx in sub block
+    bool   flip_all        = false;                         // If we need to flip all the bits 
+  
+    if (sub_block.index() == 0) _last_aligned = sub_block.base_start_row() - 2;
+
+    // Check if we need to flip all bits
+    if (_haplo_one.get(start_col) != sub_block.haplo_one().get(0) && !is_monotone(start_col))
+        flip_all = true;
+    
+    // Go over all the columns and set the haplotypes 
+    for (size_t col_idx = start_col; col_idx <= end_col; ++ col_idx) {
+        // First check if the column is a monotone column, then the solution to the column's value
+        if (is_monotone(col_idx)) {
+            _haplo_one.set(col_idx, operator()(_snp_info[col_idx].start_index(), col_idx));
+            _haplo_two.set(col_idx, operator()(_snp_info[col_idx].start_index(), col_idx));
+        } else {
+            // We need to get the solution from the sub block, but first check if this is a flipped column
+            if ((_flipped_cols.find(col_idx) != _flipped_cols.end() && !flip_all) || flip_all) {
+                // We flip the bits from the haplotype
+                _haplo_one.set(col_idx, !sub_block.haplo_one().get(sub_haplo_idx));
+                _haplo_two.set(col_idx, !sub_block.haplo_two().get(sub_haplo_idx));
+                ++sub_haplo_idx;
+            } else {
+                // We don't need to flip any of the bits
+                _haplo_one.set(col_idx, sub_block.haplo_one().get(sub_haplo_idx));
+                _haplo_two.set(col_idx, sub_block.haplo_two().get(sub_haplo_idx));
+                ++sub_haplo_idx;  
+            }   
+        }
+    }
+    
+    // Go over all the rows and set the alignments
+    const size_t start_row = _last_aligned;
+    std::cout << "SR: " << start_row << " ER: " << start_row + sub_block.reads() << "\n";
+    
+    for (size_t row_idx = start_row; row_idx < start_row + sub_block.reads(); ++row_idx, ++_last_aligned) {
+        // If we don't need to flip the bits
+        if (!flip_all) 
+            _alignments.set(row_idx, sub_block.alignments().get(row_idx - start_row));
+        else 
+            _alignments.set(row_idx, !sub_block.alignments().get(row_idx - start_row));
+    }
+}
+    
 
 // ------------------------------------------------- PRIVATE ------------------------------------------------
 

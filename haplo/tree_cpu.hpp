@@ -273,6 +273,10 @@ void Tree<SubBlockType, devices::cpu>::explore()
     // Make sure there is enough memory for another level of nodes
     node_manager.add_node_level(2);
     
+    // Check that the haplotypes have enough memory
+    if (_sub_block._haplo_one.size() < _sub_block._cols) _sub_block._haplo_one.resize(_sub_block._cols);
+    if (_sub_block._haplo_two.size() < _sub_block._cols) _sub_block._haplo_two.resize(_sub_block._cols);
+    
     // Search the sutrees, start with 2 subtrees -- this runs until the solution is found
     search_subnodes<BranchCores, OpCores>(node_manager, node_selector, bound_calculator, min_ubound, 1, 2);
     
@@ -303,7 +307,7 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
   
     min_lbound = std::numeric_limits<size_t>::max();                            // Set LB 
     
-    //std::cout << "Searching!\n";
+    std::cout << "Searching -- " << search_idx << " -- " << num_subnodes << "\n";
     
     // Get the index of the 
     tbb::parallel_for(

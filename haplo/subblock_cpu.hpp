@@ -37,6 +37,7 @@ private:
     size_t              _cols;              //!< The number of columns in the sub block
     size_t              _rows;              //!< The number of rows in the sub block 
     size_t              _elements;          //!< The number of elements in the sub block
+    size_t              _base_start_row;    //!< The start row of the subblock in the base block
     
     binary_vector       _data;              //!< The data for the block
     binary_vector       _haplo_one;         //!< The first haplotype
@@ -78,6 +79,16 @@ public:
     /// @param[in]  col_idx     The index of the column of the element
     // ------------------------------------------------------------------------------------------------------
     inline uint8_t operator()(const size_t row_idx, const size_t col_idx) const ;
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of the sub block
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t index() const { return _index; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the number of reads that make up the sub block
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t reads() const { return _rows; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a constant reference to the tree for the block
@@ -100,6 +111,26 @@ public:
     // ------------------------------------------------------------------------------------------------------
     void print_haplotypes() const;
 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      A reference to the first haplotype
+    // ------------------------------------------------------------------------------------------------------
+    inline const binary_vector& haplo_one() const { return _haplo_one; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      A reference to the second haplotype 
+    // ------------------------------------------------------------------------------------------------------
+    inline const binary_vector& haplo_two() const { return _haplo_two; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      A reference to the alignments
+    // ------------------------------------------------------------------------------------------------------
+    inline const binary_vector& alignments() const { return _alignments; }
+ 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the start row of the sub block in the base block 
+    // ------------------------------------------------------------------------------------------------------
+    inline size_t base_start_row() const { return _rows; }
+    
     // ------------------------------------------------------------------------------------------------------
     /// @brief      prints the subblock
     // ------------------------------------------------------------------------------------------------------
@@ -176,6 +207,7 @@ SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock&
   _cols(block.subblock(index + 1) - block.subblock(index) + 1)          ,
   _rows(0)                                                              ,                        
   _elements(0)                                                          ,
+  _base_start_row(0)                                                    ,
   _data(0)                                                              ,
   _tree(*this, block.subblock(index + 1) - block.subblock(index) + 1)   ,
   _read_info(0)                                                 
@@ -229,22 +261,21 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::print_haplotypes() c
 template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY> 
 void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::fill()
 {
-    size_t offset = 0; size_t monos_found = 0;
+    size_t offset = 0; size_t monos_found = 0; bool first_row_set = false;
     std::vector<size_t> mono_weights(base_end_index() - base_start_index() + 1);
     
     for (size_t col_idx = base_start_index(); col_idx <= base_end_index(); ++col_idx) {
         if (base_block()->is_monotone(col_idx)) ++monos_found;
         mono_weights[col_idx - base_start_index()] = monos_found;
     }
-    // Subtract the number of monotone columns from the total columns
-    _cols -= monos_found;
+    _cols -= monos_found;       // Subtract the number of montone columns from the total columns
     
     // Go over each of the data rows and check for singularity
     for (size_t row_idx = 0; row_idx < base_block()->reads(); ++row_idx) {
         // If the row is part of this subblock
         if (base_block()->read_info(row_idx).start_index() >= base_start_index() &&
             base_block()->read_info(row_idx).end_index()   <= base_end_index()    ) {
-            
+
             // Determine the parameters of the read
             auto read_length = base_block()->read_info(row_idx).length();
 
@@ -254,6 +285,12 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::fill()
                 offset = add_elements(row_idx, read_length, mono_weights, offset);
                 _elements += _read_info[_rows].length();
                 ++_rows;
+                
+                // Check if we found the first row
+                if (!first_row_set && offset > 0) 
+                    first_row_set = true;
+                else if (!first_row_set)
+                    ++_base_start_row;
             }
         }
     }
