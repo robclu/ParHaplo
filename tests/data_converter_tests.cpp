@@ -23,18 +23,22 @@ static constexpr const char* input_2    = "input_files/input_simulated_2.txt";
 static constexpr const char* input_3    = "input_files/input_simulated_3.txt";
 static constexpr const char* input_4    = "input_files/input_simulated_4.txt";
 static constexpr const char* input_5    = "input_files/input_simulated_5.txt";
-static constexpr const char* input_6    = "input_files/input_dataset_1.txt";
-static constexpr const char* input_7    = "input_files/input_dataset_2.txt";
+static constexpr const char* input_6    = "input_files/input_simulated_6.txt";
+static constexpr const char* input_7    = "input_files/input_dataset_1.txt";
+static constexpr const char* input_8    = "input_files/input_dataset_2.txt";
 static constexpr const char* output_1   = "output_files/output_simulated_1.txt";
 static constexpr const char* output_2   = "output_files/output_simulated_2.txt";
 static constexpr const char* output_3   = "output_files/output_simulated_3.txt";
 static constexpr const char* output_4   = "output_files/output_simulated_4.txt";
 static constexpr const char* output_5   = "output_files/output_simulated_5.txt";
-static constexpr const char* output_6   = "output_files/output_dataset_1.txt";
+static constexpr const char* output_6   = "output_files/output_simulated_6.txt";
+static constexpr const char* output_7   = "output_files/output_dataset_1.txt";
 static constexpr const char* answer_letters_4    = "input_files/input_simulated_4_answer.txt";
 static constexpr const char* answer_letters_5    = "input_files/input_simulated_5_answer.txt";
-static constexpr const char* answer_binary_4    = "output_files/output_simulated_4_answer.txt";
-static constexpr const char* answer_binary_5    = "output_files/ouput_simulated_5_answer.txt";
+static constexpr const char* answer_letters_6    = "input_files/input_simulated_6_answer.txt";
+static constexpr const char* answer_binary_4     = "output_files/output_simulated_4_answer.txt";
+static constexpr const char* answer_binary_5     = "output_files/output_simulated_5_answer.txt";
+static constexpr const char* answer_binary_6     = "output_files/output_simulated_6_answer.txt";
 
 BOOST_AUTO_TEST_SUITE( DataConverterSuite )
 
@@ -42,10 +46,10 @@ BOOST_AUTO_TEST_SUITE( DataConverterSuite )
 BOOST_AUTO_TEST_CASE( canCreateDataConverter )
 {
     
-    std::vector<const char*> inputs = {input_1, input_2, input_3, input_4, input_5};
-    std::vector<const char*> outputs = {output_1, output_2, output_3, output_4, output_5};
-    std::vector<const char*> answers_letters = {answer_letters_4, answer_letters_5};
-    std::vector<const char*> answers_binary = {answer_binary_4, answer_binary_5};
+    std::vector<const char*> inputs = {input_1, input_2, input_3, input_4, input_5, input_6};
+    std::vector<const char*> outputs = {output_1, output_2, output_3, output_4, output_5, output_6};
+    std::vector<const char*> answers_letters = {answer_letters_4, answer_letters_5, answer_letters_6};
+    std::vector<const char*> answers_binary = {answer_binary_4, answer_binary_5, answer_binary_6};
 
 
     for(size_t i = 0; i < inputs.size(); ++i){
@@ -73,7 +77,7 @@ BOOST_AUTO_TEST_CASE( canCreateDataConverter )
         std::vector<char> input_string;
         std::vector<size_t> output_value;
         
-        if(i == 3 || i == 4){
+        if(i >= 3){
             
             std::ifstream infile(answers_letters.at(i-3));
             std::ofstream outfile(answers_binary.at(i-3));
@@ -204,14 +208,14 @@ BOOST_AUTO_TEST_CASE( canMapCharToBinary )
 
 BOOST_AUTO_TEST_CASE( canConvertDataset )
 {
-    haplo::DataConverter converter(input_6, input_7, output_6);
+    haplo::DataConverter converter(input_7, input_8, output_7);
     //converter.print_dataset();
 }
 
 // Check all cases of cigar value are processed properly
 BOOST_AUTO_TEST_CASE( canProcessCigarValue )
 {
-    haplo::DataConverter converter(input_6, input_7, output_6);
+    haplo::DataConverter converter(input_7, input_8, output_7);
     // example 1 : mid padding, end in S/H, start and mid M
     size_t start_position = 2;
     size_t end_position = 10;
