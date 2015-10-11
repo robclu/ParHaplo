@@ -156,8 +156,8 @@ template <typename FriendType>
 class Processor<FriendType, proc::col_dups_links, devices::cpu> {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
-    using tree_type     = Tree<devices::cpu>;
     using friend_type   = FriendType;
+    using tree_type     = Tree<friend_type, devices::cpu>;
     // ------------------------------------------------------------------------------------------------------
 private:
     friend_type&     _friend;           //!< The friend class this class has access to to process
@@ -230,7 +230,7 @@ void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const
         }
     );
     // Set the weight of the node in the tree to be the multiplicity
-    _tree.node_weight(col_idx) = multiplicity;
+    _tree.node(col_idx).weight() = multiplicity;
 }
 
 template <typename FriendType>
@@ -275,7 +275,7 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                                     link_created = true;
                                 }
                                 // Optimal if the values are the same
-                                _tree.link<links::homo>(col_idx_left, col_idx_right)
+                                _tree.link(col_idx_left, col_idx_right).homo_weight()
                                 += _friend._row_multiplicities[row_idx];
                             }
                         } else if (value_left != value_right) {
@@ -288,7 +288,7 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                                     link_created = true;
                                 }
                                 // Optimal if the values are opposite
-                                _tree.link<links::hetro>(col_idx_left, col_idx_right)
+                                _tree.link(col_idx_left, col_idx_right).hetro_weight()
                                 += _friend._row_multiplicities[row_idx];
                             }                            
                         }
@@ -303,12 +303,13 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                                         _tree.link_min(col_idx_left, col_idx_right);
         
         // Add to their worst case values
-        _tree.node_worst_case(col_idx_left).fetch_and_add(worst_case_value * _tree.node_weight(col_idx_right));
-        _tree.node_worst_case(col_idx_right).fetch_and_add(worst_case_value);
+        _tree.node(col_idx_left).worst_case_value().fetch_and_add(worst_case_value * 
+                                                                  _tree.node(col_idx_right).weight());
+        _tree.node(col_idx_right).worst_case_value().fetch_and_add(worst_case_value);
         
         // Check if the right node is the global worst case
-        if (_tree.node_worst_case(col_idx_right) * _tree.node_weight(col_idx_right) > _tree.max_worst_case()) {
-            _tree.max_worst_case()  = _tree.node_worst_case(col_idx_right) * _tree.node_weight(col_idx_right);
+        if (_tree.node(col_idx_right).worst_case_value() * _tree.node(col_idx_right).weight() > _tree.max_worst_case()) {
+            _tree.max_worst_case()  = _tree.node(col_idx_right).worst_case_value() * _tree.node(col_idx_right).weight();
             _tree.start_node()      = col_idx_right;
         }
     }

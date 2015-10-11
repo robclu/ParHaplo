@@ -10,71 +10,108 @@
 #include <boost/test/unit_test.hpp>
 #include <iostream>
 
+#include "../haplo/block.hpp"
+#include "../haplo/subblock_cpu.hpp"
 #include "../haplo/tree_cpu.hpp"
+
+static constexpr const char* input_zero = "input_files/input_zero.txt";
 
 BOOST_AUTO_TEST_SUITE( TreeSuite )
     
 BOOST_AUTO_TEST_CASE( canCreateATreeAndGetAndSetLinks )
 {
+    using block_type    = haplo::Block<28, 4, 4>;
+    using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    
+    block_type      block(input_zero);
+    subblock_type   sub_block(block, 2); 
+    
     // Create a tree with 12 nodes
-    haplo::Tree<haplo::devices::cpu> tree(12);
+    haplo::Tree<subblock_type, haplo::devices::cpu> tree(sub_block, 12);
 
     tree.create_link(0, 1);
     tree.create_link(0, 2);
     tree.create_link(0, 3);
     
-    tree.link<haplo::links::homo>(0, 1)  = 5;
-    tree.link<haplo::links::hetro>(0, 1) = 4;
+    tree.link(0, 1).homo_weight()  = 5;
+    tree.link(0, 1).hetro_weight() = 4;
     
-    tree.link<haplo::links::hetro>(0, 3) += 4;
+    tree.link(0, 3).hetro_weight() += 4;
     
-    BOOST_CHECK( tree.link<haplo::links::homo>(0, 1)   == 5 );
-    BOOST_CHECK( tree.link<haplo::links::homo>(1, 0)   == 5 );
-    BOOST_CHECK( tree.link<haplo::links::homo>(0, 2)   == 0 );
-    BOOST_CHECK( tree.link<haplo::links::hetro>(0, 1)  == 4 );
-    BOOST_CHECK( tree.link<haplo::links::hetro>(0, 2)  == 0 );
-    BOOST_CHECK( tree.link<haplo::links::hetro>(0, 3)  == 4 );
-    BOOST_CHECK( tree.link_max(0, 1)                   == 5 );
+    BOOST_CHECK( tree.link(0, 1).homo_weight()  == 5 );
+    BOOST_CHECK( tree.link(1, 0).homo_weight()  == 5 );
+    BOOST_CHECK( tree.link(0, 2).homo_weight()  == 0 );
+    BOOST_CHECK( tree.link(0, 1).hetro_weight() == 4 );
+    BOOST_CHECK( tree.link(0, 2).hetro_weight() == 0 );
+    BOOST_CHECK( tree.link(0, 3).hetro_weight() == 4 );
+    BOOST_CHECK( tree.link_max(0, 1)            == 5 );
+    BOOST_CHECK( tree.link_min(0, 1)            == 4 );
 }
 
 BOOST_AUTO_TEST_CASE( canGetAndSetNodeHaploTypePosition )
 {
+    using block_type    = haplo::Block<28, 4, 4>;
+    using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    
+    block_type      block(input_zero);
+    subblock_type   sub_block(block, 2); 
+    
     // Create a tree with 12 nodes
-    haplo::Tree<haplo::devices::cpu> tree(12);    
+    haplo::Tree<subblock_type, haplo::devices::cpu> tree(sub_block, 12);
     
-    BOOST_CHECK( tree.node_haplo_pos(4) == 4 );
+    BOOST_CHECK( tree.node(4).position() == 4 );
     
-    tree.node_haplo_pos(4) = 12;
+    tree.node(4).position() = 12;
     
-    BOOST_CHECK( tree.node_haplo_pos(4) == 12 );
+    BOOST_CHECK( tree.node(4).position() == 12 );
 }
+
 
 BOOST_AUTO_TEST_CASE( canGetAndSetNodeWeight )
 {
+    using block_type    = haplo::Block<28, 4, 4>;
+    using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    
+    block_type      block(input_zero);
+    subblock_type   sub_block(block, 2); 
+    
     // Create a tree with 12 nodes
-    haplo::Tree<haplo::devices::cpu> tree(12);    
+    haplo::Tree<subblock_type, haplo::devices::cpu> tree(sub_block, 12);
     
-    BOOST_CHECK( tree.node_weight(4) == 1 );
+    BOOST_CHECK( tree.node(4).weight() == 1 );
     
-    tree.node_weight(4) = 12;
+    tree.node(4).weight() = 12;
     
-    BOOST_CHECK( tree.node_weight(4) == 12 );
+    BOOST_CHECK( tree.node(4).weight() == 12 );
 }
 
 BOOST_AUTO_TEST_CASE( canGetAndSetNodeWorstCaseValue )
 {
+    using block_type    = haplo::Block<28, 4, 4>;
+    using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    
+    block_type      block(input_zero);
+    subblock_type   sub_block(block, 2); 
+    
     // Create a tree with 12 nodes
-    haplo::Tree<haplo::devices::cpu> tree(12);    
+    haplo::Tree<subblock_type, haplo::devices::cpu> tree(sub_block, 12); 
     
-    tree.node_worst_case(2) = 12;
+    tree.node(2).worst_case_value() = 12;
     
-    BOOST_CHECK( tree.node_worst_case(2) == 12 );    
-    BOOST_CHECK( tree.node_worst_case(4) == 0  );    
+    BOOST_CHECK( tree.node(2).worst_case_value() == 12 );    
+    BOOST_CHECK( tree.node(4).worst_case_value() == 0  );    
 }
 
 BOOST_AUTO_TEST_CASE( canResizeTree )
 {
-    haplo::Tree<haplo::devices::cpu> tree;
+    using block_type    = haplo::Block<28, 4, 4>;
+    using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    
+    block_type      block(input_zero);
+    subblock_type   sub_block(block, 2); 
+    
+    // Create a tree with 12 nodes
+    haplo::Tree<subblock_type, haplo::devices::cpu> tree(sub_block);  
     
     BOOST_CHECK( tree.size() == 0 );    
     

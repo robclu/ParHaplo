@@ -12,8 +12,9 @@ namespace haplo {
 /// @brief      Holds nodes which can then be searched to find the optimal haplotypes
 /// @tparam     DeviceType  The type of device to use the node on -- so that we can optimize functions for the
 ///             different implementations and so that each one can be excluded from compilation if necessary
+/// @tparam     SubBlockType    The type of the sublock from which this tree is derived
 // ----------------------------------------------------------------------------------------------------------
-template <uint8_t DeviceType>
+template <typename SubBlockType, uint8_t DeviceType>
 class Tree;
 
 }           // End namespace haplo

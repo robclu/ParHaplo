@@ -37,41 +37,41 @@ void atomic_min_update(tbb::atomic<T1>& atomic_var, T2 value)
 /// @brief      Holds nodes which can then be searched to find the optimal haplotypes
 /// @tparam     DeviceType  The type of device to use the node on -- so that we can optimize functions for the
 ///             different implementations and so that each one can be excluded from compilation if necessary
+/// @tparam     SubBlockType    The type of the sublock from which this tree is derived
 // ----------------------------------------------------------------------------------------------------------
-template <>
-class Tree<devices::cpu> {
+template <typename SubBlockType>
+class Tree<SubBlockType, devices::cpu> {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
+    using sub_block_type    = SubBlockType;                             // Type of the subblock
     using node_container    = NodeContainer<devices::cpu>;              // Container for the nodes
     using link_container    = LinkContainer<devices::cpu>;              // Container for the links
     using manager_type      = NodeManager<devices::cpu>;                // Manager for the search nodes
     using bounder_type      = Bounder<devices::cpu>;                    // Bound calculator type
     using selector_type     = NodeSelector<devices::cpu>;               // Node selector type
     using atomic_type       = tbb::atomic<size_t>;
-    using atomic_binvec     = tbb::concurrent_vector<bool>;             // Atomic binary vector
     // ------------------------------------------------------------------------------------------------------
 private:
-    atomic_type         _num_nih;                   //!< Number of NIH columns
+    sub_block_type&     _sub_block;                 //!< The sub-block from which the tree is derived
     atomic_type         _start_node;                //!< The node at which to start the search
     atomic_type         _start_node_worst_case;     //!< The worst case value of the start node
     node_container      _nodes;                     //!< The nodes in the tree
     link_container      _links;                     //!< Links between the nodes of the tree
-    atomic_binvec       _haplo_one;                 //!< The one haplotpye (h)
-    atomic_binvec       _haplo_two;                 //!< The other haplotype (h')
-    atomic_binvec       _alignments;                //!< The alignemnts of the reads
 public:
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Default constructor
+    /// @brief      Basic constructor
+    /// @param[in]  sub_block   The sub_block for which this tree solves the haplotypes
     // ------------------------------------------------------------------------------------------------------
-    Tree() noexcept 
-    : _num_nih(0), _start_node(0), _start_node_worst_case(0), _nodes(0) {}
+    Tree(sub_block_type& sub_block) noexcept 
+    : _sub_block(sub_block), _start_node(0), _start_node_worst_case(0), _nodes(0) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for a tree
-    /// @param[in]  nodes   The number of nodes in the tree
+    /// @param[in]  sub_block   The sub block for which this tree solves teh haplotype
+    /// @param[in]  nodes       The number of nodes in the tree
     // ------------------------------------------------------------------------------------------------------
-    Tree(const size_t nodes) noexcept 
-    : _num_nih(0), _start_node(0), _start_node_worst_case(0), _nodes(nodes) {}
+    Tree(sub_block_type& sub_block, const size_t nodes) noexcept 
+    : _sub_block(sub_block), _start_node(0), _start_node_worst_case(0), _nodes(nodes) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Desctructor
@@ -112,6 +112,12 @@ public:
     inline const node_container& nodes() const { return _nodes; }
 
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the links of the tree
+    /// @return     The links for  the tree
+    // ------------------------------------------------------------------------------------------------------
+    inline const link_container& links() const { return _links; }
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Creates a link for the tree
     /// @param[in]  node_idx_lower    The index of the lower node (index with a lower value)
     /// @param[in]  node_idx_upper    The index of the upper node (index with a higher value)    
@@ -120,21 +126,6 @@ public:
     {
         _links.insert(node_idx_lower, node_idx_upper);
     }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the links of the tree
-    /// @return     The links for  the tree
-    // ------------------------------------------------------------------------------------------------------
-    inline const link_container& links() const { return _links; }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the link between two nodes of the tree
-    /// @param[in]  node_idx_lower    The index of the lower node (index with a lower value)
-    /// @param[in]  node_idx_upper    The index of the upper node (index with a higher value)
-    /// @tparam     LinkType          The type of the link to get
-    // ------------------------------------------------------------------------------------------------------
-    template <uint8_t LinkType>
-    inline atomic_type& link(const size_t node_idx_lower, const size_t node_idx_upper);
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the link between two nodes of the tree
@@ -145,7 +136,16 @@ public:
     {
         return _links.at(node_idx_lower, node_idx_upper);
     }
-    
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the link between two nodes of the tree
+    /// @param[in]  node_idx_lower    The index of the lower node (index with a lower value)
+    /// @param[in]  node_idx_upper    The index of the upper node (index with a higher value)
+    // ------------------------------------------------------------------------------------------------------    
+    inline const Link& link(const size_t node_idx_lower, const size_t node_idx_upper) const
+    {
+        return _links.at(node_idx_lower, node_idx_upper);
+    }
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the max of a link between two nodes of the tree
     /// @param[in]  node_idx_one    The index of the one of the nodes
@@ -179,56 +179,12 @@ public:
     inline const Node& node(const size_t idx) const { return _nodes[idx]; }
     
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the weight of a node 
-    /// @param[in]  idx     The index of the node
-    /// @return     The weight of the node at the index
-    // ------------------------------------------------------------------------------------------------------
-    inline atomic_type& node_weight(const size_t idx) { return _nodes.weight(idx); }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the worst case value of a node
-    /// @param[in]  idx     The index of the node
-    /// @return     The worst case value of the node at the index
-    // ------------------------------------------------------------------------------------------------------
-    inline atomic_type& node_worst_case(const size_t idx) { return _nodes.worst_case_value(idx); }
-
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the worst case value of a node
-    /// @param[in]  idx     The index of the node
-    /// @return     The worst case value of the node at the index
-    // ------------------------------------------------------------------------------------------------------
-    inline atomic_type node_worst_case(const size_t idx) const { return _nodes.worst_case_value(idx); }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the haplotype position of a node -- the position in the haplotype a node represents
-    /// @param[in]  node_idx    The index of the node to get the haplotype position of
-    /// @return     The position the node represents in the haplotype
-    // ------------------------------------------------------------------------------------------------------
-    inline atomic_type& node_haplo_pos(const size_t node_idx) { return _nodes.haplo_pos(node_idx); }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the weight of a node 
-    /// @param[in]  idx     The index of the node
-    /// @return     The weight of the node at the index
-    // ------------------------------------------------------------------------------------------------------
-    inline const atomic_type& node_weight(const size_t idx) const { return _nodes.weight(idx); }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets the haplotype position of a node -- the position in the haplotype a node represents
-    /// @param[in]  node_idx    The index of the node to get the haplotype position of
-    /// @return     The position the node represents in the haplotype
-    // ------------------------------------------------------------------------------------------------------
-    inline const atomic_type& node_haplo_pos(const size_t node_idx) const { return _nodes.haplo_pos(node_idx); }
-    
-    // ------------------------------------------------------------------------------------------------------
     /// @brief      Searches the tree for the best solution 
-    /// @param[in]  min_upper_bound The min (or starting) upper bound
-    /// @param[in]  num_nih         The number of NIH columns (that don't need ot be searched)
     /// @tparam     BranchCores     The number of cores available for parallel brach search
     /// @tparam     OpCores         The number of cores available for the operations
     // ------------------------------------------------------------------------------------------------------
     template <size_t BranchCores, size_t OpCores>
-    void explore(const size_t max_upped_bound, const size_t num_nih);
+    void explore();
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Converts the solution into a binary vector from the unordered nodes
@@ -255,30 +211,16 @@ private:
 
 // -------------------------------------- IMPLEMENTATIONS ---------------------------------------------------
 
-template <>
-inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::homo>(const size_t node_idx_lower, 
-                                                                  const size_t node_idx_upper)
-{
-    return _links.at(node_idx_lower, node_idx_upper).homo_weight();
-}
-
-template <>
-inline tbb::atomic<size_t>& Tree<devices::cpu>::link<links::hetro>(const size_t node_idx_lower, 
-                                                                   const size_t node_idx_upper)
-{
-    return _links.at(node_idx_lower, node_idx_upper).hetro_weight();
-}
-
-template <size_t BranchCores, size_t OpCores>
-void Tree<devices::cpu>::explore(const size_t min_upper_bound, const size_t num_nih) 
+template <typename SubBlockType> template <size_t BranchCores, size_t OpCores>
+void Tree<SubBlockType, devices::cpu>::explore() 
 {  
     manager_type    node_manager(_nodes.num_nodes());                           // Create a node manager
     selector_type   node_selector(_nodes, _links, _start_node);                 // Create a node selector
     bounder_type    bound_calculator(_nodes, _links, node_manager.nodes());     // Create a bound calculator
     atomic_type     min_ubound{0};                                              // Starting min upper bound
     
-    // Set the upper bound and the number of NIH columns (nodes)
-    min_ubound = min_upper_bound; _num_nih = num_nih;
+    // Set the starting upper bound 
+    min_ubound = _sub_block._elements;
     
     // DEBUGGING for the moment
     std::cout << " - - - - - - - EXPLORING TREE - - - - - - -\n";
@@ -292,7 +234,7 @@ void Tree<devices::cpu>::explore(const size_t min_upper_bound, const size_t num_
     std::cout << "SN : " << _start_node << "\n";
     
     // Start node's upper bound is the total number of elements 
-    root_node.upper_bound() = min_upper_bound - _nodes[0].elements(); root_node.lower_bound() = 0;
+    root_node.upper_bound() = min_ubound - _nodes[0].elements(); root_node.lower_bound() = 0;
   
     std::cout << "SUB : " << root_node.upper_bound() << "\n";
     
@@ -315,8 +257,8 @@ void Tree<devices::cpu>::explore(const size_t min_upper_bound, const size_t num_
     search_subnodes<BranchCores, OpCores>(node_manager, node_selector, bound_calculator, min_ubound, 1, 2);
 }
 
-template <size_t BranchCores, size_t OpCores>
-size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , selector_type& node_selector   , 
+template <typename SubBlockType> template <size_t BranchCores, size_t OpCores>
+size_t Tree<SubBlockType, devices::cpu>::search_subnodes(manager_type&  node_manager     , selector_type& node_selector   , 
                                            bounder_type&  bound_calculator , atomic_type&   min_ubound      ,
                                            const size_t   start_index      , const size_t   num_subnodes    )
 {
@@ -354,9 +296,9 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
                     
                     std::cout << node_idx << " " << node.lower_bound() << " " << node.upper_bound() << 
                          " " << _nodes[search_idx].elements() << " BNDS\n";
-                    
+                    const size_t last_idx = node_selector.last_search_index() - _sub_block._nim_nih - 1;
                     // If the node is not going to be printed, then create children
-                    if (node.lower_bound() <= min_ubound && search_idx != node_selector.last_search_index() - 1) {
+                    if (node.lower_bound() <= min_ubound && search_idx < last_idx) {
                         size_t left_child_idx = node_manager.get_next_node();
                         auto& left_child  = node_manager.node(left_child_idx);
                         auto& right_child = node_manager.node(left_child_idx + 1);
@@ -387,7 +329,7 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
     std::cout << "LI : " << node_selector.last_search_index() << "\n";
     
     // If we do not have a terminating case, then we must recurse
-    if (num_branches > 2 && search_idx != node_selector.last_search_index() - _num_nih - 1) {
+    if (num_branches > 2 && search_idx != node_selector.last_search_index() - _sub_block._num_nih - 1) {
         // Make sure that we have enough space for the next level of nodes
         node_manager.add_node_level(num_branches);
         
@@ -402,24 +344,25 @@ size_t Tree<devices::cpu>::search_subnodes(manager_type&  node_manager     , sel
     _nodes[search_idx].set_haplo_value(node_manager.node(best_index).type());
    
     std::cout << "Index      : "  << haplo_idx << "\n";
-    std::cout << "Num NIH    : "  << _num_nih  << "\n";
+    std::cout << "Num NIH    : "  << _sub_block._num_nih  << "\n";
     std::cout << "Best Value : "  << static_cast<unsigned>(node_manager.node(best_index).type()) << "\n";
     std::cout << "\n";
     return node_manager.node(best_index).root();
 }
 
-void Tree<devices::cpu>::format_haplotypes() 
+template <typename SubBlockType>
+void Tree<SubBlockType, devices::cpu>::format_haplotypes() 
 {
     // Go through the nodes and put the correct position into the binary vector 
-    _haplo_one.resize(_nodes.num_nodes()); _haplo_two.resize(_nodes.num_nodes());
+    _sub_block._haplo_one.resize(_nodes.num_nodes()); _sub_block._haplo_two.resize(_nodes.num_nodes());
     
     for (auto& node : _nodes.nodes()) {
-        if (node.type() == 1) {                                             // Node is IH
-            _haplo_one[node.position()] = node.haplo_value();
-            _haplo_two[node.position()] = !node.haplo_value();
+        if (node.type() == 1) {                                                 // Node is IH
+            _sub_block._haplo_one.set(node.position(),  node.haplo_value());
+            _sub_block._haplo_two.set(node.position(), !node.haplo_value());
         } else {                                                            // Node is NIH
-            _haplo_one[node.position()] = node.haplo_value();
-            _haplo_two[node.position()] = node.haplo_value();            
+            _sub_block._haplo_one.set(node.position(), node.haplo_value());
+            _sub_block._haplo_two.set(node.position(), node.haplo_value());            
         }
     }
 }

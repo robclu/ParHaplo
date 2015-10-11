@@ -107,14 +107,14 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateRowsInInput )
     auto tree = sub_block.tree();
    
     // The node weights are the column multiplicities
-    BOOST_CHECK( tree.node_weight(0) == 1 );
-    BOOST_CHECK( tree.node_weight(1) == 1 );
-    BOOST_CHECK( tree.node_weight(2) == 1 );
+    BOOST_CHECK( tree.node(0).weight() == 1 );
+    BOOST_CHECK( tree.node(1).weight() == 1 );
+    BOOST_CHECK( tree.node(2).weight() == 1 );
     
     // The worst case values are the links between the nodes
-    BOOST_CHECK( tree.node_worst_case(0) == 3 );
-    BOOST_CHECK( tree.node_worst_case(1) == 3 );
-    BOOST_CHECK( tree.node_worst_case(2) == 4 );
+    BOOST_CHECK( tree.node(0).worst_case_value() == 3 );
+    BOOST_CHECK( tree.node(1).worst_case_value() == 3 );
+    BOOST_CHECK( tree.node(2).worst_case_value() == 4 );
 }
 
 BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
@@ -144,17 +144,17 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
     // Get the tree which the block created
     auto tree = sub_block.tree();
   
-    BOOST_CHECK( tree.node_weight(0) == 2 );
-    BOOST_CHECK( tree.node_weight(1) == 1 );
-    BOOST_CHECK( tree.node_weight(2) == 2 );
-    BOOST_CHECK( tree.node_weight(3) == 1 );
-    BOOST_CHECK( tree.node_weight(4) == 1 );
+    BOOST_CHECK( tree.node(0).weight() == 2 );
+    BOOST_CHECK( tree.node(1).weight() == 1 );
+    BOOST_CHECK( tree.node(2).weight() == 2 );
+    BOOST_CHECK( tree.node(3).weight() == 1 );
+    BOOST_CHECK( tree.node(4).weight() == 1 );
     
     // The worst case values are the links between the nodes
     // 1 and 3 are duplicates - we don't care about their values
-    BOOST_CHECK( tree.node_worst_case(0) == 3 );
-    BOOST_CHECK( tree.node_worst_case(2) == 3 );
-    BOOST_CHECK( tree.node_worst_case(4) == 4 );
+    BOOST_CHECK( tree.node(0).worst_case_value() == 3 );
+    BOOST_CHECK( tree.node(1).worst_case_value() == 3 );
+    BOOST_CHECK( tree.node(2).worst_case_value() == 4 );
 }
 
 BOOST_AUTO_TEST_CASE( canFindStartNodeForTree )
