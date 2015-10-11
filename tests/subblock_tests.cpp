@@ -10,14 +10,18 @@
 #include <boost/test/unit_test.hpp>
 
 #include "../haplo/subblock_cpu.hpp"
+#include <chrono>
+
+using namespace std::chrono;
 
 static constexpr const char* input_zero   = "input_files/input_zero.txt";
 static constexpr const char* input_one    = "input_files/input_one.txt";
 static constexpr const char* input_two    = "input_files/input_two.txt";
 static constexpr const char* input_three  = "input_files/input_three.txt";
+static constexpr const char* input_four  = "input_files/input_four.txt";
 
 BOOST_AUTO_TEST_SUITE( SubBlockSuite )
-/*   
+
 // NOTE: This test doesn't actually test anything, but the outputs of 
 //       the test should show that an out of range exception was thrown
 BOOST_AUTO_TEST_CASE( errorIsThrownForOutOfRangeSubBlock  )
@@ -173,16 +177,25 @@ BOOST_AUTO_TEST_CASE( canFindStartNodeForTree )
     BOOST_CHECK( tree.max_worst_case()  == 6 );
     BOOST_CHECK( tree.start_node()      == 2 );
 }
-*/
+
 BOOST_AUTO_TEST_CASE( canFindHaplotypes )
 {
-    using block_type    = haplo::Block<28, 4, 4>;
+    using block_type    = haplo::Block<1658, 4, 4>;
     using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
     
-    block_type      block(input_zero);
+    block_type      block(input_four);
     subblock_type   sub_block(block, 1);
     
+    // Time the selection
+    high_resolution_clock::time_point start = high_resolution_clock::now();     
+    
     sub_block.find_haplotypes();
+    
+    high_resolution_clock::time_point end = high_resolution_clock::now();
+    duration<double> sort_time = duration_cast<duration<double>>(end - start);
+   
+    std::cout << "Selection time : " << sort_time.count() << "\n";
+    
     sub_block.print_haplotypes();
 }
 

@@ -43,7 +43,7 @@ CXX_LDIR  	    := -L/Users/sashatn/Documents/boost_1_59_0/lib
 # 		--compiler-options -Wall                                                       #
 ########################################################################################
 
-CXX_FLAGS 		:= -std=c++11 -Wall -g
+CXX_FLAGS 		:= -std=c++11 -Wall -O3
 NXX_FLAGS       := -arch=sm_30
 PXX_FLAGS       :=
 

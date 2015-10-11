@@ -243,7 +243,7 @@ void Tree<SubBlockType, devices::cpu>::explore()
     min_ubound = _sub_block._elements;
     
     // DEBUGGING for the moment
-    std::cout << " - - - - - - - EXPLORING TREE - - - - - - -\n";
+    //std::cout << " - - - - - - - EXPLORING TREE - - - - - - -\n";
    
     // For the first node in the tree                    
     auto& root_node = node_manager.node(0);             // Get the root 
@@ -251,12 +251,12 @@ void Tree<SubBlockType, devices::cpu>::explore()
     root_node.set_type(0);                              // Setting the type to be 0 (a "left" node)
     root_node.left()  = 1; root_node.right() = 2;
   
-    std::cout << "SN : " << _start_node << "\n";
+    //std::cout << "SN : " << _start_node << "\n";
     
     // Start node's upper bound is the total number of elements 
     root_node.upper_bound() = min_ubound - _nodes[0].elements(); root_node.lower_bound() = 0;
   
-    std::cout << "SUB : " << root_node.upper_bound() << "\n";
+    //std::cout << "SUB : " << root_node.upper_bound() << "\n";
     
     // Pass the upper bounds to the subnodes
     auto& left_node  = node_manager.node(1);
@@ -303,7 +303,7 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
   
     min_lbound = std::numeric_limits<size_t>::max();                            // Set LB 
     
-    std::cout << "Searching!\n";
+    //std::cout << "Searching!\n";
     
     // Get the index of the 
     tbb::parallel_for(
@@ -416,8 +416,8 @@ void Tree<SubBlockType, devices::cpu>::set_alignments()
             }
         ); 
     }
-    for (size_t i = 0; i < _sub_block._alignments.size(); ++i)
-        std::cout << static_cast<unsigned>(_sub_block._alignments.get(i)) << "\n";
+    //for (size_t i = 0; i < _sub_block._alignments.size(); ++i)
+    //    std::cout << static_cast<unsigned>(_sub_block._alignments.get(i)) << "\n";
     
 }
 
