@@ -29,13 +29,13 @@ private:
     atomic_type     _haplo_pos;         //!< The position in the haplotype the node represents
     size_t          _num_elements;      //!< The number of elements in the col the node represents
     uint8_t         _haplo_value;       //!< The value of the haplotype for this position
-    uint8_t         _is_intrin;         //!< If the node is intrinsically heterozygoud
+    uint8_t         _type;              //!< If the node is intrinsically heterozygoud
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor for initialization
     // ------------------------------------------------------------------------------------------------------
     Node() noexcept : 
-    _weight{1}, _worst_case{0}, _haplo_pos{0}, _num_elements(0),_haplo_value{0}, _is_intrin{1} {}
+    _weight{1}, _worst_case{0}, _haplo_pos{0}, _num_elements(0),_haplo_value{0}, _type{0} {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Destructor for node class
@@ -48,7 +48,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     Node(const Node& other) noexcept 
     : _weight(other._weight)            , _worst_case(other._worst_case)   , _haplo_pos(other._haplo_pos)  , 
-      _num_elements(other._num_elements),  _haplo_value(other._haplo_value), _is_intrin(other._is_intrin) {}
+      _num_elements(other._num_elements),  _haplo_value(other._haplo_value), _type(other._type)           {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Move constructor
@@ -60,7 +60,7 @@ public:
       _haplo_pos(std::move(other._haplo_pos))       ,
       _num_elements(std::move(other._num_elements)) ,
       _haplo_value(std::move(other._haplo_value))   ,
-      _is_intrin(std::move(other._is_intrin)) {}
+      _type(std::move(other._type))                 {}
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Copy assigment operator
@@ -70,7 +70,7 @@ public:
     {
         _weight = other.weight()            ; _worst_case = other.worst_case_value(); 
         _haplo_pos = other.position()       ; _num_elements = other.elements();
-        _haplo_value = other.haplo_value()  ; _is_intrin = other.type();
+        _haplo_value = other.haplo_value()  ; _type = other.type();
     }
     
     // ------------------------------------------------------------------------------------------------------
@@ -130,12 +130,12 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      The type of the column -- IH or not IH
     // ------------------------------------------------------------------------------------------------------
-    inline uint8_t type() const { return _is_intrin; };
+    inline uint8_t type() const { return _type; };
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      The type of the column -- IH or not IH
     // ------------------------------------------------------------------------------------------------------
-    inline uint8_t& type() { return _is_intrin; };
+    inline uint8_t& type() { return _type; };
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      The number of elements in the column the node represents

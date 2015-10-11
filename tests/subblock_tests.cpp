@@ -11,12 +11,13 @@
 
 #include "../haplo/subblock_cpu.hpp"
 
-static constexpr const char* input_zero = "input_files/input_zero.txt";
-static constexpr const char* input_one  = "input_files/input_one.txt";
-static constexpr const char* input_two  = "input_files/input_two.txt";
+static constexpr const char* input_zero   = "input_files/input_zero.txt";
+static constexpr const char* input_one    = "input_files/input_one.txt";
+static constexpr const char* input_two    = "input_files/input_two.txt";
+static constexpr const char* input_three  = "input_files/input_three.txt";
 
 BOOST_AUTO_TEST_SUITE( SubBlockSuite )
-   
+/*   
 // NOTE: This test doesn't actually test anything, but the outputs of 
 //       the test should show that an out of range exception was thrown
 BOOST_AUTO_TEST_CASE( errorIsThrownForOutOfRangeSubBlock  )
@@ -154,6 +155,7 @@ BOOST_AUTO_TEST_CASE( canInitializeTreeWhenDuplicateColumnsInInput )
     // 1 and 3 are duplicates - we don't care about their values
     BOOST_CHECK( tree.node(0).worst_case_value() == 3 );
     BOOST_CHECK( tree.node(1).worst_case_value() == 3 );
+    std::cout << tree.node(2).worst_case_value() << "\n";;
     BOOST_CHECK( tree.node(2).worst_case_value() == 4 );
 }
 
@@ -171,18 +173,17 @@ BOOST_AUTO_TEST_CASE( canFindStartNodeForTree )
     BOOST_CHECK( tree.max_worst_case()  == 6 );
     BOOST_CHECK( tree.start_node()      == 2 );
 }
-
+*/
 BOOST_AUTO_TEST_CASE( canFindHaplotypes )
 {
     using block_type    = haplo::Block<28, 4, 4>;
     using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
     
     block_type      block(input_zero);
-    subblock_type   sub_block(block, 0);
-
-    sub_block.print();
+    subblock_type   sub_block(block, 1);
     
     sub_block.find_haplotypes();
+    sub_block.print_haplotypes();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

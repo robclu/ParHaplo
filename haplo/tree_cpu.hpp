@@ -14,13 +14,7 @@
 #include <limits>
 
 namespace haplo {
-namespace links {
     
-static constexpr uint8_t homo   = 0x00;
-static constexpr uint8_t hetro  = 0x01;
-
-}               // End namespace links
-
 // Update atomic varibale to min
 template <typename T1, typename T2>
 void atomic_min_update(tbb::atomic<T1>& atomic_var, T2 value)
@@ -185,11 +179,6 @@ public:
     // ------------------------------------------------------------------------------------------------------
     template <size_t BranchCores, size_t OpCores>
     void explore();
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Converts the solution into a binary vector from the unordered nodes
-    // ------------------------------------------------------------------------------------------------------
-    void format_haplotypes();
 private:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Moves down the sub-nodes of the current root node of a subtree tree
@@ -207,12 +196,43 @@ private:
     size_t search_subnodes(manager_type&  node_manager, selector_type& node_selector  ,
                            bounder_type&  bounder     , atomic_type&   min_upper_bound,
                            const size_t   start_index , const size_t   num_subnodes );
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the aligments after setting the haplotypes
+    /// @tparam     BranchCores     The number of cores available for parallel brach search
+    /// @tparam     OpCores         The number of cores available for the operations
+    // ------------------------------------------------------------------------------------------------------
+    template <size_t BranchCores, size_t OpCores>
+    void set_alignments();
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the values of the NIH columns
+    /// @tparam     BranchCores     The number of cores available for parallel brach search
+    /// @tparam     OpCores         The number of cores available for the operations
+    // ------------------------------------------------------------------------------------------------------
+    template <size_t BranchCores, size_t OpCores>
+    void determine_nih_nodes();
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Updates the counts for which NIH values are best
+    /// @param[in]  counts      The counts of the respective options
+    /// @param[in]  row_idx     The row index to check against
+    /// @param[in]  elem_value  The valu of the element in the sub block at the haplo index and row index
+    // ------------------------------------------------------------------------------------------------------
+    void update_nih_count(size_t* counts, const size_t row_idx, const uint8_t elem_value);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Sets the values of the haplotype at the NIH columns 
+    /// @param[in]  haplo_idx   The index of the haplotype to set
+    /// @param[in]  value       The value to set the haplotype to 
+    // ------------------------------------------------------------------------------------------------------
+    void set_haplo_nih_result(const size_t haplo_idx, const size_t value);
 };
 
 // -------------------------------------- IMPLEMENTATIONS ---------------------------------------------------
 
 template <typename SubBlockType> template <size_t BranchCores, size_t OpCores>
-void Tree<SubBlockType, devices::cpu>::explore() 
+void Tree<SubBlockType, devices::cpu>::explore()
 {  
     manager_type    node_manager(_nodes.num_nodes());                           // Create a node manager
     selector_type   node_selector(_nodes, _links, _start_node);                 // Create a node selector
@@ -228,7 +248,7 @@ void Tree<SubBlockType, devices::cpu>::explore()
     // For the first node in the tree                    
     auto& root_node = node_manager.node(0);             // Get the root 
     root_node.set_index(_start_node);                   // Set the index of the root node
-    root_node.set_value(0);                             // Setting the value to 0
+    root_node.set_type(0);                              // Setting the type to be 0 (a "left" node)
     root_node.left()  = 1; root_node.right() = 2;
   
     std::cout << "SN : " << _start_node << "\n";
@@ -247,7 +267,7 @@ void Tree<SubBlockType, devices::cpu>::explore()
     right_node.upper_bound() = root_node.upper_bound(); right_node.lower_bound() = 0;
     
     // Make left and right point back to root so that we can go backwards out of the recursion
-    left_node.root() = 0; right_node.root() = 0;
+    left_node.root() = 0 ; right_node.root() = 0;
     left_node.set_type(0); right_node.set_type(1);
     
     // Make sure there is enough memory for another level of nodes
@@ -255,10 +275,20 @@ void Tree<SubBlockType, devices::cpu>::explore()
     
     // Search the sutrees, start with 2 subtrees -- this runs until the solution is found
     search_subnodes<BranchCores, OpCores>(node_manager, node_selector, bound_calculator, min_ubound, 1, 2);
+    
+    // Set the value in the haplotype
+    _sub_block._haplo_one.set(_nodes[0].position(), 0); _sub_block._haplo_two.set(_nodes[0].position(), 1);
+    
+    // Set all the alignments 
+    set_alignments<BranchCores, OpCores>();
+    
+    // Determine the values of all the NIH columns
+    if (_sub_block._num_nih > 0) determine_nih_nodes<BranchCores, OpCores>();
 }
 
 template <typename SubBlockType> template <size_t BranchCores, size_t OpCores>
-size_t Tree<SubBlockType, devices::cpu>::search_subnodes(manager_type&  node_manager     , selector_type& node_selector   , 
+size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
+                                           manager_type&  node_manager     , selector_type& node_selector   , 
                                            bounder_type&  bound_calculator , atomic_type&   min_ubound      ,
                                            const size_t   start_index      , const size_t   num_subnodes    )
 {
@@ -271,9 +301,9 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(manager_type&  node_man
     const size_t search_idx   = node_selector.select_node();                    // Index in node array
     const size_t haplo_idx    = _nodes[search_idx].position();                  // Haplo var index
   
-    std::cout << search_idx << "\n";
-    
     min_lbound = std::numeric_limits<size_t>::max();                            // Set LB 
+    
+    std::cout << "Searching!\n";
     
     // Get the index of the 
     tbb::parallel_for(
@@ -294,9 +324,8 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(manager_type&  node_man
                     node.upper_bound() -= (_nodes[search_idx].elements() - bounds.lower);
                     node.lower_bound() += bounds.lower;
                     
-                    std::cout << node_idx << " " << node.lower_bound() << " " << node.upper_bound() << 
-                         " " << _nodes[search_idx].elements() << " BNDS\n";
-                    const size_t last_idx = node_selector.last_search_index() - _sub_block._nim_nih - 1;
+                    const size_t last_idx = node_selector.last_search_index() - _sub_block._num_nih - 1;
+                    
                     // If the node is not going to be printed, then create children
                     if (node.lower_bound() <= min_ubound && search_idx < last_idx) {
                         size_t left_child_idx = node_manager.get_next_node();
@@ -323,10 +352,6 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(manager_type&  node_man
             }
         }
     );
-   
-    std::cout << "UB : " << min_ubound << "\n";
-    std::cout << "LB : " << min_lbound << "\n";
-    std::cout << "LI : " << node_selector.last_search_index() << "\n";
     
     // If we do not have a terminating case, then we must recurse
     if (num_branches > 2 && search_idx != node_selector.last_search_index() - _sub_block._num_nih - 1) {
@@ -340,30 +365,144 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(manager_type&  node_man
                                                            start_index + num_subnodes   , 
                                                            num_branches                 );
     } 
-    // Otherwise set the best value in the haplo node
-    _nodes[search_idx].set_haplo_value(node_manager.node(best_index).type());
+
+    // Set the haplotypes 
+    _sub_block._haplo_one.set(haplo_idx, node_manager.node(best_index).type());
+    _sub_block._haplo_two.set(haplo_idx, !node_manager.node(best_index).type());
    
-    std::cout << "Index      : "  << haplo_idx << "\n";
-    std::cout << "Num NIH    : "  << _sub_block._num_nih  << "\n";
-    std::cout << "Best Value : "  << static_cast<unsigned>(node_manager.node(best_index).type()) << "\n";
-    std::cout << "\n";
     return node_manager.node(best_index).root();
 }
 
-template <typename SubBlockType>
-void Tree<SubBlockType, devices::cpu>::format_haplotypes() 
+template <typename SubBlockType> template <size_t BranchCores, size_t OpCores>
+void Tree<SubBlockType, devices::cpu>::set_alignments()
 {
-    // Go through the nodes and put the correct position into the binary vector 
-    _sub_block._haplo_one.resize(_nodes.num_nodes()); _sub_block._haplo_two.resize(_nodes.num_nodes());
+    tbb::concurrent_vector<bool> alignment_set(_sub_block._rows);
     
-    for (auto& node : _nodes.nodes()) {
-        if (node.type() == 1) {                                                 // Node is IH
-            _sub_block._haplo_one.set(node.position(),  node.haplo_value());
-            _sub_block._haplo_two.set(node.position(), !node.haplo_value());
-        } else {                                                            // Node is NIH
-            _sub_block._haplo_one.set(node.position(), node.haplo_value());
-            _sub_block._haplo_two.set(node.position(), node.haplo_value());            
+    // The aligments are set based on the order in which the haplotype position values were determined,
+    // so we go through the haplotype nodes and then set the aligments accordingly
+    for (size_t node_idx = 0; node_idx <= _nodes.num_nodes() - _sub_block._num_nih; ++node_idx) {
+        
+        // Get the index of the haplotype, it's value and the number of threads to use
+        const size_t  haplo_idx   = _nodes[node_idx].position();
+        const uint8_t haplo_value = _sub_block._haplo_one.get(haplo_idx);
+        const size_t  elements    = _sub_block._snp_info[haplo_idx].length();
+        const size_t  row_start   = _sub_block._snp_info[haplo_idx].start_index();
+        const size_t  threads     = BranchCores + OpCores > elements ? elements : BranchCores + OpCores;
+        
+        tbb::parallel_for( 
+            tbb::blocked_range<size_t>(0, threads),
+            [&](const tbb::blocked_range<size_t>& thread_ids) 
+            {
+                for (size_t thread_id = thread_ids.begin(); thread_id != thread_ids.end(); ++thread_id) {
+                size_t thread_iters = ops::get_thread_iterations(thread_id, elements, threads); 
+              
+                    for (size_t it = 0; it < thread_iters; ++it) {
+                        size_t row_idx = it * threads + thread_id + row_start;  
+                        
+                        // Check if the data has the same value as the haplotype
+                        if (haplo_value == _sub_block(row_idx, haplo_idx) && 
+                            _sub_block(row_idx, haplo_idx) <= 1           &&
+                            alignment_set[row_idx - row_start] == false    )
+                        {
+                            _sub_block._alignments.set(row_idx, 1); alignment_set[row_idx] = true;
+                        } else if (haplo_value != _sub_block(row_idx, haplo_idx) &&
+                                   _sub_block(row_idx, haplo_idx) <= 1           &&
+                                   alignment_set[row_idx - row_start] == false   )
+                        {
+                            _sub_block._alignments.set(row_idx, 0); alignment_set[row_idx] = true;
+                        }
+                    }
+                }
+            }
+        ); 
+    }
+    for (size_t i = 0; i < _sub_block._alignments.size(); ++i)
+        std::cout << static_cast<unsigned>(_sub_block._alignments.get(i)) << "\n";
+    
+}
+
+template <typename SubBlockType> template <size_t BranchCores, size_t OpCores>
+void Tree<SubBlockType, devices::cpu>::determine_nih_nodes()
+{
+    const size_t threads   = BranchCores + OpCores > _sub_block._num_nih 
+                                ? _sub_block._num_nih : BranchCores + OpCores;
+    const size_t start_idx = _nodes.num_nodes() - _sub_block._num_nih - _sub_block._duplicate_cols.size(); 
+   
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads),
+        [&](const tbb::blocked_range<size_t>& thread_ids)
+        {
+            for (size_t thread_id = thread_ids.begin(); thread_id != thread_ids.end(); ++thread_id) {
+                size_t thread_iters = ops::get_thread_iterations(thread_id, _sub_block._num_nih, threads); 
+              
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    size_t node_idx  = it * threads + thread_id + start_idx;
+                    size_t haplo_idx = _nodes[node_idx].position();
+                    auto&  snp_info  = _sub_block._snp_info[haplo_idx];
+                    
+                    // Make sure this column can be modified
+                    if (snp_info.type() == 1) {
+                        size_t counts[3] = {0, 0, 0};
+                        size_t start = snp_info.start_index(), end = snp_info.end_index();
+                    
+                        for (size_t row_idx = start; row_idx <= end; ++row_idx) {
+                            update_nih_count(counts, row_idx, _sub_block(row_idx, haplo_idx)); 
+                        }
+                        
+                        // Determine the max element
+                        size_t best_result = counts[0] >= counts[1] ? 0 : 1;
+                        best_result = counts[best_result] >= counts[2] ? best_result : 2;
+                        
+                        // Set the results 
+                        set_haplo_nih_result(haplo_idx, best_result);
+                    }
+                }
+            }
         }
+    );
+}
+   
+template <typename SubBlockType>
+void Tree<SubBlockType, devices::cpu>::update_nih_count(size_t*       counts    , 
+                                                        const size_t  row_idx   , 
+                                                        const uint8_t elem_value)
+{
+    switch (elem_value) {
+        case 0:
+            if (_sub_block._alignments.get(row_idx) == 1) {
+                ++counts[0]; ++counts[2];
+            } else {
+               ++counts[0];
+            }
+            break;
+        case 1:
+            if (_sub_block._alignments.get(row_idx) == 0) {
+                ++counts[1]; ++counts[2];
+            } else {
+                ++counts[1];
+            }
+            break;
+        default: break;
+    }
+}
+
+template <typename SubBlockType>
+void Tree<SubBlockType, devices::cpu>::set_haplo_nih_result(const size_t haplo_idx, const size_t value)
+{
+    switch(value) {
+        case 0:
+            _sub_block._haplo_one.set(haplo_idx, 0);
+            _sub_block._haplo_two.set(haplo_idx, 0);
+            break;
+        case 1:
+            _sub_block._haplo_one.set(haplo_idx, 1);
+            _sub_block._haplo_two.set(haplo_idx, 0);            
+            break;
+        case 2:
+            _sub_block._haplo_one.set(haplo_idx, 0);
+            _sub_block._haplo_two.set(haplo_idx, 1);                
+            break;
+        default: break;
     }
 }
 

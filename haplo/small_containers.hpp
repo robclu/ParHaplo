@@ -302,7 +302,7 @@ public:
     // ------------------------------------------------------------------------------------------------------
     inline void resize(const size_t num_elements) 
     { 
-        size_t total_bins       = num_elements / elements_per_bin;
+        size_t total_bins       = num_elements / elements_per_bin + 1;
         size_t current_bins     = _bins;
         
         if (total_bins > current_bins) {

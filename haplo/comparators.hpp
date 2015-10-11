@@ -40,9 +40,11 @@ public:
     // ------------------------------------------------------------------------------------------------------
     bool operator()(const Node& a, const Node& b) const 
     {
-        if (a.type() == 0 && b.type() == 1) return false;                   // A is an NIH column
-        if (a.type() == 1 && b.type() == 0) return true;                    // B is an NIH column
-        if (a.position() == b.position()) return true;                      // Same node
+        if (a.type() == 2) return false;                                        // A is a duplicateDuplicate
+        if (b.type() == 2) return true;                                         // A is a duplicateDuplicate
+        if (a.type() == 1 && b.type() == 0) return false;                       // A is an NIH column
+        if (a.type() == 0 && b.type() == 1) return true;                        // B is an NIH column
+        if (a.position() == b.position()) return true;                          // Same node
         
         bool   a_found = true, b_found = true;
         size_t a_value = 0, b_value = 0, a_min, b_min;

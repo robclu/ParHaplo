@@ -78,7 +78,7 @@ public:
     /// @brief      Sets the type of the snp
     /// @param[in]  value   The value to set the type to
     // ------------------------------------------------------------------------------------------------------
-    inline void set_type(const uint8_t value) { _type = value & 0x01; }
+    inline void set_type(const uint8_t value) { _type = value & 0x03; }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the type of the snp
