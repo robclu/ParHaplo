@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2015/dev/Debian) (preloaded format=pdflatex 2015.8.18)  11 OCT 2015 08:17
+=======
 This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015) (preloaded format=pdflatex 2015.7.22)  11 OCT 2015 17:21
+>>>>>>> bc5eecab48bc60b82ef000664ca2eacda3a29ccf
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -196,8 +200,12 @@ Package: subfigure 2002/03/15 v2.1.5 subfigure package
 (/usr/local/texlive/2015/texmf-dist/tex/latex/url/url.sty
 \Urlmuskip=\muskip11
 Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
+<<<<<<< HEAD
+) (./parahaplo_v1.0.aux)
+=======
 )
 (./parahaplo_v1.0.aux)
+>>>>>>> bc5eecab48bc60b82ef000664ca2eacda3a29ccf
 \openout1 = `parahaplo_v1.0.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 322.
@@ -214,6 +222,12 @@ LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 322.
 LaTeX Font Info:    ... okay on input line 322.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <14> not available
 (Font)              Font shape `OT1/ptm/b/n' tried instead on input line 372.
+<<<<<<< HEAD
+Missing character: There is no â in font ptmb7t!
+Missing character: There is no € in font ptmb7t!
+Missing character: There is no ” in font ptmb7t!
+=======
+>>>>>>> bc5eecab48bc60b82ef000664ca2eacda3a29ccf
 
 No file parahaplo_v1.0.bbl.
 
@@ -234,6 +248,21 @@ Before submitting the final camera ready copy, remember to:
 ]
 (./parahaplo_v1.0.aux) ) 
 Here is how much of TeX's memory you used:
+<<<<<<< HEAD
+ 1956 strings out of 493105
+ 28405 string characters out of 6137072
+ 87793 words of memory out of 5000000
+ 5451 multiletter control sequences out of 15000+600000
+ 32477 words of font info for 62 fonts, out of 8000000 for 9000
+ 1144 hyphenation exceptions out of 8191
+ 27i,8n,24p,210b,301s stack positions out of 5000i,500n,10000p,200000b,80000s
+{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8
+r.enc}</usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/sha
+re/texlive/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/share/texlive/tex
+mf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/t
+ype1/urw/times/utmri8a.pfb>
+Output written on parahaplo_v1.0.pdf (1 page, 51474 bytes).
+=======
  1954 strings out of 493089
  28552 string characters out of 6134842
  86014 words of memory out of 5000000
@@ -247,6 +276,7 @@ e/8r.enc}</usr/local/texlive/2015/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><
 l/texlive/2015/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/
 2015/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
 Output written on parahaplo_v1.0.pdf (1 page, 47247 bytes).
+>>>>>>> bc5eecab48bc60b82ef000664ca2eacda3a29ccf
 PDF statistics:
  25 PDF objects out of 1000 (max. 8388607)
  17 compressed objects within 1 object stream

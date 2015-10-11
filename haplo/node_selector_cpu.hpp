@@ -72,6 +72,9 @@ NodeSelector<devices::cpu>::NodeSelector(node_container&        nodes       ,
     std::iter_swap(nodes.begin(), nodes.begin() + start_node);              // Make the start node the head
     node_comparator comparator(start_node, links);                          // Create a comparator
     _sorter(nodes.begin() + 1, nodes.end(), comparator);                    // Sort the other nodes
+    std::cout << "Sorted!\n";
+    for (auto node : _nodes.nodes())
+        std::cout << node.position() << "\n";
 }
 
  

@@ -21,7 +21,7 @@ public:
     // ------------------------------------------- ALIAS'S --------------------------------------------------`
     using sub_block_type        = SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>;
     using atomic_type           = tbb::atomic<size_t>;
-    using tree_type             = Tree<devices::cpu>;
+    using tree_type             = Tree<sub_block_type, devices::cpu>;
     using binary_vector         = BinaryVector<2>;              
     using atomic_vector         = tbb::concurrent_vector<size_t>;
     using node_container        = NodeContainer<devices::cpu>;
@@ -37,10 +37,15 @@ private:
     size_t              _cols;              //!< The number of columns in the sub block
     size_t              _rows;              //!< The number of rows in the sub block 
     size_t              _elements;          //!< The number of elements in the sub block
+    
     binary_vector       _data;              //!< The data for the block
+    binary_vector       _haplo_one;         //!< The first haplotype
+    binary_vector       _haplo_two;         //!< The second haplotype 
+    binary_vector       _alignments;        //!< The alignments of the haplotypes         
+    tree_type           _tree;              //!< The tree to be solved for the block
+        
     read_info_container _read_info;         //!< The information for each of the reads (rows)
     snp_info_container  _snp_info;          //!< The information for each of the snps (columns)
-    tree_type           _tree;              //!< The tree to be solved for the block
 
     // These variables are for making the processing faster
     concurrent_umap     _duplicate_rows;        //!< Map of duplicate rows 
@@ -50,6 +55,10 @@ private:
     // Friend class that can process rows and columns    
     template <typename FriendType, byte ProcessType, byte DeviceType>
     friend class Processor;
+    
+    // Tree is s friend class so that it can access the data 
+    template <typename SubBlockType, byte DeviceType>
+    friend class Tree;
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for when the size (number of elements) is not given (this is the preferred way
@@ -79,12 +88,17 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Searches the tree to find the haplotypes
     // ------------------------------------------------------------------------------------------------------
-    inline void find_haplotypes() { _tree.explore<ThreadsX, ThreadsY>(_elements, _num_nih); }
+    inline void find_haplotypes() { _tree.template explore<ThreadsX, ThreadsY>(); }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of elements in the subblock
     // ------------------------------------------------------------------------------------------------------
     inline size_t size() const { return _elements; }
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Prints out the haplotypes for the sub-block
+    // ------------------------------------------------------------------------------------------------------
+    void print_haplotypes() const;
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      prints the subblock
@@ -156,15 +170,15 @@ private:
 template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY>
 SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock& block, 
                                                                 const size_t     index) 
-: BaseBlock(block)                                              , 
-  _num_nih(0)                                                   ,
-  _index(index)                                                 , 
-  _cols(block.subblock(index + 1) - block.subblock(index) + 1)  ,
-  _rows(0)                                                      ,                        
-  _elements(0)                                                  ,
-  _data(0)                                                      ,
-  _read_info(0)                                                 ,
-  _tree(block.subblock(index + 1) - block.subblock(index) + 1)
+: BaseBlock(block)                                                      , 
+  _num_nih(0)                                                           ,
+  _index(index)                                                         , 
+  _cols(block.subblock(index + 1) - block.subblock(index) + 1)          ,
+  _rows(0)                                                              ,                        
+  _elements(0)                                                          ,
+  _data(0)                                                              ,
+  _tree(*this, block.subblock(index + 1) - block.subblock(index) + 1)   ,
+  _read_info(0)                                                 
 {
     std::ostringstream error_message;
     error_message   << "Index for unsplittable block past max index\n" 
@@ -183,6 +197,9 @@ SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock&
     _tree.resize(_cols);                                // Resize the tree incase there were monotones
     find_duplicate_rows();                              // Find the duplicate rows and the row mltiplicities
     determine_haplo_links();                            // Find the links between haplotype positions
+    _haplo_one.resize(_cols);                           // Allocate memory for haplo one
+    _haplo_two.resize(_cols);                           // Allocate memory for haplo two
+    _alignments.resize(_rows);                          // Resize the aligments vector
 }
 
 template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY> 
@@ -193,6 +210,19 @@ uint8_t SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::operator()(const 
     return _read_info[row_idx].element_exists(col_idx) == true 
         ? _data.get(_read_info[row_idx].offset() + col_idx - _read_info[row_idx].start_index()) : 0x03; 
 }
+
+template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY> 
+void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::print_haplotypes() const 
+{
+    for (auto i = 0; i < _haplo_one.size() + 6; ++i) std::cout << "-";
+    std::cout << "\nh  : "; 
+    for (auto i = 0; i < _haplo_one.size(); ++i) std::cout << static_cast<unsigned>(_haplo_one.get(i));
+    std::cout << "\nh` : ";
+    for (auto i = 0; i < _haplo_two.size(); ++i) std::cout << static_cast<unsigned>(_haplo_two.get(i));
+    std::cout << "\n";
+    for (auto i = 0; i < _haplo_two.size() + 6; ++i) std::cout << "-";
+}
+
 
 // -------------------------------------------- PRIVATE -----------------------------------------------------
 
@@ -266,6 +296,10 @@ size_t SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::add_elements(
             start_set = true;
         } else if (!start_set && is_mono_col) ++mono_counter;
         
+        // Check to see if the column is NIH
+        if (!is_mono_col && !base_block()->is_intrin_hetro(base_col_idx)) 
+            _snp_info[col_idx].set_type(NIH);
+    
         // Check what value to add to the data
         if (base_elem_val == 0 && !is_mono_col) {
             _data.set(offset++, ZERO);
@@ -329,11 +363,12 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::determine_haplo_link
         _tree.node(col_idx - 1).position() = col_idx - 1;
         _tree.node(col_idx - 1).elements() = _snp_info[col_idx - 1].length();
         
-        // Check if the columns is IH, and set it if necessary
-        if (!base_block()->is_intrin_hetro(col_idx - 1 + base_start_index())) {
-            _tree.node(col_idx - 1).type() = 1;
+        // Check if the column is NIH, and set it if necessary
+        if (_snp_info[col_idx - 1].type() == NIH) {
+            _tree.node(col_idx - 1).type() = NIH;
             ++_num_nih;
         }
+        
         // Process the column with the column processor to determine
         // duplicate columns and initialize the tree links and weights
         col_processor(col_idx - 1);

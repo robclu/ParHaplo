@@ -130,17 +130,11 @@ public:
     /// @brief      The number of reads in the block (total number of rows)
     // ------------------------------------------------------------------------------------------------------
     inline size_t reads() const { return _rows; }
-  
-    void print()
+    
+    void print_types()
     {
-        for (size_t r = 0; r < _rows; ++r) {
-            for (size_t c = 0; c < _cols; ++c) 
-                std::cout << static_cast<unsigned>(operator()(r, c)) << " ";
-            std::cout << "\n";
-        }
-        
-        for (size_t c = 0; c < _cols; ++c) 
-            std::cout << static_cast<unsigned>(_snp_info[c].type()) << " ";
+        for (size_t i = 0; i < _cols; ++i) 
+            std::cout << static_cast<unsigned>(_snp_info.at(i).type()) >> " ";
         std::cout << "\n";
     }
 private:
@@ -333,9 +327,9 @@ void Block<Elements, ThreadsX, ThreadsY>::process_snps()
                     
                     // For each of the elements in the column 
                     for (size_t row_idx = col_info.start_index(); row_idx <= col_info.end_index(); ++row_idx) {
-                        if (_read_info[row_idx].length() > 1 && operator()(row_idx, col_idx) <= 1)
-                            non_single++;
-                        
+                        if (_read_info[row_idx].length() != 1) 
+                            ++non_single;
+                            
                         // Check for the splittable condition
                         if (_read_info[row_idx].start_index() < col_idx && 
                             _read_info[row_idx].end_index()   > col_idx  )
@@ -343,11 +337,9 @@ void Block<Elements, ThreadsX, ThreadsY>::process_snps()
                     }
                   
                     // If the column fits the non-intrinsically heterozygous criteria, change the type
-                    if (!(std::min(col_info.zeros(), col_info.ones()) >= (non_single / 2)) 
-                           && !col_info.is_monotone()) {
+                    if (std::min(col_info.zeros(), col_info.ones()) >= (non_single / 2))
                         col_info.set_type(NIH);
-                    }
-                    
+                        
                     // If there atre more 1's than 0's flip all the bits
                     if (col_info.ones() > col_info.zeros() && !col_info.is_monotone()) 
                         flip_column_bits(col_idx, col_info.start_index(), col_info.end_index());
@@ -393,7 +385,7 @@ void Block<Elements, ThreadsX, ThreadsY>::sort_splittable_cols()
     while (_snp_info[_splittable_cols[_first_splittable]].is_monotone()) ++_first_splittable;
     
     // Check that the last column is in the vector (just some error checking incase)
-    if (_splittable_cols[_splittable_cols.size() - 1] != _cols - 1) 
+    if (_splittable_cols[_splittable_cols.size() - 1] != _cols -1) 
         _splittable_cols.push_back(_cols - 1);
 }
 

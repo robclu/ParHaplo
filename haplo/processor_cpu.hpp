@@ -156,8 +156,8 @@ template <typename FriendType>
 class Processor<FriendType, proc::col_dups_links, devices::cpu> {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
-    using tree_type     = Tree<devices::cpu>;
     using friend_type   = FriendType;
+    using tree_type     = Tree<friend_type, devices::cpu>;
     // ------------------------------------------------------------------------------------------------------
 private:
     friend_type&     _friend;           //!< The friend class this class has access to to process
@@ -199,6 +199,7 @@ void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const
     
     const size_t threads_x = THX < (_friend._cols - col_idx - 1) 
                            ? THX : (_friend._cols - col_idx - 1);
+    
     tbb::atomic<size_t> multiplicity{1};        // The number of columns equal tothis column
     
     tbb::parallel_for(
@@ -222,6 +223,7 @@ void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const
                         if (compare_columns(col_idx, col_idx_right, threads_y) == true) {
                             // Right is a duplicate of col_idx
                             _friend._duplicate_cols[col_idx_right] = col_idx;
+                            _tree.node(col_idx_right).type() = 0x02;    // Duplicate type
                             ++multiplicity;
                         }
                     }
@@ -230,7 +232,7 @@ void Processor<FriendType, proc::col_dups_links, devices::cpu>::operator()(const
         }
     );
     // Set the weight of the node in the tree to be the multiplicity
-    _tree.node_weight(col_idx) = multiplicity;
+    _tree.node(col_idx).weight() = multiplicity;
 }
 
 template <typename FriendType>
@@ -250,16 +252,17 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
 
     // We could have exited early, but then we would not be able to determine the links
     const size_t total_rows = end_row - start_row + 1;
+    const size_t threads    = threads_y > total_rows ? total_rows : threads_y;
     
     tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads_y),
-        [&](const tbb::blocked_range<size_t>& thread_ids_y) 
+        tbb::blocked_range<size_t>(0, threads),
+        [&](const tbb::blocked_range<size_t>& thread_ids) 
         {   
-            for (size_t thread_idy = thread_ids_y.begin(); thread_idy != thread_ids_y.end(); ++thread_idy) {
-                size_t thread_iters_y = ops::get_thread_iterations(thread_idy, total_rows, threads_y); 
+            for (size_t thread_id = thread_ids.begin(); thread_id != thread_ids.end(); ++thread_id) {
+                size_t thread_iters = ops::get_thread_iterations(thread_id, total_rows, threads); 
               
-                for (size_t it_y = 0; it_y < thread_iters_y; ++it_y) {
-                    size_t row_idx = it_y * threads_y + thread_idy + start_row;
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    size_t row_idx = it * threads + thread_id + start_row;
                     
                     // If the rows aren't duplicates
                     if (_friend._duplicate_rows.find(row_idx) == _friend._duplicate_rows.end()) {
@@ -275,7 +278,7 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                                     link_created = true;
                                 }
                                 // Optimal if the values are the same
-                                _tree.link<links::homo>(col_idx_left, col_idx_right)
+                                _tree.link(col_idx_left, col_idx_right).homo_weight()
                                 += _friend._row_multiplicities[row_idx];
                             }
                         } else if (value_left != value_right) {
@@ -288,7 +291,7 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
                                     link_created = true;
                                 }
                                 // Optimal if the values are opposite
-                                _tree.link<links::hetro>(col_idx_left, col_idx_right)
+                                _tree.link(col_idx_left, col_idx_right).hetro_weight()
                                 += _friend._row_multiplicities[row_idx];
                             }                            
                         }
@@ -301,14 +304,17 @@ bool Processor<FriendType, proc::col_dups_links, devices::cpu>::compare_columns(
         // Determine the contribution to the worst case value for these columns
         const size_t worst_case_value = _tree.link_max(col_idx_left, col_idx_right) -
                                         _tree.link_min(col_idx_left, col_idx_right);
-        
+
         // Add to their worst case values
-        _tree.node_worst_case(col_idx_left).fetch_and_add(worst_case_value * _tree.node_weight(col_idx_right));
-        _tree.node_worst_case(col_idx_right).fetch_and_add(worst_case_value);
-        
+        const size_t update_value = worst_case_value * _tree.node(col_idx_right).weight();
+        _tree.node(col_idx_left).worst_case_value().fetch_and_add(update_value);
+        _tree.node(col_idx_right).worst_case_value().fetch_and_add(worst_case_value);
+
         // Check if the right node is the global worst case
-        if (_tree.node_worst_case(col_idx_right) * _tree.node_weight(col_idx_right) > _tree.max_worst_case()) {
-            _tree.max_worst_case()  = _tree.node_worst_case(col_idx_right) * _tree.node_weight(col_idx_right);
+        if (_tree.node(col_idx_right).worst_case_value() * _tree.node(col_idx_right).weight() >= _tree.max_worst_case()
+            && _friend._snp_info[col_idx_right].type() == 0) {
+            _tree.max_worst_case()  = _tree.node(col_idx_right).worst_case_value() * 
+                                      _tree.node(col_idx_right).weight();
             _tree.start_node()      = col_idx_right;
         }
     }
