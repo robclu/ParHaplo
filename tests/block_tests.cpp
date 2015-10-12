@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE( canSolve )
    
     std::cout << block.num_subblocks() << "\n";
     sub_block_type sub_1(block, 1);
-    sub_1.print();
+//    sub_1.print();
     //sub_block_type sub_2(block, 1);
     
     // Time the selection
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE( canSolve )
     
     std::cout << "MERGE TIME : " << reconstruction_time.count() << " seconds\n";
     
-    block.print_haplotypes();
+//    block.print_haplotypes();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

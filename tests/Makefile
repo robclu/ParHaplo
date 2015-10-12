@@ -20,7 +20,7 @@ UNINSTALL_DIR   := $(addsuffix /nano, $(INSTALL_DIR))
 #	NXX     : The compiler for the nvidia cuda gpu implementation                      #
 ########################################################################################
 
-CXX 			:= g++ 
+CXX 			:= clang++ 
 NXX             := nvcc --ccbin $(CXX)
 
 ########################################################################################
@@ -43,7 +43,7 @@ CXX_LDIR  	    := -L/Users/sashatn/Documents/boost_1_59_0/lib
 # 		--compiler-options -Wall                                                       #
 ########################################################################################
 
-CXX_FLAGS 		:= -std=c++11 -Wall -O3 
+CXX_FLAGS 		:= -std=c++11 -Wall -g
 NXX_FLAGS       := -arch=sm_30
 PXX_FLAGS       :=
 
@@ -52,6 +52,7 @@ ALL_TESTS       =   small_container_tests.o             \
 					equality_checker_tests.o            \
 					data_converter.o                    \
 					data_converter_tests.o              \
+					evaluator_test.o                    \
 					block_tests.o                       \
 					sorter_tests.o                      \
 					node_selector_tests.o               \
@@ -70,7 +71,7 @@ ALL_TESTS       =   small_container_tests.o             \
 
 .PHONY: all block_tests container_tests checker_tests converter_tests node_constiner_tests      \
 		node_selector_tests link_tests tree_tests comparator_tests sorter_tests                 \
-		search_node_tests node_manager_tests subblock_tests clean
+		search_node_tests node_manager_tests subblock_tests evaluator_tests clean
 
 all: build_and_run
 
@@ -98,6 +99,12 @@ data_converter.o: ../haplo/data_converter.cpp
 data_converter_tests.o: data_converter_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
+evaluator.o: ../haplo/evaluator.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+	
+evaluator_tests.o: evaluator_tests.cpp 
+	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
+	
 link_container_tests.o: link_container_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
@@ -150,6 +157,10 @@ container_tests: small_container_tests.o
 
 converter_tests: CXX_FLAGS += -DSTAND_ALONE
 converter_tests: data_converter.o data_converter_tests.o 
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
+	
+evaluator_tests: CXX_FLAGS += -DSTAND_ALONE
+evaluator_tests: evaluator.o evaluator_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
 link_tests: CXX_FLAGS += -DSTAND_ALONE

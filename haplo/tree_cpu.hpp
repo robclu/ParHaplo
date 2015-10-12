@@ -17,7 +17,9 @@
 using namespace std::chrono;
 
 namespace haplo {
-    
+  
+#define MAX_TREE_WIDTH 1024
+
 // Update atomic varibale to min
 template <typename T1, typename T2>
 void atomic_min_update(tbb::atomic<T1>& atomic_var, T2 value)
@@ -300,16 +302,22 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
                                            const size_t   start_index      , const size_t   num_subnodes    )
 {
     // Check how many branch cores we need
-    const size_t branch_cores = BranchCores > num_subnodes ? num_subnodes : BranchCores;
+    const size_t max_nodes = num_subnodes > MAX_TREE_WIDTH * 2 ? MAX_TREE_WIDTH * 2 : num_subnodes;
+    
+    const size_t branch_cores = BranchCores > max_nodes ? max_nodes : BranchCores;
     atomic_type  num_branches{0};                                               // Branches to search
     atomic_type  min_lbound{0};                                                 // Best lower bound
     atomic_type  max_lbound{0};                                                 // Best lower bound
     atomic_type  best_index{0};                                                 // Index of best node
+    atomic_type  best_prev{0};                                                 // Index of best node
     atomic_type  best_value{0};                                                 // Index of best node
     const size_t search_idx   = node_selector.select_node();                    // Index in node array
     const size_t haplo_idx    = _nodes[search_idx].position();                  // Haplo var index
   
     min_lbound = std::numeric_limits<size_t>::max();                            // Set LB 
+   
+    // Create an array for the maximum values 
+    std::vector<atomic_type> ordered_lbounds(2 * MAX_TREE_WIDTH, std::numeric_limits<size_t>::max()); 
     
     std::cout << "Searching -- " << search_idx << " -- " << num_subnodes;
     
@@ -319,26 +327,63 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
         [&](const tbb::blocked_range<size_t>& threads)
         {
             for (size_t thread_id = threads.begin(); thread_id != threads.end(); ++thread_id) {
-                size_t thread_iters = ops::get_thread_iterations(thread_id, num_subnodes, branch_cores);
+                size_t thread_iters = ops::get_thread_iterations(thread_id, max_nodes, branch_cores);
                 for (size_t it = 0; it < thread_iters; ++it) {
                     const size_t node_idx   = start_index + it * branch_cores + thread_id;
                     auto& node              = node_manager.node(node_idx);              // Node to search
                     
-                    constexpr size_t bound_threads = OpCores / BranchCores == 0 
-                                                ? 1 : OpCores / BranchCores;
+                    constexpr size_t bound_threads = OpCores ; // / BranchCores == 0 
+                                                //? 1 : OpCores / BranchCores;
                                                 
                     // Get the bounds for the node and update them            
                     auto bounds = bound_calculator.calculate<bound_threads>(node, haplo_idx, search_idx);
                     node.upper_bound() -= (_nodes[search_idx].elements() - bounds.lower);
                     node.lower_bound() += bounds.lower;
                     
-                    const size_t last_idx = node_selector.last_search_index() - _sub_block._num_nih - 1;
+                    // Add the lower bound to the list of bounds
+                    std::cout << thread_id + it * branch_cores << " TID\n";
+                    ordered_lbounds[it * branch_cores + thread_id] = node.lower_bound();
+                }
+            }
+        }
+    );
+    
+    for (auto& lbnd : ordered_lbounds) std::cout << lbnd << " ";
+    std::cout << "\n";
+    
+    // Sort the lower bounds
+    std::stable_sort(ordered_lbounds.begin(), ordered_lbounds.end(), std::less<size_t>());
+
+    for (auto& lbnd : ordered_lbounds) std::cout << lbnd << " ";
+    std::cout << "\n\n";
+    
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, branch_cores),
+        [&](const tbb::blocked_range<size_t>& threads)
+        {
+            for (size_t thread_id = threads.begin(); thread_id != threads.end(); ++thread_id) {
+                size_t thread_iters = ops::get_thread_iterations(thread_id, max_nodes, branch_cores);
+                for (size_t it = 0; it < thread_iters; ++it) {
+                    const size_t node_idx   = start_index + it * branch_cores + thread_id;
+                    auto& node              = node_manager.node(node_idx);              // Node to search
                     
+                    const size_t last_idx = node_selector.last_search_index() - _sub_block._num_nih - 1;
+                   
+                    // Update the bounds 
+                    size_t temp = 0; 
                     // If the node is not going to be printed, then create children
-                    if (node.lower_bound() <= min_ubound && search_idx < last_idx) {
+                    if (node.lower_bound() <= min_ubound && 
+                        search_idx          < last_idx   &&
+                        node.lower_bound() <= ordered_lbounds[MAX_TREE_WIDTH / 2]) {
+                   
+                        std::cout << "Here we are\n\n" ;
+                        
                         size_t left_child_idx = node_manager.get_next_node();
                         auto& left_child  = node_manager.node(left_child_idx);
                         auto& right_child = node_manager.node(left_child_idx + 1);
+                        
+                        node.left() = left_child_idx;
+                        node.right() = left_child_idx + 1;
                         
                         // Set the start bounds of the left child node
                         left_child.set_bounds(node.bounds());
@@ -348,21 +393,29 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
                         left_child.root() = node_idx; right_child.root() = node_idx;
                         left_child.set_type(0); right_child.set_type(1);
                    
-                        num_branches.fetch_and_add(2);                  // 2 more branches next it
-                    }
-                    atomic_min_update(min_ubound, node.upper_bound());
-                    atomic_min_update(min_lbound, node.lower_bound());
-                    atomic_max_update(max_lbound, node.lower_bound());
+                        num_branches.fetch_and_add(2);                  // 2 more branches next itA
                         
-                    if (node.lower_bound() == min_lbound) {
-                        best_index = node_idx; best_value = node.type();
+                        atomic_min_update(min_ubound, node.upper_bound());
+                        atomic_min_update(min_lbound, node.lower_bound());
+                        atomic_max_update(max_lbound, node.lower_bound());
+                                       
+                        if (node.lower_bound() == min_lbound) {
+                            best_index = node_idx; best_value = node.type();
+                        } 
+
                     }
                 }
             }
         }
     );
+   
+    bool is_same_side = (best_index < start_index + (num_subnodes / 2));
     
-    std::cout << "-- " << min_ubound << " -- " << min_lbound << " -- " << max_lbound << "\n";
+    std::cout << "-- " << min_ubound << " -- " << min_lbound << " -- " << max_lbound << 
+         " -- " << best_index << " -- " << node_manager.node(best_index).left() << " -- " 
+    << node_manager.node(best_index).right() << " -- " << is_same_side << 
+    " " <<  num_branches << "\n";
+    
     // If we do not have a terminating case, then we must recurse
     if (num_branches > 2 && search_idx != node_selector.last_search_index() - _sub_block._num_nih - 1) {
         // Make sure that we have enough space for the next level of nodes
