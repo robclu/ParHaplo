@@ -17,6 +17,7 @@ using namespace std::chrono;
 
 static constexpr const char* input_1 = "input_files/input_zero.txt";
 static constexpr const char* input_6 = "input_files/input_six.txt";
+static constexpr const char* input_7 = "tests_files/output_7.txt";
 
 BOOST_AUTO_TEST_SUITE( BlockSuite )
     
@@ -118,12 +119,12 @@ BOOST_AUTO_TEST_CASE( canCreateSubBlocks )
 
 BOOST_AUTO_TEST_CASE( canSolve )
 {
-    using block_type     = haplo::Block<5609, 4, 4>;
+    using block_type     = haplo::Block<5603, 4, 4>;
     using sub_block_type = haplo::SubBlock<block_type, 64, 64, haplo::devices::cpu>; 
     
     block_type block(input_6);
 
-    block.print();
+    //block.print();
     std::cout << "\n\n";
     
     std::cout << block.num_subblocks() << "\n";
