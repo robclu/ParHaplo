@@ -12,6 +12,9 @@
 
 #include <iostream>
 #include <limits>
+#include <chrono>
+
+using namespace std::chrono;
 
 namespace haplo {
     
@@ -300,6 +303,7 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
     const size_t branch_cores = BranchCores > num_subnodes ? num_subnodes : BranchCores;
     atomic_type  num_branches{0};                                               // Branches to search
     atomic_type  min_lbound{0};                                                 // Best lower bound
+    atomic_type  max_lbound{0};                                                 // Best lower bound
     atomic_type  best_index{0};                                                 // Index of best node
     atomic_type  best_value{0};                                                 // Index of best node
     const size_t search_idx   = node_selector.select_node();                    // Index in node array
@@ -307,7 +311,7 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
   
     min_lbound = std::numeric_limits<size_t>::max();                            // Set LB 
     
-    std::cout << "Searching -- " << search_idx << " -- " << num_subnodes << "\n";
+    std::cout << "Searching -- " << search_idx << " -- " << num_subnodes;
     
     // Get the index of the 
     tbb::parallel_for(
@@ -348,6 +352,7 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
                     }
                     atomic_min_update(min_ubound, node.upper_bound());
                     atomic_min_update(min_lbound, node.lower_bound());
+                    atomic_max_update(max_lbound, node.lower_bound());
                         
                     if (node.lower_bound() == min_lbound) {
                         best_index = node_idx; best_value = node.type();
@@ -357,11 +362,18 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
         }
     );
     
+    std::cout << "-- " << min_ubound << " -- " << min_lbound << " -- " << max_lbound << "\n";
     // If we do not have a terminating case, then we must recurse
     if (num_branches > 2 && search_idx != node_selector.last_search_index() - _sub_block._num_nih - 1) {
         // Make sure that we have enough space for the next level of nodes
+           high_resolution_clock::time_point start = high_resolution_clock::now();      
         node_manager.add_node_level(num_branches);
-        
+       
+    high_resolution_clock::time_point solve_end = high_resolution_clock::now();
+    duration<double> solve_time = duration_cast<duration<double>>(solve_end - start);
+    
+    std::cout << "ALLOC TIME : " << solve_time.count() << " seconds\n";
+    
         best_index = search_subnodes<BranchCores, OpCores>(node_manager                 ,       
                                                            node_selector                , 
                                                            bound_calculator             ,  
