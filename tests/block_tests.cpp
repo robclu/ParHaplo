@@ -122,10 +122,15 @@ BOOST_AUTO_TEST_CASE( canSolve )
     using sub_block_type = haplo::SubBlock<block_type, 64, 64, haplo::devices::cpu>; 
     
     block_type block(input_6);
-   
+
+    block.print();
+    std::cout << "\n\n";
+    
     std::cout << block.num_subblocks() << "\n";
     sub_block_type sub_1(block, 1);
-//    sub_1.print();
+    sub_1.print();
+    
+    std::cout <<"\n\n";
     //sub_block_type sub_2(block, 1);
     
     // Time the selection
@@ -149,7 +154,8 @@ BOOST_AUTO_TEST_CASE( canSolve )
     
     std::cout << "MERGE TIME : " << reconstruction_time.count() << " seconds\n";
     
-//    block.print_haplotypes();
+    block.print_haplotypes();
+    block.print_col_types();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

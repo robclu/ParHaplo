@@ -18,7 +18,7 @@ using namespace std::chrono;
 
 namespace haplo {
   
-#define MAX_TREE_WIDTH 1024
+#define MAX_TREE_WIDTH 2048
 
 // Update atomic varibale to min
 template <typename T1, typename T2>

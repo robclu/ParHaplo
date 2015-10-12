@@ -145,6 +145,15 @@ public:
     template <typename SubBlockType>
     void merge_haplotype(const SubBlockType& sub_block);
     
+    // ------------------------------------------------------------------------------------------------------
+    /// @breif      Prints which columns are monotone and which are not
+    // ------------------------------------------------------------------------------------------------------
+    void print_col_types() const 
+    {
+        for (size_t c = 0; c < _cols; ++c) std::cout << is_monotone(c);
+        std::cout << "\n";
+    }
+    
     void print()
     {
         for (size_t r = 0; r < _rows; ++r) {
@@ -152,15 +161,17 @@ public:
                 std::cout << static_cast<unsigned>(operator()(r, c)) << " ";
             std::cout << "\n";
         }
+       
+        std::cout << "\n\n";
         
         for (size_t c = 0; c < _cols; ++c) 
             std::cout << static_cast<unsigned>(_snp_info[c].type()) << " ";
         std::cout << "\n\n";
-        
+     
         for (auto e : _splittable_cols)
             std::cout << e << " ";
         std::cout << "\n";
-        std::cout << _first_splittable << "\n";
+        std::cout << _first_splittable << "FS\n";
     }
     
     void print_haplotypes() const 
