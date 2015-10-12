@@ -18,7 +18,7 @@
 #define TWO     0x02
 #define THREE   0x03
 
-static constexpr const char* input_1    = "input_files/input_simulated_1.txt";
+/*static constexpr const char* input_1    = "input_files/input_simulated_1.txt";
 static constexpr const char* input_2    = "input_files/input_simulated_2.txt";
 static constexpr const char* input_3    = "input_files/input_simulated_3.txt";
 static constexpr const char* input_4    = "input_files/input_simulated_4.txt";
@@ -38,7 +38,12 @@ static constexpr const char* answer_letters_5    = "input_files/input_simulated_
 static constexpr const char* answer_letters_6    = "input_files/input_simulated_6_answer.txt";
 static constexpr const char* answer_binary_4     = "output_files/output_simulated_4_answer.txt";
 static constexpr const char* answer_binary_5     = "output_files/output_simulated_5_answer.txt";
-static constexpr const char* answer_binary_6     = "output_files/output_simulated_6_answer.txt";
+static constexpr const char* answer_binary_6     = "output_files/output_simulated_6_answer.txt";*/
+static constexpr const char* input_1    = "input_files/output_simulated_7.txt";
+static constexpr const char* output_1   = "tests_files/output_7.txt";
+static constexpr const char* answer_letters_1    = "input_files/output_simulated_7_answer.txt";
+static constexpr const char* answer_binary_1     = "tests_files/output_7_answer.txt";
+
 
 BOOST_AUTO_TEST_SUITE( DataConverterSuite )
 
@@ -46,10 +51,10 @@ BOOST_AUTO_TEST_SUITE( DataConverterSuite )
 BOOST_AUTO_TEST_CASE( canCreateDataConverter )
 {
     
-    std::vector<const char*> inputs = {input_1, input_2, input_3, input_4, input_5, input_6};
-    std::vector<const char*> outputs = {output_1, output_2, output_3, output_4, output_5, output_6};
-    std::vector<const char*> answers_letters = {answer_letters_4, answer_letters_5, answer_letters_6};
-    std::vector<const char*> answers_binary = {answer_binary_4, answer_binary_5, answer_binary_6};
+    std::vector<const char*> inputs = {input_1};//, input_2, input_3, input_4, input_5, input_6};
+    std::vector<const char*> outputs = {output_1};//, output_2, output_3, output_4, output_5, output_6};
+    std::vector<const char*> answers_letters = {answer_letters_1};//, answer_letters_5, answer_letters_6};
+    std::vector<const char*> answers_binary = {answer_binary_1};//, answer_binary_5, answer_binary_6};
 
 
     for(size_t i = 0; i < inputs.size(); ++i){
@@ -77,10 +82,10 @@ BOOST_AUTO_TEST_CASE( canCreateDataConverter )
         std::vector<char> input_string;
         std::vector<size_t> output_value;
         
-        if(i >= 3){
+        if(i >= 0){
             
-            std::ifstream infile(answers_letters.at(i-3));
-            std::ofstream outfile(answers_binary.at(i-3));
+            std::ifstream infile(answers_letters.at(i-0));
+            std::ofstream outfile(answers_binary.at(i-0));
             std::string line;
             while(infile >> line){
                 for(int len = 0; len < line.length(); ++len){
@@ -108,7 +113,7 @@ BOOST_AUTO_TEST_CASE( canCreateDataConverter )
     
 }
 
-// Tests conversion from binary haplotype to actg haplotype
+/*// Tests conversion from binary haplotype to actg haplotype
 BOOST_AUTO_TEST_CASE( canConvertDataFromBinary )
 {
     
@@ -261,7 +266,7 @@ BOOST_AUTO_TEST_CASE( canProcessCigarValue )
     BOOST_CHECK(sequence.length() == (end_position - start_position + 1));
     
 
-}
+}*/
 
 
 BOOST_AUTO_TEST_SUITE_END()
