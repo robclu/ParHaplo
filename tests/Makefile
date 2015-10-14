@@ -21,7 +21,7 @@ UNINSTALL_DIR   := $(addsuffix /nano, $(INSTALL_DIR))
 #	NXX     : The compiler for the nvidia cuda gpu implementation                      #
 ########################################################################################
 
-CXX 			:= clang++
+CXX 			:= g++-4.8
 NXX             := nvcc -ccbin $(CXX)
 
 ########################################################################################
@@ -205,18 +205,32 @@ tree_tests: tree_tests.o
 build_tests: $(ALL_TESTS)
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 
-cuda_container_tests.o: cuda_container_tests.cpp 
+cuda_container_tests.o: cuda_container_tests.cu
 	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
 
 cuda_link_tests.o: cuda_link_tests.cu
 	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
-	
+
+cuda_tree_tests.o: cuda_tree_tests.cu
+	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
+
+snp_info_tests.o: snp_info_tests.cu
+	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
+
 cuda_container_tests: NXX_FLAGS += -DSTAND_ALONE
 cuda_container_tests: cuda_container_tests.o 
 	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
 
 cuda_link_tests: NXX_FLAGS += -DSTAND_ALONE
 cuda_link_tests: cuda_link_tests.o 
+	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
+
+cuda_tree_tests: NXX_FLAGS += -DSTAND_ALONE
+cuda_tree_tests: cuda_tree_tests.o 
+	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
+
+snp_info_tests: NXX_FLAGS += -DSTAND_ALONE
+snp_info_tests: snp_info_tests.o 
 	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
 
 clean:

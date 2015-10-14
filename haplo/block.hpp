@@ -7,7 +7,7 @@
 #define PARAHAPLO_BLOCK_HPP
 
 #include "operations.hpp"
-#include "read_info.hpp"
+#include "read_info_gpu.cuh"
 #include "snp_info.hpp"
 #include "small_containers.hpp"
 
@@ -16,6 +16,7 @@
 #include <tbb/tbb.h>
 #include <tbb/concurrent_unordered_map.h>
 #include <tbb/parallel_sort.h>
+#include <thrust/host_vector.h>
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -52,7 +53,7 @@ public:
     using binary_vector         = BinaryVector<2>;
     using atomic_type           = tbb::atomic<size_t>;
     using atomic_vector         = tbb::concurrent_vector<size_t>;
-    using read_info_container   = std::vector<ReadInfo>;
+    using read_info_container   = thrust::host_vector<ReadInfo>;
     using snp_info_container    = tbb::concurrent_unordered_map<size_t, SnpInfo>;
     using concurrent_umap       = tbb::concurrent_unordered_map<size_t, uint8_t>;
     // ------------------------------------------------------------------------------------------------------
@@ -144,6 +145,11 @@ public:
     // ------------------------------------------------------------------------------------------------------
     template <typename SubBlockType>
     void merge_haplotype(const SubBlockType& sub_block);
+    
+   // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the MEC score of the haplotpye 
+    // ------------------------------------------------------------------------------------------------------
+    void determine_mec_score() const;
     
     // ------------------------------------------------------------------------------------------------------
     /// @breif      Prints which columns are monotone and which are not
@@ -304,7 +310,62 @@ void Block<Elements, ThreadsX, ThreadsY>::merge_haplotype(const SubBlockType& su
             _alignments.set(row_idx, !sub_block.alignments().get(row_idx - start_row));
     }
 }
+
+template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
+void Block<Elements, ThreadsX, ThreadsY>::determine_mec_score() const 
+{
+    // We can use all the available cores for the column comparison
+    const size_t threads = (ThreadsX + ThreadsY) < _cols ? (ThreadsX + ThreadsY) : _cols;
     
+    atomic_type mec_score{0};
+    
+    // Over each column in the row
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, threads),
+        [&](const tbb::blocked_range<size_t>& thread_ids)
+        {
+            for (size_t thread_id = thread_ids.begin(); thread_id != thread_ids.end(); ++thread_id) {
+                size_t thread_iters = ops::get_thread_iterations(thread_id, _cols, threads);
+                
+                for (size_t it =0; it < thread_iters; ++it) {
+                    size_t haplo_idx  = it * threads + thread_id;
+                    size_t read_start = _snp_info.at(haplo_idx).start_index();
+                    size_t read_end   = _snp_info.at(haplo_idx).end_index();
+                    
+                    // Now go down the column and determine the score
+                    for (size_t read_idx = read_start; read_idx < read_end; ++read_idx) {
+                        // For the first haplotype
+                        if (_alignments.get(read_idx) == ONE) {
+                                if ((operator()(read_idx, haplo_idx) != _haplo_one.get(haplo_idx)) &&
+                                     operator()(read_idx, haplo_idx) <= ONE                        &&
+                                     _flipped_cols.find(haplo_idx) == _flipped_cols.end()         ) {
+                                        mec_score.fetch_and_add(1);
+                                 } 
+                                else if (operator()(read_idx, haplo_idx) == _haplo_one.get(haplo_idx) &&
+                                        operator()(read_idx, haplo_idx) <= ONE                        &&
+                                        _flipped_cols.find(haplo_idx) != _flipped_cols.end()            ) {
+                                        mec_score.fetch_and_add(1);
+                                }
+                        }
+                        else if (_alignments.get(read_idx) == ZERO) {
+                                if (operator()(read_idx, haplo_idx) != _haplo_two.get(haplo_idx) &&
+                                    operator()(read_idx, haplo_idx) <= ONE                       &&
+                                    _flipped_cols.find(haplo_idx) == _flipped_cols.end()         ) {
+                                        mec_score.fetch_and_add(1);
+                                }
+                                else if (operator()(read_idx, haplo_idx) == _haplo_two.get(haplo_idx) &&
+                                        operator()(read_idx, haplo_idx) <= ONE                        &&
+                                        _flipped_cols.find(haplo_idx) != _flipped_cols.end()            ) {
+                                        mec_score.fetch_and_add(1);
+                                }
+                        }
+                    }
+                }
+            }
+        }
+    );
+    std::cout << "MEC SCORE : " << mec_score << "\n";
+}
 
 // ------------------------------------------------- PRIVATE ------------------------------------------------
 
@@ -361,7 +422,7 @@ size_t Block<Elements, ThreadsX, ThreadsY>::process_data(size_t         offset  
             read_data = token;
         counter++;
     }
-    _read_info.emplace_back(_rows, start_index, end_index, offset);
+    _read_info.push_back(ReadInfo(_rows, start_index, end_index, offset));
 
     size_t col_idx = start_index;    
     // Put data into the data vector

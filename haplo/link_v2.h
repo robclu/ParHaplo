@@ -6,9 +6,9 @@
 #define PARHAPLO_LINK_GPU_CUH
 
 #ifdef __CUDACC__
-#define CUDA_HD __host__ __device__
+    #define CUDA_HD __host__ __device__
 #else
-#define CUDA_HD
+    #define CUDA_HD
 #endif
 
 #include <cuda.h>

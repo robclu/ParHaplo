@@ -14,8 +14,8 @@
 
 static constexpr char* input_ref = "input_files/eval_input_zero_ref.txt";
 static constexpr char* input_sol = "input_files/eval_input_zero_sol.txt";
-static constexpr char* ref_6     = "solutions/input_six_reference.txt";
-static constexpr char* sol_6     = "solutions/input_six_solution.txt";
+static constexpr char* ref_6     = "solutions/input_3_reference.txt";
+static constexpr char* sol_6     = "solutions/input_3_soln.txt";
 
 BOOST_AUTO_TEST_SUITE( EvaluatorSuite )
     

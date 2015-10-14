@@ -15,9 +15,10 @@
 
 using namespace std::chrono;
 
-static constexpr const char* input_1 = "input_files/input_zero.txt";
-static constexpr const char* input_6 = "input_files/input_six.txt";
-static constexpr const char* input_7 = "tests_files/output_7.txt";
+static constexpr const char* input_1      = "input_files/input_zero.txt";
+static constexpr const char* input_6      = "input_files/input_six.txt";
+static constexpr const char* input_7      = "tests_files/output_7.txt";
+static constexpr const char* input_test_1 = "tests_files/output_1.txt";     // 1543 elements
 
 BOOST_AUTO_TEST_SUITE( BlockSuite )
     
@@ -115,21 +116,23 @@ BOOST_AUTO_TEST_CASE( canCreateSubBlocks )
     std::cout << "MERGE TIME : " << reconstruction_time.count() << " seconds\n";
     
     block.print_haplotypes();
+    block.print();
+    block.determine_mec_score();
 }
 
 BOOST_AUTO_TEST_CASE( canSolve )
 {
-    using block_type     = haplo::Block<5603, 4, 4>;
+    using block_type     = haplo::Block<1543, 4, 4>;
     using sub_block_type = haplo::SubBlock<block_type, 64, 64, haplo::devices::cpu>; 
     
-    block_type block(input_6);
+    block_type block(input_test_1);
 
     //block.print();
     std::cout << "\n\n";
     
-    std::cout << block.num_subblocks() << "\n";
+    //std::cout << block.num_subblocks() << "\n";
     sub_block_type sub_1(block, 1);
-    sub_1.print();
+    //sub_1.print();
     
     std::cout <<"\n\n";
     //sub_block_type sub_2(block, 1);
@@ -154,9 +157,11 @@ BOOST_AUTO_TEST_CASE( canSolve )
     duration<double> reconstruction_time = duration_cast<duration<double>>(reconstruct_end - solve_end);
     
     std::cout << "MERGE TIME : " << reconstruction_time.count() << " seconds\n";
+ 
+    block.determine_mec_score();
     
-    block.print_haplotypes();
-    block.print_col_types();
+    //block.print_haplotypes();
+    //block.print_col_types();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

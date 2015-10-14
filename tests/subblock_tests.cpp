@@ -216,6 +216,9 @@ BOOST_AUTO_TEST_CASE( canFindHaplotypes )
     std::cout << "Selection time : " << sort_time.count() << "\n";
     
     sub_block.print_haplotypes();
+    
+    // Convert data to device data
+    auto device_data = sub_block.snp_info();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

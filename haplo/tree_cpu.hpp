@@ -342,13 +342,9 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
                     
                     const size_t last_idx = node_selector.last_search_index() - _sub_block._num_nih - 1;
                    
-                    // Update the bounds 
-                    size_t temp = 0; 
                     // If the node is not going to be printed, then create children
                     if (node.lower_bound() <= min_ubound && search_idx < last_idx   ) {
                    
-                        std::cout << "Here we are\n\n" ;
-                        
                         size_t left_child_idx = node_manager.get_next_node();
                         auto& left_child  = node_manager.node(left_child_idx);
                         auto& right_child = node_manager.node(left_child_idx + 1);
@@ -365,16 +361,14 @@ size_t Tree<SubBlockType, devices::cpu>::search_subnodes(
                         left_child.set_type(0); right_child.set_type(1);
                    
                         num_branches.fetch_and_add(2);                  // 2 more branches next itA
-                        
-                        atomic_min_update(min_ubound, node.upper_bound());
-                        atomic_min_update(min_lbound, node.lower_bound());
-                        atomic_max_update(max_lbound, node.lower_bound());
-                                       
-                        if (node.lower_bound() == min_lbound) {
-                            best_index = node_idx; best_value = node.type();
-                        } 
-
                     }
+                    atomic_min_update(min_ubound, node.upper_bound());
+                    atomic_min_update(min_lbound, node.lower_bound());
+                    atomic_max_update(max_lbound, node.lower_bound());
+                                       
+                    if (node.lower_bound() == min_lbound) {
+                        best_index = node_idx; best_value = node.type();
+                    } 
                 }
             }
         }

@@ -9,6 +9,7 @@
 #include "processor_cpu.hpp"
 #include "tree_cpu.hpp"
 #include "subblock.hpp"
+#include "snp_info_gpu.h"
 
 #include <sstream>
 
@@ -112,6 +113,11 @@ public:
     void print_haplotypes() const;
 
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      A refernce to the data
+    // ------------------------------------------------------------------------------------------------------
+    inline binary_vector& data()  { return _data; }
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      A reference to the first haplotype
     // ------------------------------------------------------------------------------------------------------
     inline const binary_vector& haplo_one() const { return _haplo_one; }
@@ -130,7 +136,39 @@ public:
     /// @brief      Gets the start row of the sub block in the base block 
     // ------------------------------------------------------------------------------------------------------
     inline size_t base_start_row() const { return _rows; }
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Determines the MEC score of the haplotpye 
+    // ------------------------------------------------------------------------------------------------------
+    void determine_mec_score() const;
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a reference to the read information
+    // ------------------------------------------------------------------------------------------------------
+    inline thrust::host_vector<ReadInfo>& read_info() { return _read_info; }
     
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the snp info as a host vector
+    // ------------------------------------------------------------------------------------------------------
+    inline thrust::host_vector<SnpInfoGpu> snp_info() const 
+    {
+        thrust::host_vector<SnpInfoGpu> host_snps;
+        // Move snps from hash table to vector
+        for (auto i = 0; i < _cols; ++i) {
+            if (_snp_info.find(i) != _snp_info.end())
+                host_snps.push_back(_snp_info.at(i));
+            else 
+                std::cerr << "error!\n";
+        }
+        return host_snps;
+    }
+
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
+
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      prints the subblock
     // ------------------------------------------------------------------------------------------------------
@@ -281,7 +319,7 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::fill()
 
             // If the read is not singular
             if (read_length > 1) {
-                _read_info.emplace_back(_rows, 0, 0, offset);
+                _read_info.push_back(ReadInfo(_rows, 0, 0, offset));
                 offset = add_elements(row_idx, read_length, mono_weights, offset);
                 _elements += _read_info[_rows].length();
                 ++_rows;
