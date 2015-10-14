@@ -39,10 +39,18 @@ static constexpr const char* answer_letters_6    = "input_files/input_simulated_
 static constexpr const char* answer_binary_4     = "output_files/output_simulated_4_answer.txt";
 static constexpr const char* answer_binary_5     = "output_files/output_simulated_5_answer.txt";
 static constexpr const char* answer_binary_6     = "output_files/output_simulated_6_answer.txt";*/
-static constexpr const char* input_1    = "input_files/output_simulated_7.txt";
-static constexpr const char* output_1   = "tests_files/output_7.txt";
-static constexpr const char* answer_letters_1    = "input_files/output_simulated_7_answer.txt";
-static constexpr const char* answer_binary_1     = "tests_files/output_7_answer.txt";
+static constexpr const char* input_1    = "new_inputs/input_1.txt";
+static constexpr const char* input_2    = "new_inputs/input_2.txt";
+static constexpr const char* input_3    = "new_inputs/input_3.txt";
+static constexpr const char* output_1   = "tests_files/output_1.txt";
+static constexpr const char* output_2   = "tests_files/output_2.txt";
+static constexpr const char* output_3   = "tests_files/output_3.txt";
+static constexpr const char* answer_letters_1    = "new_inputs/input_1_soln.txt";
+static constexpr const char* answer_letters_2    = "new_inputs/input_2_soln.txt";
+static constexpr const char* answer_letters_3    = "new_inputs/input_3_soln.txt";
+static constexpr const char* answer_binary_1     = "tests_files/output_1_soln.txt";
+static constexpr const char* answer_binary_2     = "tests_files/output_2_soln.txt";
+static constexpr const char* answer_binary_3     = "tests_files/output_3_soln.txt";
 
 
 BOOST_AUTO_TEST_SUITE( DataConverterSuite )
@@ -51,10 +59,10 @@ BOOST_AUTO_TEST_SUITE( DataConverterSuite )
 BOOST_AUTO_TEST_CASE( canCreateDataConverter )
 {
     
-    std::vector<const char*> inputs = {input_1};//, input_2, input_3, input_4, input_5, input_6};
-    std::vector<const char*> outputs = {output_1};//, output_2, output_3, output_4, output_5, output_6};
-    std::vector<const char*> answers_letters = {answer_letters_1};//, answer_letters_5, answer_letters_6};
-    std::vector<const char*> answers_binary = {answer_binary_1};//, answer_binary_5, answer_binary_6};
+    std::vector<const char*> inputs = {input_1, input_2, input_3};//, input_4, input_5, input_6};
+    std::vector<const char*> outputs = {output_1, output_2, output_3};//, output_4, output_5, output_6};
+    std::vector<const char*> answers_letters = {answer_letters_1, answer_letters_2, answer_letters_3};// answer_letters_5, answer_letters_6};
+    std::vector<const char*> answers_binary = {answer_binary_1, answer_binary_2, answer_binary_3};//, answer_binary_5, answer_binary_6};
 
 
     for(size_t i = 0; i < inputs.size(); ++i){
@@ -83,9 +91,8 @@ BOOST_AUTO_TEST_CASE( canCreateDataConverter )
         std::vector<size_t> output_value;
         
         if(i >= 0){
-            
-            std::ifstream infile(answers_letters.at(i-0));
-            std::ofstream outfile(answers_binary.at(i-0));
+            std::ifstream infile(answers_letters.at(i));
+            std::ofstream outfile(answers_binary.at(i));
             std::string line;
             while(infile >> line){
                 for(int len = 0; len < line.length(); ++len){
