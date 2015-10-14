@@ -236,4 +236,5 @@ snp_info_tests: snp_info_tests.o
 clean:
 	rm -rf *.o
 	rm -rf $(CXX_EXE) 
+	rm -rf $(NXX_EXE) 
 

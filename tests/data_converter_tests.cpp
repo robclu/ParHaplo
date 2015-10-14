@@ -39,18 +39,42 @@ static constexpr const char* answer_letters_6    = "input_files/input_simulated_
 static constexpr const char* answer_binary_4     = "output_files/output_simulated_4_answer.txt";
 static constexpr const char* answer_binary_5     = "output_files/output_simulated_5_answer.txt";
 static constexpr const char* answer_binary_6     = "output_files/output_simulated_6_answer.txt";*/
-static constexpr const char* input_1    = "new_inputs/input_1.txt";
-static constexpr const char* input_2    = "new_inputs/input_2.txt";
-static constexpr const char* input_3    = "new_inputs/input_3.txt";
-static constexpr const char* output_1   = "tests_files/output_1.txt";
-static constexpr const char* output_2   = "tests_files/output_2.txt";
-static constexpr const char* output_3   = "tests_files/output_3.txt";
-static constexpr const char* answer_letters_1    = "new_inputs/input_1_soln.txt";
-static constexpr const char* answer_letters_2    = "new_inputs/input_2_soln.txt";
-static constexpr const char* answer_letters_3    = "new_inputs/input_3_soln.txt";
-static constexpr const char* answer_binary_1     = "tests_files/output_1_soln.txt";
-static constexpr const char* answer_binary_2     = "tests_files/output_2_soln.txt";
-static constexpr const char* answer_binary_3     = "tests_files/output_3_soln.txt";
+static constexpr const char* input_1    = "new_inputs/geraci/100_3_0.1_0.4/input.txt";
+static constexpr const char* input_2    = "new_inputs/geraci/100_5_0.1_0.4/input.txt";
+static constexpr const char* input_3    = "new_inputs/geraci/100_8_0.1_0.4/input.txt";
+static constexpr const char* input_4    = "new_inputs/geraci/100_10_0.1_0.4/input.txt";
+static constexpr const char* input_5    = "new_inputs/geraci/350_3_0.1_0.4/input.txt";
+static constexpr const char* input_6    = "new_inputs/geraci/350_5_0.1_0.4/input.txt";
+static constexpr const char* input_7    = "new_inputs/geraci/350_8_0.1_0.4/input.txt";
+static constexpr const char* input_8    = "new_inputs/geraci/350_10_0.1_0.4/input.txt";
+
+static constexpr const char* output_1    = "new_outputs/geraci/100_3_0.1_0.4/output.txt";
+static constexpr const char* output_2    = "new_outputs/geraci/100_5_0.1_0.4/output.txt";
+static constexpr const char* output_3    = "new_outputs/geraci/100_8_0.1_0.4/output.txt";
+static constexpr const char* output_4    = "new_outputs/geraci/100_10_0.1_0.4/output.txt";
+static constexpr const char* output_5    = "new_outputs/geraci/350_3_0.1_0.4/output.txt";
+static constexpr const char* output_6    = "new_outputs/geraci/350_5_0.1_0.4/output.txt";
+static constexpr const char* output_7    = "new_outputs/geraci/350_8_0.1_0.4/output.txt";
+static constexpr const char* output_8    = "new_outputs/geraci/350_10_0.1_0.4/output.txt";
+
+static constexpr const char* answer_letters_1    = "new_inputs/geraci/100_3_0.1_0.4/input_soln.txt";
+static constexpr const char* answer_letters_2    = "new_inputs/geraci/100_5_0.1_0.4/input_soln.txt";
+static constexpr const char* answer_letters_3    = "new_inputs/geraci/100_8_0.1_0.4/input_soln.txt";
+static constexpr const char* answer_letters_4    = "new_inputs/geraci/100_10_0.1_0.4/input_soln.txt";
+static constexpr const char* answer_letters_5    = "new_inputs/geraci/350_3_0.1_0.4/input_soln.txt";
+static constexpr const char* answer_letters_6    = "new_inputs/geraci/350_5_0.1_0.4/input_soln.txt";
+static constexpr const char* answer_letters_7    = "new_inputs/geraci/350_8_0.1_0.4/input_soln.txt";
+static constexpr const char* answer_letters_8    = "new_inputs/geraci/350_10_0.1_0.4/input_soln.txt";
+
+static constexpr const char* answer_binary_1    = "new_outputs/geraci/100_3_0.1_0.4/output_soln.txt";
+static constexpr const char* answer_binary_2    = "new_outputs/geraci/100_5_0.1_0.4/output_soln.txt";
+static constexpr const char* answer_binary_3    = "new_outputs/geraci/100_8_0.1_0.4/output_soln.txt";
+static constexpr const char* answer_binary_4    = "new_outputs/geraci/100_10_0.1_0.4/output_soln.txt";
+static constexpr const char* answer_binary_5    = "new_outputs/geraci/350_3_0.1_0.4/output_soln.txt";
+static constexpr const char* answer_binary_6    = "new_outputs/geraci/350_5_0.1_0.4/output_soln.txt";
+static constexpr const char* answer_binary_7    = "new_outputs/geraci/350_8_0.1_0.4/output_soln.txt";
+static constexpr const char* answer_binary_8    = "new_outputs/geraci/350_10_0.1_0.4/output_soln.txt";
+
 
 
 BOOST_AUTO_TEST_SUITE( DataConverterSuite )
@@ -59,10 +83,10 @@ BOOST_AUTO_TEST_SUITE( DataConverterSuite )
 BOOST_AUTO_TEST_CASE( canCreateDataConverter )
 {
     
-    std::vector<const char*> inputs = {input_1, input_2, input_3};//, input_4, input_5, input_6};
-    std::vector<const char*> outputs = {output_1, output_2, output_3};//, output_4, output_5, output_6};
-    std::vector<const char*> answers_letters = {answer_letters_1, answer_letters_2, answer_letters_3};// answer_letters_5, answer_letters_6};
-    std::vector<const char*> answers_binary = {answer_binary_1, answer_binary_2, answer_binary_3};//, answer_binary_5, answer_binary_6};
+    std::vector<const char*> inputs = {input_1, input_2, input_3, input_4, input_5, input_6, input_7, input_8};
+    std::vector<const char*> outputs = {output_1, output_2, output_3, output_4, output_5, output_6, output_7, output_8};
+    std::vector<const char*> answers_letters = {answer_letters_1, answer_letters_2, answer_letters_3,answer_letters_4, answer_letters_5, answer_letters_6, answer_letters_7, answer_letters_8};
+    std::vector<const char*> answers_binary = {answer_binary_1, answer_binary_2, answer_binary_3, answer_binary_4, answer_binary_5, answer_binary_6, answer_binary_7, answer_binary_8};
 
 
     for(size_t i = 0; i < inputs.size(); ++i){
