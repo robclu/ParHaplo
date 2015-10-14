@@ -3,6 +3,7 @@
 ########################################################################################
 
 CXX_EXE 		:= parahaplo_tests
+NXX_EXE 		:= parahaplo_cuda
 
 ########################################################################################
 #                                   INSTALL DIRECTORY                                  #
@@ -20,14 +21,15 @@ UNINSTALL_DIR   := $(addsuffix /nano, $(INSTALL_DIR))
 #	NXX     : The compiler for the nvidia cuda gpu implementation                      #
 ########################################################################################
 
-CXX 			:= clang++ 
-NXX             := nvcc --ccbin $(CXX)
+CXX 			:= clang++
+NXX             := nvcc -ccbin $(CXX)
 
 ########################################################################################
 #				                    INCLUDE DIRECTORIES 		                       #
 ########################################################################################
 
 CXX_INCLUDE     := -I$(TBBROOT)/include -I/Users/sashatn/Documents/boost_1_59_0/include
+NXX_INCLUDE     := -I/usr/local/cuda-7.0/include
 
 ########################################################################################
 #				   	                   LIBRARIES 						               #
@@ -35,6 +37,8 @@ CXX_INCLUDE     := -I$(TBBROOT)/include -I/Users/sashatn/Documents/boost_1_59_0/
 
 CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm -ltbb
 CXX_LDIR  	    := -L/Users/sashatn/Documents/boost_1_59_0/lib
+NXX_LIBS        := -lcudart -lcuda $(CXX_LIBS)
+NXX_LDIR        := -L/usr\local/cuda-7.0/lib64
 
 ########################################################################################
 #					                COMPILER FLAGS 					                   #
@@ -44,7 +48,7 @@ CXX_LDIR  	    := -L/Users/sashatn/Documents/boost_1_59_0/lib
 ########################################################################################
 
 CXX_FLAGS 		:= -std=c++11 -Wall -g
-NXX_FLAGS       := -arch=sm_30
+NXX_FLAGS       := -arch=sm_30 --std=c++11 -g
 PXX_FLAGS       :=
 
 ALL_TESTS       =   small_container_tests.o             \
@@ -65,13 +69,16 @@ ALL_TESTS       =   small_container_tests.o             \
 					subblock_tests.o                    \
 					tests.o 
 
+CUDA_TESTS      = cuda_container_tests.o                
+
 ########################################################################################
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
 .PHONY: all block_tests container_tests checker_tests converter_tests node_constiner_tests      \
 		node_selector_tests link_tests tree_tests comparator_tests sorter_tests                 \
-		search_node_tests node_manager_tests subblock_tests evaluator_tests clean
+		search_node_tests node_manager_tests subblock_tests evaluator_tests                     \
+		cuda_container_tests clean
 
 all: build_and_run
 
@@ -197,7 +204,21 @@ tree_tests: tree_tests.o
 
 build_tests: $(ALL_TESTS)
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
+
+cuda_container_tests.o: cuda_container_tests.cpp 
+	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
+
+cuda_link_tests.o: cuda_link_tests.cu
+	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
 	
+cuda_container_tests: NXX_FLAGS += -DSTAND_ALONE
+cuda_container_tests: cuda_container_tests.o 
+	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
+
+cuda_link_tests: NXX_FLAGS += -DSTAND_ALONE
+cuda_link_tests: cuda_link_tests.o 
+	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
+
 clean:
 	rm -rf *.o
 	rm -rf $(CXX_EXE) 
