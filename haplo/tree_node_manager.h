@@ -30,14 +30,14 @@ private:
     size_t      _num_nodes;             //!< The number of nodes in the tree
     size_t      _next_node_index;       //!< Index of the next node
 public:
-    TreeNode*   _nodes;                 //!< The nodes to manage
+    TreeNode*   nodes;                 //!< The nodes to manage
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor -- min 4 nodes
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
     explicit NodeManagerGpu(const size_t num_nodes) noexcept
-    : _num_nodes(num_nodes), _next_node_index(0) {}
+    : _num_nodes(num_nodes), _next_node_index(1) {}
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the size of the node manager -- number of nodes
@@ -56,24 +56,32 @@ public:
     //    _nodes.reserve(num_nodes);
     //    while (elements++ < num_nodes) _nodes.push_back(SearchNode());
     //}
-     
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the index of the next node, adn makes space for another after it -- the left and
     ///             subnodes of the tree
     /// @return     The index of the next available subnode
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
-    inline TreeNode* get_next_node() 
+    inline TreeNode& get_next_node() 
     { 
         // Very bare -- need to improve
         #ifdef __CUDAACC__
-            return &_nodes[atomicAdd(&_next_node_index, 2)];
+            return nodes[atomicAdd(&_next_node_index, 2)];
         #else 
             size_t before = _next_node_index;
             _next_node_index += 2;
-            return &_nodes[before];
+            return nodes[before];
         #endif
     }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of the next node, adn makes space for another after it -- the left and
+    ///             subnodes of the tree
+    /// @return     The index of the next available subnode
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
+    inline TreeNode& node(const size_t i) { return nodes[i]; }
 };
 
 }                   // End namespace haplo

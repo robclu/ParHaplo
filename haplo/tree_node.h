@@ -12,6 +12,7 @@ namespace haplo {
 struct TreeNode {
     size_t      haplo_idx   ;
     size_t      root_idx    ; 
+    size_t      node_idx    ;
     size_t      alignments  ;
     uint8_t     value       ;
     size_t*     read_ids    ;

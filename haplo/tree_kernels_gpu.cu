@@ -1,20 +1,153 @@
 #include "cuda.h"
-#include <stdint.h>
-#include "read_info_gpu.cuh"
-#include "snp_info_gpu.h"
+#include "math.h"
+#include "tree_internal.h"
 
 namespace haplo {
-    
-__global__ void search_tree(uint8_t* data       , size_t data_size, 
-                            ReadInfo* read_info , size_t read_size, 
-                            SnpInfoGpu* snp_info, size_t snps_size, 
-                            size_t * result)
+
+__device__ size_t compare_snps(const internal::Tree& tree, const size_t start_node_idx, const size_t ref_haplo_idx)
 {
-    // Check that this is working 
-    for (size_t i = 0; i < read_size; ++i) {
-        if (read_info[i].start_index() != 0) 
-            *result = read_info[i].start_index();
+    size_t node_idx = start_node_idx;
+    size_t read_start = 0, read_end = 0, row_offset  = 0,
+           same       = 0, opp      = 0;
+    TreeNode comp_node;
+    
+    // Go back up the tree and determine the 
+    for (size_t i = tree.last_searched_snp + 1; i > 0; --i) {
+        comp_node  = tree.node_manager.nodes[node_idx];
+        // Go through the alignments
+        for (size_t j = 0; j < comp_node.alignments; ++j) {
+            read_start = tree.read_info[comp_node.read_ids[j]].start_index();
+            read_end   = tree.read_info[comp_node.read_ids[j]].end_index();
+            
+            if (read_start <= comp_node.haplo_idx || read_start <= ref_haplo_idx ||
+                read_end   >= comp_node.haplo_idx || read_end   >= ref_haplo_idx ) {
+            
+                row_offset = tree.read_info[comp_node.read_ids[j]].offset();
+            
+                if (tree.data[row_offset + comp_node.haplo_idx] == tree.data[row_offset + ref_haplo_idx]
+                    && tree.data[row_offset + ref_haplo_idx] <= 1) {
+                    ++same;
+                } else if (tree.data[row_offset + comp_node.haplo_idx] != tree.data[row_offset + ref_haplo_idx]
+                    && tree.data[row_offset + ref_haplo_idx] <= 1)  {
+                    ++opp;
+                }
+            }
+                
+        }
+        node_idx = comp_node.root_idx;  // Point back one level of the tree
     }
+    return max((unsigned int)same, (unsigned int)opp) - min((unsigned int)same, (unsigned int)opp);
+}
+
+__device__ size_t* realloc(size_t& old_size, size_t new_size, size_t* old)
+{
+    size_t* new_array = (size_t*)malloc(new_size * sizeof(size_t));
+
+    for (size_t i = 0; i < old_size; i++) new_array[i] = old[i];
+
+    free(old);
+    return new_array;
+}
+
+template <typename Type>
+__device__ void swap_elements(Type* first, Type* second)
+{
+    Type* temp  = second;
+    second      = first;
+    first       = temp;
+}
+
+__device__ void add_alignments(const internal::Tree& tree, TreeNode* node, 
+                               const size_t* aligned, const size_t last_unaligned_idx)
+{
+    size_t read_offset = 0, align_count = 0;
+    size_t* alignments = new size_t[tree.snp_info[node->haplo_idx].end_index() - 
+                                    tree.snp_info[node->haplo_idx].start_index()];
+    size_t* values     = new size_t[tree.snp_info[node->haplo_idx].end_index() - 
+                                    tree.snp_info[node->haplo_idx].start_index()];     
+
+    for (size_t i = last_unaligned_idx; i < tree.reads; ++i) {
+        if (i >= tree.snp_info[node->haplo_idx].start_index() &&
+            i <= tree.snp_info[node->haplo_idx].end_index()  ) {
+       
+            // If the row crosses the snp
+            if (tree.read_info[aligned[i]].start_index() <= node->haplo_idx &&
+                tree.read_info[aligned[i]].end_index()   >= node->haplo_idx ) {
+            
+                read_offset  = tree.read_info[i].offset();
+                auto element = tree.data[read_offset + node->haplo_idx];
+                node->node_idx = aligned[i];
+            
+                if ((element == 0 && node->value == 0) || (element == 1 && node->value == 1)) {
+                    values[align_count] = 1; alignments[align_count++] = aligned[i];
+                    node->node_idx++;
+                } else if ((element == 0 && node->value == 1) || (element == 1 && node->value == 0)) {
+                    values[align_count] = 0; alignments[align_count++] = aligned[i];
+                    node->node_idx++;
+                }
+            }
+        }
+    }
+
+    // Move the found alignments to the node
+    node->alignments     = align_count;
+    node->read_ids       = new size_t[align_count];
+    node->read_values    = new uint8_t[align_count];
+    
+    for (size_t i = 0; i < align_count; ++i) {
+        node->read_ids[i] = alignments[i];
+        node->read_values[i] = (uint8_t)values[i];
+    }
+
+    free(alignments); free(values);
+}
+
+
+__device__ void search_helper(internal::Tree tree, size_t start_node_idx, const size_t num_nodes)
+{
+    
+}
+
+__global__ void search_tree(internal::Tree tree, size_t*  result)
+{
+    // Which alignments are and are not set
+    size_t* set_alignments = new size_t[tree.reads];
+    size_t  last_aligned = 0;
+    
+    // initialize the alignments
+    for (size_t i = 0; i < tree.reads; ++i) set_alignments[i] = i;
+    
+    TreeNode node = tree.node_manager.node(0);
+    node.node_idx = 0; node.value = 0;
+    node.haplo_idx = tree.search_snps[tree.last_searched_snp];
+    
+    // Set the alignments for the tree root
+    add_alignments(tree, &node, set_alignments, last_aligned);
+    
+    // Still need to set the alignments
+    for (size_t i = last_aligned; i < last_aligned + node.alignments; ++i) {
+            set_alignments[node.read_ids[i - last_aligned]] = set_alignments[i];
+            set_alignments[i] = node.read_ids[i - last_aligned];
+    } last_aligned += node.alignments;
+    
+    // Make the next 2 nodes point back to this one
+    TreeNode left_child = tree.node_manager.node(1); TreeNode right_child = tree.node_manager.node(2);
+    left_child.root_idx  = 0; right_child.root_idx  = 0;  
+    left_child.value     = 0; right_child.value     = 1;
+    left_child.node_idx  = 1; right_child.node_idx  = 2;
+    left_child.haplo_idx = 1; right_child.haplo_idx = 1;
+    
+    // Do the alignments for the next nodes
+    add_alignments(tree, &left_child , set_alignments, last_aligned);
+    add_alignments(tree, &right_child, set_alignments, last_aligned);
+   
+    
+    *result = right_child.alignments;
+/*
+    tree.last_searched_snp++;
+    size_t a = compare_snps(tree, 1, 2);
+  */  
+    free(set_alignments);
 }
 
 }               // End namespace haplo
