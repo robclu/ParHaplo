@@ -74,7 +74,15 @@ public:
             return nodes[before];
         #endif
     }
-    
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of the next node, adn makes space for another after it -- the left and
+    ///             subnodes of the tree
+    /// @return     The index of the next available subnode
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
+    inline TreeNode node_copy(const size_t i) const { return nodes[i]; }
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the index of the next node, adn makes space for another after it -- the left and
     ///             subnodes of the tree
@@ -82,6 +90,22 @@ public:
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
     inline TreeNode& node(const size_t i) { return nodes[i]; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of the next node, adn makes space for another after it -- the left and
+    ///             subnodes of the tree
+    /// @return     The index of the next available subnode
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
+    inline const TreeNode& node(const size_t i) const { return nodes[i]; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the index of the next node, adn makes space for another after it -- the left and
+    ///             subnodes of the tree
+    /// @return     The index of the next available subnode
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
+    inline TreeNode* node_ptr(const size_t i) { return &nodes[i]; }
 };
 
 }                   // End namespace haplo
