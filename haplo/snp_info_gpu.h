@@ -18,6 +18,7 @@
 #endif
 
 #include "snp_info.hpp"
+#include <stdint.h>
 
 namespace haplo {
            

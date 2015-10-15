@@ -166,17 +166,6 @@ public:
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
     inline void shift_left(const size_t n = 1) { _bits <<= (2 * n); }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Converts to bool vector
-    // ------------------------------------------------------------------------------------------------------
-    thrust::host_vector<uint8_t>  to_thrust_vector() const 
-    {
-        standard_container host_vec;
-        for (auto i = 0; i < num_elements; ++i)
-            host_vec.push_back(get(i));
-        return host_vec;
-    }
 }; 
 
 // ----------------------------------------------------------------------------------------------------------
@@ -185,7 +174,7 @@ public:
 ///         bits are stored big endian
 /// @tparam BitsPerElement  The number of bits per element, can be 1 or 2 -- default to 1
 // ----------------------------------------------------------------------------------------------------------
-template <byte BitsPerElement = 1>
+template <byte BitsPerElement>
 class BinaryVector {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
@@ -213,7 +202,14 @@ public:
     : _data(num_elements / elements_per_bin + 1), _bins(num_elements / elements_per_bin), 
       _num_elements(num_elements)
     {}
-    
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a reference to the start of the data container
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD 
+    internal_container* start() { return thrust::raw_poitner_cast(&data_container[0]); }
+
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a value from the binary container
     /// @param[in]  i   The index of the binary in the container to get
@@ -304,7 +300,8 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Converts to bool vector
     // ------------------------------------------------------------------------------------------------------
-    thrust::host_vector<uint8_t> to_thrust_vector() const 
+    CUDA_H
+    thrust::host_vector<uint8_t> to_binary_vector() const
     {
         standard_container host_vec;
         for (auto i = 0; i < num_elements; ++i)

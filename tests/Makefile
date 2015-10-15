@@ -217,6 +217,9 @@ cuda_tree_tests.o: cuda_tree_tests.cu
 snp_info_tests.o: snp_info_tests.cu
 	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
 
+tree_kernels_gpu.o: ../haplo/tree_kernels_gpu.cu
+	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
+
 cuda_container_tests: NXX_FLAGS += -DSTAND_ALONE
 cuda_container_tests: cuda_container_tests.o 
 	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	

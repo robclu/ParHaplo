@@ -12,6 +12,20 @@
 #include <bitset>
 #include <limits>
 #include <vector>
+#include <nppdefs.h>
+#include <thrust/host_vector.h>
+
+#ifdef __CUDACC__
+    #define CUDA_HD __host__ __device__
+    #define CUDA_H  __host__
+    #define CUDA_D  __device__
+    #define SHARED  __shared__
+#else
+    #define CUDA_HD
+    #define CUDA_H
+    #define CUDA_D
+    #define SHARED
+#endif
 
 namespace haplo {
 
@@ -20,18 +34,12 @@ using byte = uint8_t;
 // ----------------------------------------------------------------------------------------------------------
 /// @struct     BinaryOnes
 /// @brief      Generates a seqeunce of binary ones at compile time, the length depends on the data type
-/// @tparam     SizeType    The type used to determine the size
+/// @tparam     SizeType    The type used to determine the size -- not implemented at the momemnt
 // ----------------------------------------------------------------------------------------------------------
 template <typename SizeType>
 struct BinaryOnes {
-    static constexpr size_t num_elements = sizeof(SizeType) * 8;
-    static constexpr SizeType value = std::numeric_limits<SizeType>::max() ^ (1 << (num_elements - 1));
-};
-
-// specialization for 8 bit unsigned
-template <>
-struct BinaryOnes<byte> {
-    static constexpr byte value = std::numeric_limits<byte>::max();
+    static const size_t num_elements = sizeof(SizeType) * 8;
+    static const  SizeType value = NPP_MAX_8U ^ (1 << (num_elements - 1));
 };
 
 // ----------------------------------------------------------------------------------------------------------
@@ -52,18 +60,20 @@ class TinyContainer<SizeType, 1> {
 private:
     SizeType                _bits;                                  //!< The bits for the container  
 public:
-    static constexpr size_t num_elements = sizeof(SizeType) * 8;    //!< The number of bits in the container
+    static const size_t num_elements = sizeof(SizeType) * 8;    
 public: 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to initialize the bits to 0
     // ------------------------------------------------------------------------------------------------------
-    TinyContainer() : _bits(0) {};
+    CUDA_HD
+    TinyContainer() : _bits(0) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the value of the bit at position i
     /// @param[in]  i   The index of the bit to get
     /// @return     The value of the bit at position i
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline byte get(const byte i) const { return (_bits >> (num_elements - 1 - i)) & 0x01; }
     
     // ------------------------------------------------------------------------------------------------------
@@ -71,6 +81,7 @@ public:
     /// @param[in]  i       The position of the bit to set
     /// @param[in]  value   The value to set the bit to (0 or 1)
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline void set(const byte i, const byte value) 
     { 
         // If the value is valid and values != value, then we must swap the values
@@ -83,10 +94,11 @@ public:
     ///             removing and element from the container.
     /// @param[in]  i   The index of the bit to remove
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline void remove_bit(const byte i) 
     {
         // All ones -- works for signed and unsigned types
-        static constexpr SizeType ones = BinaryOnes<SizeType>::value;
+        const SizeType ones = BinaryOnes<SizeType>::value;
         _bits = (_bits & (ones - ((1 << (num_elements - i)) - 1)))     // Get bits to the left of the bit to remove
                 ^ (( _bits & ((1 << (num_elements - i - 1)) - 1)) << 1);         // Get bits below the bits to move
     }
@@ -95,13 +107,8 @@ public:
     /// @brief      Shifts all bits left by n 
     /// @param[in]  n   THe amount to shift the bits left, default to 1
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline void shift_left(const size_t n = 1) { _bits <<= n; }
-    
-    void print()
-    {
-        std::bitset<sizeof(SizeType) * 8> x(_bits);
-        std::cout << x;
-    }
 };
 
 // Specialization for 2 bits per container
@@ -110,11 +117,13 @@ class TinyContainer<SizeType, 2> {
 private:
     SizeType                _bits;                                  //!< The bits for the container
 public:
-    static constexpr size_t num_elements = sizeof(SizeType) * 4;    //!< The number of bits in the container
+    using standard_container = thrust::host_vector<uint8_t>;
+    static const size_t num_elements = sizeof(SizeType) * 4;    //!< The number of bits in the container
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to initialize the bits to 0
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     TinyContainer() : _bits(0) {}
    
     // ------------------------------------------------------------------------------------------------------
@@ -122,6 +131,7 @@ public:
     /// @param[in]  i   The index of the bits to get
     /// @return     The value of the bits at position i
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline byte get(const byte i) const { return (_bits >> ((num_elements - i - 1) * 2)) & 0x03; }
     
     // ------------------------------------------------------------------------------------------------------
@@ -129,6 +139,7 @@ public:
     /// @param[in]  i       The position of the bits to set
     /// @param[in]  value   The value to set the bits to (0 | 1 | 2 | 3)
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline void set(const byte i, const byte value)
     {
         // Check if the lower (right) bit has the correct value, otherwise set it
@@ -144,10 +155,11 @@ public:
     ///             removing and element from the container.
     /// @param[in]  i   The index of the bit to remove
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline void remove_bit(const byte i) 
     {
         // All ones -- works for signed and unsigned types
-        static constexpr SizeType ones = BinaryOnes<SizeType>::value;
+        const SizeType ones = BinaryOnes<SizeType>::value;
         _bits = (_bits & (ones - ((1 << ((num_elements - i) * 2)) - 1)))     // Get bits to the left of the bit to remove
                 ^ (( _bits & ((1 << ((num_elements - i - 1) * 2)) - 1)) << 2);        // Get bits below the bits to move
     }
@@ -156,14 +168,9 @@ public:
     /// @brief      Shifts all bits left by n 
     /// @param[in]  n   THe amount (number of positions) to shift the bits left, default to 1
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline void shift_left(const size_t n = 1) { _bits <<= (2 * n); }
-    
-    void print()
-    {
-        std::bitset<num_elements * 2> x(_bits);
-        std::cout << x;
-    }
-};
+}; 
 
 // ----------------------------------------------------------------------------------------------------------
 /// @class  BinaryArray 
@@ -179,7 +186,7 @@ public:
     using internal_container = TinyContainer<byte, BitsPerElement>;
     // ------------------------------------------------------------------------------------------------------
     static constexpr size_t elements_per_bin    = internal_container::num_elements;
-    static constexpr size_t bins                = NumElements / elements_per_bin;;
+    static constexpr size_t bins                = NumElements / elements_per_bin;
 private:
     internal_container      _data[bins + 1];    //!< Array of bit containers
     size_t                  _num_elements;      //!< Number of elements in the container
@@ -246,14 +253,15 @@ public:
 ///         bits are stored big endian
 /// @tparam BitsPerElement  The number of bits per element, can be 1 or 2 -- default to 1
 // ----------------------------------------------------------------------------------------------------------
-template <byte BitsPerElement = 1>
+template <byte BitsPerElement>
 class BinaryVector {
 public:
     // ----------------------------------------------- ALIAS'S ----------------------------------------------
+    using standard_container = thrust::host_vector<uint8_t>;
     using internal_container = TinyContainer<byte, BitsPerElement>;
-    using data_container     = std::vector<internal_container>;
+    using data_container     = thrust::host_vector<internal_container>;
     // ------------------------------------------------------------------------------------------------------
-    static constexpr size_t elements_per_bin    = internal_container::num_elements;
+    static const size_t elements_per_bin    = internal_container::num_elements;
 private:
     data_container          _data;              //!< Vector of bit containers
     size_t                  _bins;              //!< The number of bins in the vector
@@ -262,20 +270,29 @@ public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Default constructor
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     explicit BinaryVector() : _data(0), _bins(0), _num_elements(0) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to take the number of elements for the container 
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     explicit BinaryVector(const size_t num_elements) 
     : _data(num_elements / elements_per_bin + 1), _bins(num_elements / elements_per_bin), 
       _num_elements(num_elements)
     {}
-    
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets a reference to the start of the data container
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD 
+    internal_container* start() { return thrust::raw_pointer_cast(&_data[0]); }
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets a value from the binary container
     /// @param[in]  i   The index of the binary in the container to get
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline byte get(const size_t i) const 
     { 
         return _data[i / elements_per_bin].get(i % elements_per_bin); }
@@ -285,6 +302,7 @@ public:
     /// @param[in]  i       The index of the variable to set
     /// @param[in]  value   The value to set the varibale to (must be 0 or 1)
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline void set(const size_t i, const byte value) 
     { 
         _data[i / elements_per_bin].set(i % elements_per_bin, value); 
@@ -294,12 +312,14 @@ public:
     /// @brief      The size (number of elements) in the container 
     /// @return     The number of elements in the container 
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     inline size_t size() const { return _num_elements; }
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Resizes the data container (adds to the end if bigger, or removes from the end if smaller) 
     /// @param[in]  num_elements    The number of elements in the container after the resize
     // ------------------------------------------------------------------------------------------------------
+    CUDA_H
     inline void resize(const size_t num_elements) 
     { 
         size_t total_bins       = num_elements / elements_per_bin + 1;
@@ -307,7 +327,7 @@ public:
         
         if (total_bins > current_bins) {
             for (size_t i = current_bins; i < total_bins; ++i) {
-                _data.emplace_back();
+                _data.push_back(internal_container());
                 ++_bins;
             }
         } else if (total_bins < current_bins) {
@@ -323,6 +343,7 @@ public:
     /// @brief      Removes an element from the container
     /// @param[in]  i   The index of the element to remove
     // ------------------------------------------------------------------------------------------------------
+    CUDA_H
     inline void remove_element(const size_t i) 
     {
         // Decrease the number of elements
@@ -343,20 +364,27 @@ public:
     /// @brief      Adds an element to the back of the vector
     /// @param[in]  value     The element to add to the back of the vector
     // ------------------------------------------------------------------------------------------------------
+    CUDA_H
     inline void push_back(const byte value)
     {
         // If the container is currently full
-        if (!((elements_per_bin * _bins) > _num_elements)) { _data.emplace_back(); ++_bins; }
+        if (!((elements_per_bin * _bins) > _num_elements)) { _data.push_back(internal_container()); ++_bins; }
         
         // Add the new element
         _data[_num_elements / elements_per_bin].set(_num_elements % elements_per_bin, value);
         ++_num_elements;
     }
     
-    void print() 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Converts to bool vector
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_H
+    thrust::host_vector<uint8_t> to_binary_vector() const
     {
-        for (int i = 0; i < _bins + 1; ++i)
-            _data[i].print();
+        standard_container host_vec;
+        for (auto i = 0; i < _num_elements; ++i)
+            host_vec.push_back(get(i));
+        return host_vec;
     }
 };
 

@@ -11,6 +11,7 @@
 
 #include "../haplo/subblock_cpu.hpp"
 #include "../haplo/tree_gpu.h"
+#include "cuda_runtime.h"
 
 using namespace std::chrono;
 
@@ -26,7 +27,7 @@ BOOST_AUTO_TEST_CASE( canCreateTree )
     block_type      block(input_four);
     subblock_type   sub_block(block, 1);
 
-    haplo::TreeGpu tree(sub_block.data(), sub_block.read_info());
+    haplo::TreeGpu tree(sub_block.data(), sub_block.read_info(), sub_block.snp_info(), 100);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
