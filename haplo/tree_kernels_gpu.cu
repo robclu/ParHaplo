@@ -199,12 +199,12 @@ __global__ void search_tree(internal::Tree tree)
   
     // DEBUG
     printf("Most Correlated : %i Correlation : %i\n", index, max);
-   /* 
+    
     // The first node has now been searched
     tree.last_searched_snp++;
     
     // Make the next 2 nodes point back to this one
-    TreeNode& left_child = tree.node_manager.node(1); TreeNode& right_child = tree.node_manager.node(2);
+    TreeNode& left_child = tree.nodes[1]; TreeNode& right_child = tree.nodes[2];
     left_child.root_idx  = 0; right_child.root_idx  = 0;  
     left_child.value     = 1; right_child.value     = 1;
     left_child.node_idx  = 1; right_child.node_idx  = 2;
