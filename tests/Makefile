@@ -21,7 +21,7 @@ UNINSTALL_DIR   := $(addsuffix /nano, $(INSTALL_DIR))
 #	NXX     : The compiler for the nvidia cuda gpu implementation                      #
 ########################################################################################
 
-CXX 			:= g++-4.8
+CXX 			:= g++
 NXX             := nvcc -ccbin $(CXX)
 
 ########################################################################################
@@ -37,7 +37,7 @@ NXX_INCLUDE     := -I/usr/local/cuda-7.0/include
 
 CXX_LIBS 		:= -lboost_unit_test_framework -lboost_iostreams -lm -ltbb
 CXX_LDIR  	    := -L/Users/sashatn/Documents/boost_1_59_0/lib
-NXX_LIBS        := -lcudart -lcuda $(CXX_LIBS)
+NXX_LIBS        := -lcudart -lcuda -lcudadevrt $(CXX_LIBS)
 NXX_LDIR        := -L/usr\local/cuda-7.0/lib64
 
 ########################################################################################
@@ -48,7 +48,7 @@ NXX_LDIR        := -L/usr\local/cuda-7.0/lib64
 ########################################################################################
 
 CXX_FLAGS 		:= -std=c++11 -Wall -g
-NXX_FLAGS       := -arch=sm_30 --std=c++11 -g
+NXX_FLAGS       := -arch=sm_35 --std=c++11 
 PXX_FLAGS       :=
 
 ALL_TESTS       =   small_container_tests.o             \
@@ -212,13 +212,13 @@ cuda_link_tests.o: cuda_link_tests.cu
 	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
 
 cuda_tree_tests.o: cuda_tree_tests.cu
-	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
+	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -dc $<
 
 snp_info_tests.o: snp_info_tests.cu
 	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
 
 tree_kernels_gpu.o: ../haplo/tree_kernels_gpu.cu
-	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
+	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -dc $<
 
 cuda_container_tests: NXX_FLAGS += -DSTAND_ALONE
 cuda_container_tests: cuda_container_tests.o 
