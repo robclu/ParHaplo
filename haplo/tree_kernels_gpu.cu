@@ -6,16 +6,21 @@ namespace haplo {
 
 struct BoundsGpu {
 
-size_t same;
-size_t opps;
+bool   lower_is_same;
+size_t lower;
+size_t upper;
+size_t diff;
 
 };
 __device__ 
-size_t compare_snps(internal::Tree& tree, const size_t comp_node_idx, const size_t ref_haplo_idx)
+BoundsGpu compare_snps(internal::Tree& tree, const size_t comp_node_idx, const size_t ref_haplo_idx)
 {
 //    size_t node_idx = node.node_idx;
     size_t read_start = 0, read_end     = 0, row_offset  = 0,
            opp        = 0, same         = 0;
+    
+    // The bounds for this instance
+    BoundsGpu bounds;
             
     // Get a pointer to the node
     const TreeNode* comp_node = &tree.nodes[comp_node_idx];
@@ -24,7 +29,7 @@ size_t compare_snps(internal::Tree& tree, const size_t comp_node_idx, const size
     for (size_t i = tree.last_searched_snp + 1; i > 0; --i) {
       
         // DEBUG  
-        printf("Node ID : %i Node HI : %i\n", comp_node->node_idx, comp_node->haplo_idx);
+        printf("Node ID : %i Node HI : %i, Ref HI : %i\n", comp_node->node_idx, comp_node->haplo_idx, ref_haplo_idx);
         
         // Go through the alignments for the node
         for (size_t j = 0; j < comp_node->alignments; ++j) {
@@ -42,11 +47,11 @@ size_t compare_snps(internal::Tree& tree, const size_t comp_node_idx, const size
                 if (comp_value == ref_value && ref_value <= 1) {
                     ++same;
                     // DEBUG
-                    printf("Adding Same : %i\n", comp_node->read_ids[j]);
+                    printf("Adding Same : %i, %i\n", comp_node->read_ids[j], ref_haplo_idx);
                 } else if (comp_value != ref_value && ref_value <= 1 && comp_value <=1) {
                     ++opp;
                     // DEBUG
-                    printf("Adding Oppp : %i\n", comp_node->read_ids[j]);
+                    printf("Adding Oppp : %i, %i\n", comp_node->read_ids[j], ref_haplo_idx);
                 }
             }
         }
@@ -59,7 +64,13 @@ size_t compare_snps(internal::Tree& tree, const size_t comp_node_idx, const size
             printf("Reassign : Root ID : %i : Node ID :\n", root_idx, comp_node->node_idx); 
         }
     }
-    return max((unsigned int)same, (unsigned int)opp) - min((unsigned int)same, (unsigned int)opp);
+    // Format the bounds 
+    bounds.lower = min((unsigned int)same, (unsigned int)opp);
+    bounds.upper = max((unsigned int)same, (unsigned int)opp);
+    bounds.diff  = bounds.upper - bounds.lower;
+    bounds.lower_is_same = same <= opp ? true : false;
+    
+    return bounds;
 }
 
 __device__ size_t* realloc(size_t& old_size, size_t new_size, size_t* old)
@@ -157,12 +168,17 @@ __device__ size_t start_node_index = 1;                     // For each level, t
                                                             // node array of the first element in the level 
 __device__ size_t nodes_in_level = 2;                       // The number of nodes (sub-branches) in the level
 
-__global__ void search_tree(internal::Tree tree, CudaDevices devices, size_t* start_ubound)
+__global__ void search_tree(internal::Tree tree, size_t start_ubound, size_t device_index)
 {
+    // DEBUG 
+    printf("Device Index : %i\n", device_index);
+    printf("Start Bound  : %i\n" , start_ubound);
+    
     struct cudaDeviceProp device_properties;                // So that we can know the max number of threads
 
     // Get the properties of the device 
-    cudaError_t status = 
+    //
+    //cudaError_t status = 
     // ---------------------------------------- ROOT NODE -------------------------------------------------
 
     // DEBUG
@@ -188,14 +204,20 @@ __global__ void search_tree(internal::Tree tree, CudaDevices devices, size_t* st
     // DEBUG 
     printf("AlignL : %i\n", tree.last_unaligned_idx);
     for (size_t i = 0; i < tree.last_unaligned_idx; ++i) printf("%i ", tree.aligned_reads[i]);
-    printf("\n");
-    
+    printf("\nLast Searched: %i\n", tree.last_searched_snp);    
+
     // Go over all the nodes that have not been searched and see how correlated they are
-    size_t max = 0, result = 0, index = 0;
+    size_t max = 0, index = 0; BoundsGpu bounds_temp, bounds_final;
     for (size_t i = tree.last_searched_snp + 1; i < tree.snps; ++i) {
-        result = compare_snps(tree, node.node_idx, i);
-        printf("Result: %i\n", result);
-        if (result > max) { index = i; max = result; }
+        bounds_temp = compare_snps(tree, node.node_idx, i);
+        if (bounds_temp.diff > max) { 
+            index        = i; 
+            max          = bounds_temp.diff; 
+            bounds_final = bounds_temp;
+        }
+        printf("Result : %i\n", bounds_temp.diff);
+        printf("Max    : %i\n", max   );
+        printf("Index  : %i\n", index );
    }
   
     // DEBUG

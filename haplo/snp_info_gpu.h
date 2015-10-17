@@ -46,10 +46,10 @@ public:
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
     SnpInfoGpu(const SnpInfo& other) noexcept
-    : _start_idx(other.start_index())       , 
-      _end_idx(other.cpu.end_index())       , 
-      _elemets(other.ones() + other.zeros()),
-      _type(other.type())                   {}
+    : _start_idx(other.start_index())        , 
+      _end_idx(other.end_index())            , 
+      _elements(other.ones() + other.zeros()),
+      _type(other.type())                    {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the staet index of the read 

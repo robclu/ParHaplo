@@ -35,23 +35,34 @@ template <typename DeviceManager>
 class DeviceManager {
 public:
     // --------------------------------------------- ALIAS'S ------------------------------------------------
-    using atomic_type = tbb::atomic<size_t>;
+    using atomic_size_t = tbb::atomic<size_t>;
+    using atomic_int    = tbb::atomic<int>:
     // ------------------------------------------------------------------------------------------------------
 private:
     size_t          _total_devices;         //!< Total number of computation dives in system
-    atomic_type     _total_elements;        //!< Total number of system elements
-    atomic_type     _devices_used;          //!< Total number of devices used
+    atomic_size_t   _total_elements;        //!< Total number of system elements
+    atomic_int      _device_to_use;         //!< Total index of the device to use 
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor -- sets params
     // ------------------------------------------------------------------------------------------------------
     CUDA_H
-    DeviceManager() : _total_elements(0), _devices_used(0)
+    DeviceManager() : _total_elements(0), _device_to_use(0)
     {
-        cudaError_t status;
+        struct cudaDeviceProp device_properties;    // Properties of a device
+        cudaError_t status  = cudaGetDeviceCount(&_total_devices);
         
+        // If there was an error 
+        if (status != cudaSuccess) _total_devices = 0;
     }
     
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Returns the index of the device to use to compute the block's haplotype 
+    // ------------------------------------------------------------------------------------------------------
+    int get_device(const size_t block_width)
+    {
+        
+    }
     
     
 };

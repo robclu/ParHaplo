@@ -28,8 +28,13 @@ BOOST_AUTO_TEST_CASE( canCreateTree )
     subblock_type   sub_block(block, 1);
     sub_block.print();
 
+    // For now just use the first device 
+    // Later use device manager
+    size_t device_index = 0;
+    
     haplo::TreeGpu tree(sub_block.data()            , sub_block.read_info()         , sub_block.snp_info(), 
-                        sub_block.snp_info().size() , sub_block.read_info().size()  , sub_block.size());
+                        sub_block.snp_info().size() , sub_block.read_info().size()  , sub_block.size()    , 
+                        device_index                );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
