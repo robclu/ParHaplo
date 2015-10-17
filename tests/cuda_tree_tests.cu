@@ -28,8 +28,8 @@ BOOST_AUTO_TEST_CASE( canCreateTree )
     subblock_type   sub_block(block, 1);
     sub_block.print();
 
-    haplo::TreeGpu tree(sub_block.data()            , sub_block.read_info(), sub_block.snp_info(), 
-                        sub_block.snp_info().size() , sub_block.read_info().size());
+    haplo::TreeGpu tree(sub_block.data()            , sub_block.read_info()         , sub_block.snp_info(), 
+                        sub_block.snp_info().size() , sub_block.read_info().size()  , sub_block.size());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

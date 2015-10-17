@@ -28,6 +28,8 @@ private:
     snp_info_container          _snp_info;
     small_container             _haplotype;
     small_container             _alignments;
+    size_t                      _min_ubound;
+    size_t                      _device;
     // ------------------------------------------ DEVICE ----------------------------------------------------
     tree_type                   _tree; 
 public:    
@@ -35,8 +37,9 @@ public:
     /// @brief   Constructor 
     //-------------------------------------------------------------------------------------------------------
     CUDA_H
-    TreeGpu(binary_vector& data, read_info_container& read_info, snp_info_container , 
-            const size_t   snps, const size_t         reads                         );
+    TreeGpu(binary_vector& data  , read_info_container& read_info, snp_info_container         , 
+            const size_t   snps  , const size_t         reads    , const size_t min_ubound    ,
+            const size_t   device);
     
     CUDA_H
     ~TreeGpu() 
@@ -55,10 +58,11 @@ public:
 
 // --------------------------------------------- IMPLEMENTATIONS --------------------------------------------
 
-TreeGpu::TreeGpu(binary_vector& data, read_info_container& read_info, snp_info_container snp_info, 
-                 const size_t snps, const size_t reads)
-: _data(data)       , _read_info(read_info) , _snp_info(snp_info),
-  _haplotype(snps)  , _alignments(reads)    , _tree(snps, reads)
+TreeGpu::TreeGpu(binary_vector& data    , read_info_container& read_info, snp_info_container snp_info   ,   
+                 const size_t   snps    , const size_t         reads    , const size_t       min_ubound ,
+                 const size_t   device  )
+: _data(data)       , _read_info(read_info) , _snp_info(snp_info)    , _haplotype(snps)  , 
+  _alignments(reads), _tree(snps, reads)    , _min_ubound(min_ubound), _device(device)
 {
     cudaError_t error;
     
@@ -100,7 +104,6 @@ TreeGpu::TreeGpu(binary_vector& data, read_info_container& read_info, snp_info_c
     cudaMemcpy(_tree.aligned_reads, thrust::raw_pointer_cast(&aligned[0]), 
                 sizeof(size_t) * aligned.size(), cudaMemcpyHostToDevice);
 
-
     // ------------------------------------ NODE ALLOCATION -------------------------------------------------
     
     // Allocate space on the device for the tree nodes
@@ -124,7 +127,7 @@ TreeGpu::TreeGpu(binary_vector& data, read_info_container& read_info, snp_info_c
     // --------------------------------------- TREE SEARCH ---------------------------------------------------
 
     // Invoke the kernel with just a single thread -- kernel spawns more threads
-    search_tree<<<1,1>>>(_tree);
+    search_tree<<<1,1>>>(_tree, _device, _min_ubound);
 }
 
 }           // End namespace haplo

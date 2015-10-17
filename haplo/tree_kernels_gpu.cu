@@ -153,14 +153,16 @@ __global__ void search_helper(internal::Tree tree, TreeNode* nodes, ReadInfo* re
     //add_alignments(tree, read_info, *reads, snp_info, tree.data, node , set_alignments, last_aligned);
 }
 
-__device__ size_t start_index;
-__device__ size_t snp_end;
-__device__ size_t haplo_idx;
-__device__ size_t snps;
-__device__ size_t reads;
+__device__ size_t start_node_index = 1;                     // For each level, this is the index in the 
+                                                            // node array of the first element in the level 
+__device__ size_t nodes_in_level = 2;                       // The number of nodes (sub-branches) in the level
 
-__global__ void search_tree(internal::Tree tree)
+__global__ void search_tree(internal::Tree tree, CudaDevices devices, size_t* start_ubound)
 {
+    struct cudaDeviceProp device_properties;                // So that we can know the max number of threads
+
+    // Get the properties of the device 
+    cudaError_t status = 
     // ---------------------------------------- ROOT NODE -------------------------------------------------
 
     // DEBUG
@@ -170,7 +172,6 @@ __global__ void search_tree(internal::Tree tree)
     TreeNode& node = tree.nodes[0];
     node.haplo_idx = tree.search_snps[tree.last_searched_snp];
     node.node_idx  = 0; node.value  = 0;
-    node.lbound    = 0; node.ubound = 0;
     
     // Set the alignments for the tree root
     add_alignments(tree, 0);
@@ -203,6 +204,7 @@ __global__ void search_tree(internal::Tree tree)
     // The first node has now been searched
     tree.last_searched_snp++;
     
+/*    
     // Make the next 2 nodes point back to this one
     TreeNode& left_child = tree.nodes[1]; TreeNode& right_child = tree.nodes[2];
     left_child.root_idx  = 0; right_child.root_idx  = 0;  

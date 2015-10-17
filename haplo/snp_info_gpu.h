@@ -28,8 +28,9 @@ namespace haplo {
 // ----------------------------------------------------------------------------------------------------------
 class SnpInfoGpu {
 private:
-    size_t      _start_idx;
-    size_t      _end_idx;
+    size_t      _start_idx;     //!< Start read index of the snp
+    size_t      _end_idx;       //!< End read index of the snp
+    size_t      _elements;      //!< Number of elements in the snp (0's or 1's -- not gaps)
     uint8_t     _type;          //!< IH or NIH
 public:
     // ------------------------------------------------------------------------------------------------------
@@ -37,17 +38,18 @@ public:
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
     SnpInfoGpu()
-    : _start_idx{0}, _end_idx{0}, _type{0} {}
+    : _start_idx{0}, _end_idx{0}, _elements{0}, _type{0} {}
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor -- sets the values
     /// @param[in]  snp_info        The cpu side snp info to create this snp from
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
-    SnpInfoGpu(const SnpInfo& snp_info_cpu) noexcept
-    : _start_idx(snp_info_cpu.start_index()), 
-      _end_idx(snp_info_cpu.end_index())    , 
-      _type(snp_info_cpu.type())            {}
+    SnpInfoGpu(const SnpInfo& other) noexcept
+    : _start_idx(other.start_index())       , 
+      _end_idx(other.cpu.end_index())       , 
+      _elemets(other.ones() + other.zeros()),
+      _type(other.type())                   {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the staet index of the read 
@@ -91,6 +93,12 @@ public:
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
     inline size_t length() const { return _end_idx - _start_idx + 1; }
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Gets the number of elements in the snp
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD 
+    inline size_t elements() const { return _elements; }
 };
 
 }           // End namespace haplo
