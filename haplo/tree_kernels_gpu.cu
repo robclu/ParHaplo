@@ -6,30 +6,41 @@ namespace haplo {
 
 struct BoundsGpu {
 
-bool   lower_is_same;
-size_t lower;
-size_t upper;
-size_t diff;
+    bool   lower_is_same;       // If the lower bound if from the snp reads being the same
+    size_t lower;               // The lower value for the bound    
+    size_t upper;               // The upper value for the bound
+    size_t diff;                // The difference between the upper and lower bound
+    size_t index;               // The snp index the bound represents
 
 };
-__device__ 
-BoundsGpu compare_snps(internal::Tree& tree, const size_t comp_node_idx, const size_t ref_haplo_idx)
+
+// Maps all the unsearched snps to a n array of BoundsGpu structs which can then be reduces
+__global__ 
+void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_t comp_node_idx)
 {
-//    size_t node_idx = node.node_idx;
-    size_t read_start = 0, read_end     = 0, row_offset  = 0,
-           opp        = 0, same         = 0;
+    size_t read_start = 0, read_end = 0, row_offset = 0, opp = 0, same = 0;
     
-    // The bounds for this instance
-    BoundsGpu bounds;
+    const size_t thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    // Get a reference to the bound parameter
+    BoundsGpu* bounds = &snp_bounds[thread_id];
+    
+    // Index of the haplotype for the comparison
+    const size_t ref_haplo_idx = thread_id + tree.last_searched_snp + 1;
+    bounds->index              = ref_haplo_idx;
             
     // Get a pointer to the node
     const TreeNode* comp_node = &tree.nodes[comp_node_idx];
+    
+    printf("TH ID : %i\n", thread_id);
     
     // Go back up the tree and determine the 
     for (size_t i = tree.last_searched_snp + 1; i > 0; --i) {
       
         // DEBUG  
-        printf("Node ID : %i Node HI : %i, Ref HI : %i\n", comp_node->node_idx, comp_node->haplo_idx, ref_haplo_idx);
+        printf("Node ID : %i ,", comp_node->node_idx);
+        printf("Node HI : %i ,", comp_node->haplo_idx);
+        printf("Ref HI : %i\n" , ref_haplo_idx);
         
         // Go through the alignments for the node
         for (size_t j = 0; j < comp_node->alignments; ++j) {
@@ -65,23 +76,42 @@ BoundsGpu compare_snps(internal::Tree& tree, const size_t comp_node_idx, const s
         }
     }
     // Format the bounds 
-    bounds.lower = min((unsigned int)same, (unsigned int)opp);
-    bounds.upper = max((unsigned int)same, (unsigned int)opp);
-    bounds.diff  = bounds.upper - bounds.lower;
-    bounds.lower_is_same = same <= opp ? true : false;
+    bounds->lower = min((unsigned int)same, (unsigned int)opp);
+    bounds->upper = max((unsigned int)same, (unsigned int)opp);
+    bounds->diff  = bounds->upper - bounds->lower;
+    bounds->lower_is_same = same <= opp ? true : false;
     
-    return bounds;
+    // DEBUG
+    printf("Bounds Diff Inline: %i\n", bounds->diff);
 }
 
-__device__ size_t* realloc(size_t& old_size, size_t new_size, size_t* old)
+// "Reduce" function for the list of selection params to determine the best param 
+//  The reduction is done such that the resulting bound has the highest diff and 
+//  lowest index (this is to mean that the snp is most correlated to the snps already
+//  searched and is also closest to them (hence the lowest index))
+__global__ 
+void reduce_unsearched_snps(BoundsGpu* snp_bounds, const size_t elements)
 {
-    size_t* new_array = (size_t*)malloc(new_size * sizeof(size_t));
-
-    for (size_t i = 0; i < old_size; i++) new_array[i] = old[i];
-
-    free(old);
-    return new_array;
+    const size_t thread_id   = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t reductions  = (size_t)(ceil(log2((double)elements)));
+    size_t reduction_threads = (size_t)(ceil((double)elements / 2.0));
+    
+    // DEBUG
+    printf("Reductions    : %i\n", reductions);
+    printf("Reduc Threads : %i\n", reduction_threads);
+    
+    for (size_t i = 0; i < reductions; ++i) {
+        // Only the first half of the threads do the reduction 
+        if (thread_id < reduction_threads) {
+            
+        }
+        __syncthreads();
+    }
+    
+    // Only half the threads (rounded up) do reduction 
+    
 }
+
 
 // Add any unaligned reads to a node (snp site)
 __device__ 
@@ -149,10 +179,9 @@ __global__ void search_helper(internal::Tree tree, TreeNode* nodes, ReadInfo* re
         size_t* haplo_idx, size_t* last_snp, size_t* start_idx, size_t* snps, size_t* reads)
 {
     // Set node parameters
-    BoundsGpu bounds;
     size_t      node_idx  = threadIdx.x + *start_idx;
     TreeNode*   node      = &nodes[node_idx];
-    node->haplo_idx         = *haplo_idx;
+    node->haplo_idx       = *haplo_idx;
     
     //size_t res = compare_snps(read_info, data, &node, 1, last_snp, &bounds);
    // size_t temp = 0, res = 0;
@@ -164,11 +193,13 @@ __global__ void search_helper(internal::Tree tree, TreeNode* nodes, ReadInfo* re
     //add_alignments(tree, read_info, *reads, snp_info, tree.data, node , set_alignments, last_aligned);
 }
 
-__device__ size_t start_node_index = 1;                     // For each level, this is the index in the 
-                                                            // node array of the first element in the level 
-__device__ size_t nodes_in_level = 2;                       // The number of nodes (sub-branches) in the level
+__device__ size_t       start_node_index = 1;           // For each level, this is the index in the 
+                                                        // node array of the first element in the level 
+__device__ size_t       nodes_in_level   = 2;           // The number of nodes (sub-branches) in the level
+__device__ size_t       unsearched_snps;                // The number of unsearched snps
+__device__ size_t       comp_node_idx;                  // The index of the comparison node for node seletion
 
-__global__ void search_tree(internal::Tree tree, size_t start_ubound, size_t device_index)
+__global__ void search_tree(internal::Tree tree, BoundsGpu* snp_bounds, size_t start_ubound, size_t device_index)
 {
     // DEBUG 
     printf("Device Index : %i\n", device_index);
@@ -204,11 +235,37 @@ __global__ void search_tree(internal::Tree tree, size_t start_ubound, size_t dev
     // DEBUG 
     printf("AlignL : %i\n", tree.last_unaligned_idx);
     for (size_t i = 0; i < tree.last_unaligned_idx; ++i) printf("%i ", tree.aligned_reads[i]);
-    printf("\nLast Searched: %i\n", tree.last_searched_snp);    
+    printf("\nLast Searched : %i\n", tree.last_searched_snp);    
+    printf("Total Snps : %i\n", tree.snps);    
+    printf("Sizeof Bounds: %i\n", sizeof(snp_bounds));
 
     // Go over all the nodes that have not been searched and see how correlated they are
+    
+    comp_node_idx   = node.node_idx; 
+    unsearched_snps = tree.snps - tree.last_searched_snp - 1;
+    printf("Unsearched Snps : %i\n", unsearched_snps);    
+
+    // Perform a "mapping" step to map all the unsearched snps to their potenetial bounds
+    map_unsearched_snps<<<1, unsearched_snps>>>(tree, snp_bounds, comp_node_idx);
+    if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for SNP Map!\n");
+    
+    cudaDeviceSynchronize(); 
+    __syncthreads();
+    
+    for (size_t i = 0; i < unsearched_snps; ++i) {
+        printf("Bounds Diff : %i\n", snp_bounds[i].diff);
+    }
+    
+    // Do the reduction to get the index of the next node to search
+    reduce_unsearched_snps<<<1, unsearched_snps>>>(snp_bounds, unsearched_snps);
+    
+    cudaDeviceSynchronize();
+    __syncthreads();
+    
+    
+    /*
     size_t max = 0, index = 0; BoundsGpu bounds_temp, bounds_final;
-    for (size_t i = tree.last_searched_snp + 1; i < tree.snps; ++i) {
+    for (size_t i = tree.last_searched_snp + 1; i < tree.snps; ++i) {yy
         bounds_temp = compare_snps(tree, node.node_idx, i);
         if (bounds_temp.diff > max) { 
             index        = i; 
@@ -221,11 +278,18 @@ __global__ void search_tree(internal::Tree tree, size_t start_ubound, size_t dev
    }
   
     // DEBUG
-    printf("Most Correlated : %i Correlation : %i\n", index, max);
+    printf("Most Correlated : %i ", index);
+    printf("Correlation : %i\n"   , max  );
     
     // The first node has now been searched
     tree.last_searched_snp++;
     
+    // Swap the SNPs here
+   
+    // Set the upper and lower bounds based on the most correlated node
+    node.lbound += bounds_final.lower; node.ubound -= bounds_final.upper;
+    
+   */
 /*    
     // Make the next 2 nodes point back to this one
     TreeNode& left_child = tree.nodes[1]; TreeNode& right_child = tree.nodes[2];

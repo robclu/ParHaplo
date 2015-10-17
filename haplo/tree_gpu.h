@@ -20,6 +20,7 @@ public:
     using snp_info_container            = thrust::host_vector<snp_info_type>;
     using small_type                    = typename tree_type::small_type;
     using small_container               = thrust::host_vector<small_type>;
+    using bound_type                    = BoundsGpu;
     //-------------------------------------------------------------------------------------------------------
 private:
     // -------------------------------------------- HOST ----------------------------------------------------
@@ -30,6 +31,7 @@ private:
     small_container             _alignments;
     // ------------------------------------------ DEVICE ----------------------------------------------------
     tree_type                   _tree; 
+    bound_type*                 _selection_parameters;
 public:    
     //-------------------------------------------------------------------------------------------------------
     /// @brief   Constructor 
@@ -50,6 +52,7 @@ public:
         cudaFree(_tree.alignments);
         cudaFree(_tree.search_snps);
         cudaFree(_tree.aligned_reads);
+        cudaFree(_selection_parameters);
     }
 };
 
@@ -101,6 +104,9 @@ TreeGpu::TreeGpu(binary_vector& data    , read_info_container& read_info, snp_in
     cudaMalloc((void**)&_tree.aligned_reads, sizeof(size_t) * reads);
     cudaMemcpy(_tree.aligned_reads, thrust::raw_pointer_cast(&aligned[0]), 
                 sizeof(size_t) * aligned.size(), cudaMemcpyHostToDevice);
+    
+    // Create data for bounds array
+    cudaMalloc((void**)&_selection_parameters, sizeof(BoundsGpu) * snps);
 
     // ------------------------------------ NODE ALLOCATION -------------------------------------------------
     
@@ -127,7 +133,7 @@ TreeGpu::TreeGpu(binary_vector& data    , read_info_container& read_info, snp_in
     std::cout << "Min Ubound : " << min_ubound << "\n";
     
     // Invoke the kernel with just a single thread -- kernel spawns more threads
-    search_tree<<<1,1>>>(_tree, min_ubound, device);
+    search_tree<<<1,1>>>(_tree, _selection_parameters, min_ubound, device);
 }
 
 }           // End namespace haplo
