@@ -118,7 +118,7 @@ TreeGpu::TreeGpu(binary_vector& data    , read_info_container& read_info, snp_in
     std::cout << "Free Memory Before : " << free_mem << "\n";
     
     // Determine the number of nodes to "safely allocate"
-    size_t num_nodes                 = 0.1 * free_mem / sizeof(TreeNode);
+    size_t num_nodes                 = 0.7 * free_mem / sizeof(TreeNode);
     
     // Check that we can allocate the memory
     error = cudaMalloc((void**)&_tree.nodes, sizeof(TreeNode) * num_nodes);
@@ -126,8 +126,14 @@ TreeGpu::TreeGpu(binary_vector& data    , read_info_container& read_info, snp_in
     
     // DEBUG
     cudaMemGetInfo(&free_mem, &total_mem);
-    std::cout << "Free Memory After: " << free_mem << "\n";
+    std::cout << "Free Memory After: " << free_mem  << "\n";
+    std::cout << "Num Nodes        : " << num_nodes << "\n";
 
+    // ---------------------------------------- HEAP LIMIT ---------------------------------------------------
+    
+    const size_t heap_mb = 128;                         // Excessive, but just incase
+    cudaThreadSetLimit(cudaLimitMallocHeapSize, heap_mb * 1024 * 1024);
+    
     // --------------------------------------- TREE SEARCH ---------------------------------------------------
 
     std::cout << "Min Ubound : " << min_ubound << "\n";

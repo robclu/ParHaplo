@@ -17,6 +17,7 @@ struct TreeNode {
     unsigned int    ubound      ;
     unsigned int    lbound      ;
     uint8_t         value       ;
+    size_t*         indices     ;
     size_t*         read_ids    ;
     uint8_t*        read_values ;
 };
