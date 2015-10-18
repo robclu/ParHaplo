@@ -4,13 +4,6 @@
 
 namespace haplo {
 
-__device__ size_t       prev_level_start = 0;           // The index of the first nod in the previous level
-__device__ size_t       this_level_start = 1;           // For each level, this is the index in the 
-                                                        // node array of the first element in the level 
-__device__ size_t       nodes_in_level   = 2;           // The number of nodes (sub-branches) in the level
-__device__ size_t       unsearched_snps;                // The number of unsearched snps
-__device__ size_t       comp_node_idx;                  // The index of the comparison node for node seletion
-
 struct BoundsGpu {
 
     size_t lower;               // The lower value for the bound    
@@ -18,7 +11,9 @@ struct BoundsGpu {
     size_t diff;                // The difference between the upper and lower bound
     size_t index;               // The snp index the bound represents
     
-    // Overlaod the equality operator
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Overload for the assingment operator 
+    // ------------------------------------------------------------------------------------------------------
     __device__
     void operator=(BoundsGpu& other) 
     {
@@ -84,6 +79,8 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
     bounds->lower = min((unsigned int)same, (unsigned int)opp);
     bounds->upper = max((unsigned int)same, (unsigned int)opp);
     bounds->diff  = bounds->upper - bounds->lower;
+    
+    __syncthreads();
 }
 
 // Very similar to the above function, but does the mapping for each left node of a level
@@ -112,11 +109,7 @@ void map_leaf_bounds(internal::Tree& tree, const size_t node_idx)
         }
         if (i > 1) {
             comp_node = tree.node_ptr(comp_node->root_idx);
-            
-            // DEBUG 
-            printf("Moving Up Tree\n");
         }
-        
     }
     // For all remaining elements, we can reduce the upper bound
     ref_node->ubound -= (tree.snp_info[ref_node->haplo_idx].elements() - elements_used);
@@ -136,12 +129,23 @@ bool more_valuable(BoundsGpu* snp_one, BoundsGpu* snp_two)
                                 ? true : false;
 }
 
+__device__ 
+void swap_search_snp_indices(internal::Tree& tree, const size_t swap_idx)
+{
+    ++tree.last_searched_snp;
+    if (swap_idx != tree.last_searched_snp) {
+        const size_t temp                        = tree.search_snps[tree.last_searched_snp];
+        tree.search_snps[tree.last_searched_snp] = tree.search_snps[swap_idx];
+        tree.search_snps[swap_idx]               = temp;
+    }
+}
+
 // "Reduce" function for the list of selection params to determine the best param 
 //  The reduction is done such that the resulting bound has the highest diff and 
 //  lowest index (this is to mean that the snp is most correlated to the snps already
 //  searched and is also closest to them (hence the lowest index))
 __global__ 
-void reduce_unsearched_snps(BoundsGpu* snp_bounds, const size_t elements)
+void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_t elements)
 {
     const size_t thread_id      = blockIdx.x * blockDim.x + threadIdx.x;
     const size_t reductions     = (size_t)(ceil(log2((double)elements)));
@@ -174,6 +178,11 @@ void reduce_unsearched_snps(BoundsGpu* snp_bounds, const size_t elements)
         } else reduction_threads /= 2;
         __syncthreads();
     }
+    // The first thread needs to swap the search result
+    if (threadIdx.x == 0) {
+        swap_search_snp_indices(tree, snp_bounds[0].index); 
+    }
+    __syncthreads();
 }
 
 
@@ -185,9 +194,6 @@ void add_alignments(internal::Tree& tree, const size_t node_idx, const size_t th
     
     // Get a pointer to the node
     TreeNode* node = tree.node_ptr(node_idx);
-   
-    // DEBUG
-    //printf("AlignS : %i\n", node->haplo_idx);
     
     // Allocate some temp space for the node alignments (this is usually small)
     size_t* alignments = new size_t[tree.snp_info[node->haplo_idx].elements()]; 
@@ -210,19 +216,15 @@ void add_alignments(internal::Tree& tree, const size_t node_idx, const size_t th
                 // Get the offset in memory of the start of the read
                 read_offset         = tree.read_info[tree.aligned_reads[i]].offset();
                 element_position    = node->haplo_idx - tree.read_info[tree.aligned_reads[i]].start_index();
-                auto element = tree.data[read_offset + element_position];
+                uint8_t  element    = tree.data[read_offset + element_position];
             
                 // Do the alignement for the reads to this node
                 if ((element == 0 && node->value == 0) || (element == 1 && node->value == 1)) {
-                    // DEBUG
-     //               printf("Align1 : %i\n", i);
                     values[align_count] = 1; alignments[align_count++] = tree.aligned_reads[i];
                     if (thread_id == 0) indices[align_count - 1] = i; 
                 } else if ((element == 0 && node->value == 1) || (element == 1 && node->value == 0)) {
                     values[align_count] = 0; alignments[align_count++] = tree.aligned_reads[i];
                     if (thread_id == 0) indices[align_count - 1] = i; 
-                    // DEBUG
-     //               printf("Align2 : %i\n", i);
                 }
             }
         }
@@ -245,68 +247,11 @@ void add_alignments(internal::Tree& tree, const size_t node_idx, const size_t th
     if (thread_id == 0) free(indices);
 }
 
-
-__global__ 
-void map_level(internal::Tree tree            , BoundsGpu* snp_bounds, const size_t prev_level_start, 
-               const size_t   this_level_start)
-{
-    // Set node parameters
-    size_t      node_idx  = threadIdx.x + this_level_start;
-    TreeNode*   node      = tree.node_ptr(node_idx);
-    TreeNode*   root_node = tree.node_ptr(prev_level_start + (threadIdx.x / 2));
-   
-    printf("Reached!\n");
-    
-    // Set some of the node parameters
-    node->haplo_idx = snp_bounds[0].index;
-    node->root_idx  = prev_level_start + (threadIdx.x / 2);
-    node->lbound    = root_node->lbound;
-    node->ubound    = root_node->ubound;
-    node->value     = threadIdx.x % 2 == 0 ? 0 : 1;
-  
-    // DEBUG
-   // printf("H ID : %i\n", node->haplo_idx);
-    
-    // DEBUG
-    printf("Lbound : %i " , node->lbound); 
-    printf("Ubound : %i\n", node->ubound); 
-    
-    // Update the bounds for the node 
-    map_leaf_bounds(tree, node_idx);
-  
-    // DEBUG
-    printf("Lbound : %i " , node->lbound); 
-    printf("Ubound : %i\n", node->ubound); 
-
-    // Add the alignments for the node 
-    add_alignments(tree, node_idx, threadIdx.x);
-    
-    // DEBUG
-    printf("Alignments : %i\n", node->alignments);
-}
-
-__device__ 
-void swap_search_snp_indices(internal::Tree& tree, const size_t swap_idx)
-{
-    ++tree.last_searched_snp;
-    if (swap_idx != tree.last_searched_snp) {
-        const size_t temp                        = tree.search_snps[tree.last_searched_snp];
-        tree.search_snps[tree.last_searched_snp] = tree.search_snps[swap_idx];
-        tree.search_snps[swap_idx]               = temp;
-    }
-}
-
-
 // Updates the array of reads which have been aligned
 __device__
 void update_global_alignments(internal::Tree& tree, const size_t node_idx) 
 {
-    // DEBUG 
-    printf("Node ID Align : %i\n", node_idx);
-    
     const TreeNode* const node = tree.node_ptr(node_idx);
-   
-    printf("Aligns: %i\n", node->alignments);
     
     for (size_t i = tree.last_unaligned_idx; i < tree.last_unaligned_idx + node->alignments; ++i) {
         size_t temp = tree.aligned_reads[node->indices[i - tree.last_unaligned_idx]];
@@ -314,7 +259,35 @@ void update_global_alignments(internal::Tree& tree, const size_t node_idx)
         tree.aligned_reads[i] = temp;
     } 
     tree.last_unaligned_idx += node->alignments;
-    printf("Finished Align!\n");
+}
+
+__global__ 
+void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t prev_level_start, 
+               const size_t   this_level_start)
+{
+    // Set node parameters
+    const size_t            node_idx  = threadIdx.x + this_level_start;
+    TreeNode* const         node      = tree.node_ptr(node_idx);
+    const TreeNode* const   root_node = tree.node_ptr(prev_level_start + (threadIdx.x / 2));
+   
+    // Set some of the node parameters
+    node->haplo_idx = snp_bounds[0].index;
+    node->root_idx  = prev_level_start + (threadIdx.x / 2);
+    node->lbound    = root_node->lbound;
+    node->ubound    = root_node->ubound;
+    node->value     = threadIdx.x % 2 == 0 ? 0 : 1;
+    
+    // Update the bounds for the node 
+    map_leaf_bounds(tree, node_idx);
+
+    // Add the alignments for the node 
+    add_alignments(tree, node_idx, threadIdx.x);
+    
+    // The first thread needs to update the global alignments as well
+    if (threadIdx.x == 0) {
+        update_global_alignments(tree, this_level_start);
+    }   
+    __syncthreads();
 }
 
 __global__
@@ -349,6 +322,7 @@ void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, size_t start_ubou
     swap_search_snp_indices(tree, snp_bounds[0].index);
 }
 
+/*
 __global__ 
 void search_tree(internal::Tree tree, BoundsGpu* snp_bounds, size_t start_ubound, size_t device_index)
 {
@@ -389,7 +363,6 @@ void search_tree(internal::Tree tree, BoundsGpu* snp_bounds, size_t start_ubound
         for (size_t i = 0; i < unsearched_snps; ++i) {
             printf("%i ", snp_bounds[i].index);
         } printf("\n");
-            
         reduce_unsearched_snps<<<1, unsearched_snps>>>(snp_bounds, unsearched_snps);
         if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for SNP Reduce!\n");
         cudaDeviceSynchronize();
@@ -435,87 +408,7 @@ void search_tree(internal::Tree tree, BoundsGpu* snp_bounds, size_t start_ubound
         printf("Last SNP       : %i\n", tree.last_searched_snp);
     }
         
-        
-    /*
-    size_t max = 0, index = 0; BoundsGpu bounds_temp, bounds_final;
-    for (size_t i = tree.last_searched_snp + 1; i < tree.snps; ++i) {yy
-        bounds_temp = compare_snps(tree, node.node_idx, i);
-        if (bounds_temp.diff > max) { 
-            index        = i; 
-            max          = bounds_temp.diff; 
-            bounds_final = bounds_temp;
-        }
-        printf("Result : %i\n", bounds_temp.diff);
-        printf("Max    : %i\n", max   );
-        printf("Index  : %i\n", index );
-   }
-  
-    // DEBUG
-    printf("Most Correlated : %i ", index);
-    printf("Correlation : %i\n"   , max  );
-    
-    // The first node has now been searched
-    tree.last_searched_snp++;
-    
-    // Swap the SNPs here
-   
-    // Set the upper and lower bounds based on the most correlated node
-    node.lbound += bounds_final.lower; node.ubound -= bounds_final.upper;
-    
-   */
-/*    
-    // Make the next 2 nodes point back to this one
-    TreeNode& left_child = tree.nodes[1]; TreeNode& right_child = tree.nodes[2];
-    left_child.root_idx  = 0; right_child.root_idx  = 0;  
-    left_child.value     = 1; right_child.value     = 1;
-    left_child.node_idx  = 1; right_child.node_idx  = 2;
-        
-    printf("%i rest\n ",*result);
-    
-    left_child.haplo_idx = 1; right_child.haplo_idx  = 1;
-    printf("%i rest\n ", left_child.node_idx);
-    
-    add_alignments(tree, tree.read_info, tree.reads, tree.snp_info, tree.data, &left_child , aligned, tree.last_aligned);
-    add_alignments(tree, tree.read_info, tree.reads, tree.snp_info, tree.data, &right_child, aligned, tree.last_aligned);
-   
-    printf("%i rest\n ", left_child.node_idx);
-
-    //left_child.lbound    = bounds.same; left_child.ubound  = *ubound - (bounds.same + left_child.alignments);
-    //right_child.lbound   = bounds.opps; right_child.ubound = *ubound - (bounds.opps + right_child.alignments);
-    
-    // Add the alignments due to these nodes -- same if we use right or left child
-    for (size_t i = tree.last_aligned; i < tree.last_aligned + left_child.alignments; ++i) {
-            aligned[left_child.read_ids[i - tree.last_aligned]] = aligned[i];
-            aligned[i] = left_child.read_ids[i - tree.last_aligned];
-    } tree.last_aligned += left_child.alignments;
-
-    printf("%i rest\n ", left_child.node_idx);
-
-    temp = 0;
-    for (size_t i = tree.last_searched_snp + 1; i < tree.snps; ++i) {
-        res = compare_snps(tree, tree.read_info, tree.data, &left_child, i, &tree.last_searched_snp);
-        if (res > temp) { *result = i; temp = res; }
-    }
-
-    printf("%i : %i rest\n ", temp, *result);
-
-//    for (size_t i = 0; i < tree.snps; ++i) 
-//        printf("%i ", tree.search_snps[i]);
-
-    printf("\nres: %i, %i\n", right_child.lbound, left_child.node_idx);
-    
-    //start_index = 1; snp_end = tree.last_searched_snp; haplo_idx = *result; snps = tree.snps; reads = tree.reads;
-    //search_helper<<<2, 1>>>(tree, tree.node_manager.nodes, tree.read_info, tree.snp_info, tree.data, &haplo_idx, &snp_end, &start_index, &snps, &reads);
- 
-    // Now we can start the iterative search 
-    
-    //size_t a = compare_snps(tree, &left_child, 2);
-    tree.last_searched_snp++;
-   
-   // *result = left_child.alignments;
-    
-    //free(aligned);
-    */
 }
+*/
 
 }               // End namespace haplo

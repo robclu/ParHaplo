@@ -5,6 +5,8 @@
 #ifndef PARHAPLO_SNP_INFO_HPP
 #define PARHAPLO_SNP_INFO_HPP
 
+#include <stdint.h>
+
 namespace haplo {
            
 // ----------------------------------------------------------------------------------------------------------

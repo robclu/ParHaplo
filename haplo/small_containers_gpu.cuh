@@ -304,7 +304,7 @@ public:
     thrust::host_vector<uint8_t> to_binary_vector() const
     {
         standard_container host_vec;
-        for (auto i = 0; i < num_elements; ++i)
+        for (auto i = 0; i < _num_elements; ++i)
             host_vec.push_back(get(i));
         return host_vec;
     }

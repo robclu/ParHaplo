@@ -8,6 +8,7 @@
 #include "read_info_gpu.cuh"
 #include "snp_info_gpu.h"
 #include "tree_node.h"
+#include "thrust/host_vector.h"
 
 namespace haplo     {
 namespace internal  {

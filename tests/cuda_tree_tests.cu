@@ -23,6 +23,7 @@ BOOST_AUTO_TEST_CASE( canCreateTree )
 {
     using block_type    = haplo::Block<1658, 4, 4>;
     using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
+    using tree_type     = haplo::Tree<subblock_type, haplo::devices::gpu>;
     
     block_type      block(input_four);
     subblock_type   sub_block(block, 1);
@@ -32,9 +33,12 @@ BOOST_AUTO_TEST_CASE( canCreateTree )
     // Later use device manager
     size_t device_index = 0;
     
-    haplo::TreeGpu tree(sub_block.data()            , sub_block.read_info()         , sub_block.snp_info(), 
-                        sub_block.snp_info().size() , sub_block.read_info().size()  , sub_block.size()    , 
-                        device_index                );
+    tree_type tree(sub_block.data()            , sub_block.read_info()         , sub_block.snp_info(), 
+                   sub_block.snp_info().size() , sub_block.read_info().size()  , sub_block.size()    , 
+                   device_index                );
+    
+    // Search the tree for the haplotype 
+    tree.search();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
