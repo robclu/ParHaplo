@@ -117,9 +117,9 @@ Tree<SubBlockType, devices::gpu>::Tree(
     for (size_t i = 0; i < snps; ++i) snp_indices.push_back(i);
     
     // Copy snp search info to the device
-    cudaMalloc((void**)&_tree.search_snps, sizeof(size_t) * snps);
-    cudaMemcpy(_tree.search_snps, thrust::raw_pointer_cast(&snp_indices[0]), 
-                sizeof(size_t) * snp_indices.size(), cudaMemcpyHostToDevice);
+    CudaSafeCall( cudaMalloc((void**)&_tree.search_snps, sizeof(size_t) * snps) );
+    CudaSafeCall( cudaMemcpy(_tree.search_snps, thrust::raw_pointer_cast(&snp_indices[0]), 
+                    sizeof(size_t) * snp_indices.size(), cudaMemcpyHostToDevice)         );
     
     // Create a vector for the aligned rows
     thrust::host_vector<size_t> aligned;
@@ -180,50 +180,48 @@ void Tree<SubBlockType, devices::gpu>::search()
     
     // The first level of the tree (with the root node) is a little different
     // because it needs to do the setup, so invoke that kernel first
-    map_root_node<<<1, 1>>>(_tree, _snp_bounds, _min_ubound, _device); 
+    map_root_node<<<1, 1>>>(_tree, _snp_bounds, last_searched_snp, _min_ubound, _device); 
     CudaCheckError();
     
     // Now we can do the mapping of the unsearched nodes
-    //map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, _node_index);
-    //CudaCheckError();
+    map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, 0);
+    CudaCheckError();
     
-/*    
     // And the reduction
-    reduce_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, unsearched_snps); 
-    if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for Unsearched SNP Reduce!\n");
-    cudaDeviceSynchronize();
-    
+    reduce_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, unsearched_snps); 
+    CudaCheckError();
+
+    ++last_searched_snp;    
     --unsearched_snps;
     
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate < 4) {
+    while (last_searched_snp < _snps && terminate++ < 1) {
         // Perform a "mapping" step, which maps the bounds onto the nodes in the level
-        map_level<<<1, nodes_in_level>>>(_tree, _snp_bounds, prev_level_start, this_level_start);
-        if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for Level Map!\n");
-        cudaDeviceSynchronize();
-       
+        map_level<<<1, nodes_in_level>>>(_tree, _snp_bounds, last_searched_snp, 
+                                         prev_level_start, this_level_start);
+        CudaCheckError();
+   
         // Need to add in level reduction here to reduce search space 
         
         // Map unsearched snps
-        map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, this_level_start);
-        if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for Unsearched SNP Map!\n");
-        cudaDeviceSynchronize();
-
-        // Reduce unsearched snps        
-        reduce_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, unsearched_snps);
-        if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for Unsearched SNP Reduce!\n");
-        cudaDeviceSynchronize();
+        map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, this_level_start);
+        CudaCheckError();
         
+        // Reduce unsearched snps        
+        reduce_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, unsearched_snps);
+        CudaCheckError();
+/* 
         --unsearched_snps;
         
         // Update variables for next iteration 
         prev_level_start  = this_level_start;
         this_level_start += nodes_in_level;
         nodes_in_level   *= 2;
+*/
     }
-  */  
+   
     // Haplotype found
 }
 
