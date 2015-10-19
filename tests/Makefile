@@ -21,7 +21,7 @@ UNINSTALL_DIR   := $(addsuffix /nano, $(INSTALL_DIR))
 #	NXX     : The compiler for the nvidia cuda gpu implementation                      #
 ########################################################################################
 
-CXX 			:= g++-4.8
+CXX 			:= g++
 NXX             := nvcc -ccbin $(CXX)
 
 ########################################################################################
@@ -47,8 +47,8 @@ NXX_LDIR        := -L/usr\local/cuda-7.0/lib64
 # 		--compiler-options -Wall                                                       #
 ########################################################################################
 
-CXX_FLAGS 		:= -std=c++11 -Wall -g
-NXX_FLAGS       := -arch=sm_30 --std=c++11 
+CXX_FLAGS 		:= -std=c++11 -Wall -G -g
+NXX_FLAGS       := -arch=sm_35 --std=c++11 
 PXX_FLAGS       :=
 
 ALL_TESTS       =   small_container_tests.o             \

@@ -314,15 +314,24 @@ void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, size_t start_ubou
     
     // Set the alignments for the tree root
     add_alignments(tree, 0, 0);
-
+   
     // Add the alignments to the overall alignments
     update_global_alignments(tree, 0);
-    
+   
     // Update the bounds for the tree
     node.lbound = 0; node.ubound = start_ubound - tree.snp_info[node.haplo_idx].elements();
     
     // Move this swap into the iteration
     swap_search_snp_indices(tree, snp_bounds[0].index);
+    
+#ifdef DEBUG
+    printf("MRN : ALIGNMENTS : %i\n", tree.last_unaligned_idx);
+    for (size_t i = 0; i < tree.reads; ++i) 
+        printf("%i ", tree.aligned_reads[i]);
+    printf("\n");
+    printf("MRN : UPPER BOUND : %i\n", node.ubound);
+#endif
+    
 }
 
 /*

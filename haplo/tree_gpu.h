@@ -131,7 +131,7 @@ Tree<SubBlockType, devices::gpu>::Tree(
                 sizeof(size_t) * aligned.size(), cudaMemcpyHostToDevice);
     
     // Create data for bounds array
-    cudaMalloc((void**)&_snp_bounds, sizeof(BoundsGpu) * snps);
+    CudaSafeCall( cudaMalloc((void**)&_snp_bounds, sizeof(BoundsGpu) * snps) );
 
     // Allocate memory for the kernel arguments
     CudaSafeCall( cudaMalloc((void**)&_node_index, sizeof(size_t))  );
@@ -147,7 +147,7 @@ Tree<SubBlockType, devices::gpu>::Tree(
     std::cout << "Free Memory Before : " << free_mem << "\n";
     
     // Determine the number of nodes to "safely allocate"
-    size_t num_nodes = 0.7 * free_mem / sizeof(TreeNode);
+    size_t num_nodes = 0.4 * free_mem / sizeof(TreeNode);
     
     // Check that we can allocate the memory
     error = cudaMalloc((void**)&_tree.nodes, sizeof(TreeNode) * num_nodes);
@@ -163,7 +163,7 @@ Tree<SubBlockType, devices::gpu>::Tree(
 
     // ---------------------------------------- HEAP LIMIT ---------------------------------------------------
     
-    const size_t heap_mb = 128;                         // Excessive, but just incase
+    const size_t heap_mb = 64;                         // Excessive, but just incase
     cudaThreadSetLimit(cudaLimitMallocHeapSize, heap_mb * 1024 * 1024);
 }
 
@@ -184,8 +184,8 @@ void Tree<SubBlockType, devices::gpu>::search()
     CudaCheckError();
     
     // Now we can do the mapping of the unsearched nodes
-    map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, _node_index);
-    CudaCheckError();
+    //map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, _node_index);
+    //CudaCheckError();
     
 /*    
     // And the reduction
