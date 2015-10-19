@@ -7,6 +7,7 @@
 
 #include "cuda_error.h"
 #include "devices.hpp"
+#include "grid_config.h"
 #include "tree.hpp"
 #include "tree_kernels_gpu.cu"
 
@@ -44,7 +45,7 @@ private:
     // ------------------------------------------ DEVICE ----------------------------------------------------
     tree_type                   _tree; 
     bound_type*                 _snp_bounds;
-    size_t*                     _node_index;
+    size_t*                     _last_unaligned_idx;
 public:    
     //-------------------------------------------------------------------------------------------------------
     /// @brief   Constructor 
@@ -69,7 +70,7 @@ public:
         cudaFree(_tree.search_snps);
         cudaFree(_tree.aligned_reads);
         cudaFree(_snp_bounds);
-        cudaFree(_node_index);
+        cudaFree(_last_unaligned_idx);
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -134,8 +135,8 @@ Tree<SubBlockType, devices::gpu>::Tree(
     CudaSafeCall( cudaMalloc((void**)&_snp_bounds, sizeof(BoundsGpu) * snps) );
 
     // Allocate memory for the kernel arguments
-    CudaSafeCall( cudaMalloc((void**)&_node_index, sizeof(size_t))  );
-    CudaSafeCall( cudaMemset(_node_index, 0, sizeof(size_t))        );
+    CudaSafeCall( cudaMalloc((void**)&_last_unaligned_idx, sizeof(size_t))  );
+    CudaSafeCall( cudaMemset(_last_unaligned_idx, 0, sizeof(size_t))        );
 
     // ------------------------------------ NODE ALLOCATION -------------------------------------------------
     
@@ -180,7 +181,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     
     // The first level of the tree (with the root node) is a little different
     // because it needs to do the setup, so invoke that kernel first
-    map_root_node<<<1, 1>>>(_tree, _snp_bounds, last_searched_snp, _min_ubound, _device); 
+    map_root_node<<<1, 1>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, _min_ubound, _device); 
     CudaCheckError();
     
     // Now we can do the mapping of the unsearched nodes
@@ -197,10 +198,15 @@ void Tree<SubBlockType, devices::gpu>::search()
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate++ < 1) {
+    while (last_searched_snp < _snps && terminate++ < 20) {
+        
+        // We need to call the grid manager here 
+        dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
+        const size_t threads = nodes_in_level < 1024 ? nodes_in_level : 1024;
+        
         // Perform a "mapping" step, which maps the bounds onto the nodes in the level
-        map_level<<<1, nodes_in_level>>>(_tree, _snp_bounds, last_searched_snp, 
-                                         prev_level_start, this_level_start);
+        map_level<<<grid_size, threads>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, 
+                                          prev_level_start, this_level_start);
         CudaCheckError();
    
         // Need to add in level reduction here to reduce search space 
@@ -212,14 +218,14 @@ void Tree<SubBlockType, devices::gpu>::search()
         // Reduce unsearched snps        
         reduce_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, unsearched_snps);
         CudaCheckError();
-/* 
+
         --unsearched_snps;
+        ++last_searched_snp;
         
         // Update variables for next iteration 
         prev_level_start  = this_level_start;
         this_level_start += nodes_in_level;
         nodes_in_level   *= 2;
-*/
     }
    
     // Haplotype found

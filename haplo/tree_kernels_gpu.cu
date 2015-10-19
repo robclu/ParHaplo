@@ -11,6 +11,7 @@ struct BoundsGpu {
     size_t upper;               // The upper value for the bound
     size_t diff;                // The difference between the upper and lower bound
     size_t index;               // The snp index the bound represents
+    size_t offset;              // The offset in the array of the bound
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Overload for the assingment operator 
@@ -22,6 +23,7 @@ struct BoundsGpu {
         upper           = other.upper;
         diff            = other.diff;
         index           = other.index;
+        offset          = other.offset;
     }
 };
 
@@ -37,8 +39,9 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
     BoundsGpu* bounds = &snp_bounds[thread_id];
     
     // Index of the haplotype for the comparison
-    const size_t ref_haplo_idx = tree.search_snps[thread_id + last_searched_snp + 1];
-    bounds->index              = ref_haplo_idx;
+    const size_t ref_haplo_idx  = tree.search_snps[thread_id + last_searched_snp + 1];
+    bounds->index               = ref_haplo_idx;
+    bounds->offset              = thread_id + last_searched_snp + 1;
             
     // Get a pointer to the node
     const TreeNode* comp_node = &tree.nodes[comp_node_idx];
@@ -65,9 +68,6 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
             }
         }
         if (i > 1) {
-#ifdef  DEBUG
-            printf("Moving Up:\n");
-#endif
             // Move the pointer up the tree (towards the root)
             comp_node = tree.node_ptr(comp_node->root_idx);
         }
@@ -79,7 +79,7 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
     __syncthreads();
 
 #ifdef DEBUG   
-    if (threadIdx.x == 0) {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
         printf("MUS : UNSEARCHED SNPS : %i\n", last_searched_snp);
         for (size_t i = 0; i < tree.snps; ++i) 
             printf("%i ", snp_bounds[i].diff);
@@ -138,17 +138,18 @@ bool more_valuable(BoundsGpu* snp_one, BoundsGpu* snp_two)
 }
 
 __device__ 
-void swap_search_snp_indices(internal::Tree& tree, size_t last_searched_snp, const size_t swap_idx)
+void swap_search_snp_indices(internal::Tree& tree, size_t last_searched_snp, const BoundsGpu* const bound)
 {
 #ifdef DEBUG
     printf("SSSI : NEXT UNSEARCHED : %i\n", last_searched_snp + 1);
-    printf("SSSI : SWAP INDEX      : %i\n", swap_idx);
+    printf("SSSI : SWAP INDEX      : %i\n", bound->index);
 #endif 
     ++last_searched_snp;
-    if (swap_idx != last_searched_snp) {
+    // If the value to swap is not already the value
+    if (bound->index != tree.search_snps[last_searched_snp]) {
         const size_t temp                   = tree.search_snps[last_searched_snp];
-        tree.search_snps[last_searched_snp] = tree.search_snps[swap_idx];
-        tree.search_snps[swap_idx]          = temp;
+        tree.search_snps[last_searched_snp] = bound->index;
+        tree.search_snps[bound->offset]     = temp;
     }
 }
 
@@ -192,13 +193,13 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
         __syncthreads();
     }
     // The first thread needs to swap the search result
-    if (threadIdx.x == 0) {
-        swap_search_snp_indices(tree, last_searched_snp, snp_bounds[0].index); 
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        swap_search_snp_indices(tree, last_searched_snp, snp_bounds); 
     }
     __syncthreads();
         
 #ifdef DEBUG
-    if (threadIdx.x == 0) {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
         printf("RUS : UNSEARCHED SNPS : %i\n", elements);
         for (size_t i = 0; i < tree.snps; ++i) 
             printf("%i ", snp_bounds[i].diff);
@@ -216,7 +217,8 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
 
 // Add any unaligned reads to a node (snp site)
 __device__ 
-void add_alignments(internal::Tree& tree, const size_t node_idx, const size_t thread_id)
+void add_alignments(internal::Tree& tree, size_t* last_unaligned_idx, 
+                    const size_t node_idx, const size_t thread_id)
 {
     size_t read_offset = 0, align_count = 0, element_position = 0;
     
@@ -230,10 +232,10 @@ void add_alignments(internal::Tree& tree, const size_t node_idx, const size_t th
     
     if (thread_id == 0) {
         indices = new size_t[tree.snp_info[node->haplo_idx].elements()];
-    }
-                
+    }          
+    
     // Go through all the unaligned reads
-    for (size_t i = tree.last_unaligned_idx; i < tree.reads; ++i) {
+    for (size_t i = *last_unaligned_idx; i < tree.reads; ++i) {
         if (tree.aligned_reads[i] >= tree.snp_info[node->haplo_idx].start_index() &&
             tree.aligned_reads[i] <= tree.snp_info[node->haplo_idx].end_index()  ) {
         
@@ -277,21 +279,21 @@ void add_alignments(internal::Tree& tree, const size_t node_idx, const size_t th
 
 // Updates the array of reads which have been aligned
 __device__
-void update_global_alignments(internal::Tree& tree, const size_t node_idx) 
+void update_global_alignments(internal::Tree& tree, size_t* last_unaligned_idx, const size_t node_idx) 
 {
     const TreeNode* const node = tree.node_ptr(node_idx);
     
-    for (size_t i = tree.last_unaligned_idx; i < tree.last_unaligned_idx + node->alignments; ++i) {
-        size_t temp = tree.aligned_reads[node->indices[i - tree.last_unaligned_idx]];
-        tree.aligned_reads[node->indices[i - tree.last_unaligned_idx]] = tree.aligned_reads[i];
+    for (size_t i = *last_unaligned_idx; i < *last_unaligned_idx + node->alignments; ++i) {
+        size_t temp = tree.aligned_reads[node->indices[i - *last_unaligned_idx]];
+        tree.aligned_reads[node->indices[i - *last_unaligned_idx]] = tree.aligned_reads[i];
         tree.aligned_reads[i] = temp;
     } 
-    tree.last_unaligned_idx += node->alignments;
+    *last_unaligned_idx += node->alignments;
 }
 
 __global__ 
 void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_searched_snp, 
-               const size_t prev_level_start, const size_t   this_level_start)
+               size_t* last_unaligned_idx, const size_t prev_level_start, const size_t   this_level_start)
 {
     // Set node parameters
     const size_t            node_idx  = threadIdx.x + this_level_start;
@@ -309,14 +311,14 @@ void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_sea
     map_leaf_bounds(tree, last_searched_snp, node_idx);
 
     // Add the alignments for the node 
-    add_alignments(tree, node_idx, threadIdx.x);
+    add_alignments(tree, last_unaligned_idx, node_idx, threadIdx.x);
     
     // The first thread needs to update the global alignments as well
-    if (threadIdx.x == 0) {
-        update_global_alignments(tree, this_level_start);
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        update_global_alignments(tree, last_unaligned_idx, this_level_start);
         
 #ifdef DEBUG
-        printf("ML : ALIGNEMENTS : %i\n", tree.last_unaligned_idx);
+        printf("ML : ALIGNEMENTS : %i\n", *last_unaligned_idx);
         for (size_t i = 0; i < tree.reads; ++i) 
             printf("%i ", tree.aligned_reads[i]);
         printf("\n");
@@ -327,7 +329,7 @@ void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_sea
 
 __global__
 void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_searched_snp,
-                   const size_t start_ubound, const size_t device_index)
+                   size_t* last_unaligned_idx, const size_t start_ubound, const size_t device_index)
 {
     // DEBUG 
     printf("Device Index : %i\n", device_index);
@@ -346,16 +348,16 @@ void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last
     node.node_idx  = 0; node.value  = 0;
     
     // Set the alignments for the tree root
-    add_alignments(tree, 0, 0);
+    add_alignments(tree, last_unaligned_idx, 0, 0);
    
     // Add the alignments to the overall alignments
-    update_global_alignments(tree, 0);
+    update_global_alignments(tree, last_unaligned_idx, 0);
    
     // Update the bounds for the tree
     node.lbound = 0; node.ubound = start_ubound - tree.snp_info[node.haplo_idx].elements();
     
 #ifdef DEBUG
-    printf("MRN : ALIGNMENTS : %i\n", tree.last_unaligned_idx);
+    printf("MRN : ALIGNMENTS : %i\n", *last_unaligned_idx);
     for (size_t i = 0; i < tree.reads; ++i) 
         printf("%i ", tree.aligned_reads[i]);
     printf("\n");
