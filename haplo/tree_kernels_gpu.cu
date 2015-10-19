@@ -1,4 +1,5 @@
 #include "cuda.h"
+#include "debug.h"
 #include "math.h"
 #include "tree_internal.h"
 
@@ -26,7 +27,7 @@ struct BoundsGpu {
 
 // Maps all the unsearched snps to a n array of BoundsGpu structs which can then be reduces
 __global__ 
-void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_t comp_node_idx)
+void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_t* const comp_node_idx)
 {
     size_t read_start = 0, read_end = 0, row_offset = 0, opp = 0, same = 0;
     
@@ -40,7 +41,9 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
     bounds->index              = ref_haplo_idx;
             
     // Get a pointer to the node
-    const TreeNode* comp_node = &tree.nodes[comp_node_idx];
+    const TreeNode* comp_node = &tree.nodes[*comp_node_idx];
+ 
+    DEBUG("MUS : COMP NODE ID : %i\n", *comp_node_idx);
     
     // Go back up the tree and determine the 
     for (size_t i = tree.last_searched_snp + 1; i > 0; --i) {
