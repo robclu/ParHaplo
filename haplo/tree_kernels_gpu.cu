@@ -327,6 +327,60 @@ void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_sea
     __syncthreads();
 }
 
+// Swaps two nodes in the node array
+__device__ 
+void swap(TreeNode* left, TreeNode* right) 
+{
+    TreeNode temp = *left;
+    *left         = *right;
+    *right        = temp;
+}
+
+// Compares two tree nodes 
+
+// "Reduces" the nodes, removing all the nodes with a lower bounds > than the highest upper bound
+// by movind them to the end of the array and then returning the index of the end of the array
+// also sorts the nodes by lower bound -- requires 2*log_2(N) operations
+__global__
+void reduce_level(internal::Tree tree, size_t* start_node_idx, const size_t* num_nodes)
+{
+    const size_t thread_id          = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t       reduction_threads  = *num_nodes - 1;
+    size_t       node_idx           = 0;
+    
+    while (reduction_threads > 1) {
+        // ----------------------------------- SORT STEP ----------------------------------------------------
+        node_idx = thread_id + *start_node_idx;
+        if (thread_id % 2 == 0 && thread_id != reduction_threads) {
+            if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
+                swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
+            } 
+            // node_idx now has the lower bound 
+            if (tree.node_ptr(node_idx)->ubound <= tree.node_ptr(node_idx + 1)->lbound) {
+                // Add to counters here 
+            }
+        } 
+        __synthreads();
+        
+        // ----------------------------------- SWAP STEP ----------------------------------------------------
+        
+        if (reduction_threads % 2 == 1 && thread_id != reduction_threads) {
+            if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
+                swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
+            } 
+            // node_idx is lower bound again
+            if (tree.node_ptr(node_idx)->ubound <= tree.node_ptr(node_idx + 1)->lbound) {
+                // Add to the counters again
+            }
+        }
+        // Modify number of threads for next iteration
+        reduction_threads /= 2;
+        if (reduction_threads % 2 == 1) reduction_threads += 1;
+        __syncthreads();
+    }
+    
+}
+
 __global__
 void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_searched_snp,
                    size_t* last_unaligned_idx, const size_t start_ubound, const size_t device_index)
@@ -365,94 +419,5 @@ void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last
 #endif
     
 }
-
-/*
-__global__ 
-void search_tree(internal::Tree tree, BoundsGpu* snp_bounds, size_t start_ubound, size_t device_index)
-{
-   
-    // Iterate through level
-    size_t iteration = 0;
-    while (tree.last_searched_snp < tree.snps && counter++ < 13) {
-        if (cudaSuccess != cudaGetLastError()) printf("Error!\n");
-       
-        printf("Starting new iteration!\n");
-        
-        // We can only launch 
-        // Perform a "mapping" step, which maps the bounds onto the nodes in the level
-        map_level<<<1, nodes_in_level>>>(tree, snp_bounds, prev_level_start, this_level_start);
-        if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for Level Map!\n");
-        cudaDeviceSynchronize();
-        __syncthreads();
-        
-        // Add the new alignments to the array of overall aligned reads -- use first node
-        if (threadIdx.x == 0) {
-            update_global_alignments(tree, this_level_start);
-        }
-        __syncthreads(); 
-        
-        // Now "reduce" the level, which is essentially a pruning step
-        
-        // Map unsearched snps
-        map_unsearched_snps<<<1, unsearched_snps>>>(tree, snp_bounds, this_level_start);
-        if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for SNP Map!\n");
-        cudaDeviceSynchronize();
-        __syncthreads();
-       
-        // DEBUG
-        printf("Before\n");
-        for (size_t i = 0; i < unsearched_snps; ++i) {
-            printf("%i ", snp_bounds[i].diff);
-        } printf("\n");
-        for (size_t i = 0; i < unsearched_snps; ++i) {
-            printf("%i ", snp_bounds[i].index);
-        } printf("\n");
-        reduce_unsearched_snps<<<1, unsearched_snps>>>(snp_bounds, unsearched_snps);
-        if (cudaSuccess != cudaGetLastError()) printf("Kernel Launch Error for SNP Reduce!\n");
-        cudaDeviceSynchronize();
-     
-        if (threadIdx.x == 0) {   
-            --unsearched_snps;
-        }
-        __syncthreads();
-        
-        // DEBUG
-        for (size_t i = 0; i < unsearched_snps; ++i) {
-            printf("%i ", snp_bounds[i].diff);
-        } printf("\n");
-        for (size_t i = 0; i < unsearched_snps; ++i) {
-            printf("%i ", snp_bounds[i].index);
-        } printf("\n");
-
-        // DEBUG
-        printf("Aligned Reads : %i\n", tree.last_unaligned_idx);
-        for (size_t i = 0; i < tree.reads; ++i) {
-            printf("%i ", tree.aligned_reads[i]);
-        } printf("\n");
-       
-        printf("Lowest Index :%i\n", snp_bounds[0].index);
-        
-        // Swap the indices of the last unsearched and the about to be searched snps
-        swap_search_snp_indices(tree, snp_bounds[0].index);
-        
-        // DEBUG
-        printf("Searched SNPS :\n");
-        for (size_t i = 0; i < tree.snps; ++i) {
-            printf("%i ", tree.search_snps[i]);
-        } printf("\n");
-        
-        // Change the indices of the start and end of the level
-        prev_level_start  = this_level_start;
-        this_level_start += nodes_in_level;
-        nodes_in_level   *= 2;
-        
-        printf("Nodes in level : %i\n", nodes_in_level);
-        printf("Start Node     : %i\n", this_level_start);
-        printf("Last Node      : %i\n", this_level_start + nodes_in_level);
-        printf("Last SNP       : %i\n", tree.last_searched_snp);
-    }
-        
-}
-*/
 
 }               // End namespace haplo
