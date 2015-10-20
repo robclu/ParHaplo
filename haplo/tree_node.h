@@ -9,7 +9,7 @@
 
 namespace haplo {
     
-struct ALIGN(16) TreeNode {
+struct ALIGN(8) TreeNode {
     
     size_t          haplo_idx   ;
     size_t          root_idx    ; 
@@ -28,9 +28,21 @@ struct ALIGN(16) TreeNode {
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constuctor 
     // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
     TreeNode() noexcept 
     : haplo_idx{0} , root_idx{0}, node_idx{0}, alignments{0}, pruned{0}     , ubound{0}, lbound{0}, 
       min_ubound{0}, value{0}   , prune{0}   , indices(NULL), read_ids(NULL), read_values(NULL) {} 
+
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Destructor
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD 
+    ~TreeNode() noexcept
+    {
+        if (alignments > 0) {
+            free(indices); free(read_ids); free(read_values);
+        }
+    }
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Assignment operator

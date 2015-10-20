@@ -148,7 +148,7 @@ Tree<SubBlockType, devices::gpu>::Tree(
     std::cout << "Free Memory Before : " << free_mem << "\n";
     
     // Determine the number of nodes to "safely allocate"
-    size_t num_nodes = 0.4 * free_mem / sizeof(TreeNode);
+    size_t num_nodes = 0.75 * free_mem / sizeof(TreeNode);
     
     // Check that we can allocate the memory
     error = cudaMalloc((void**)&_tree.nodes, sizeof(TreeNode) * num_nodes);
@@ -198,7 +198,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate++ < 5) {
+    while (last_searched_snp < _snps && terminate++ < 35) {
         
         // We need to call the grid manager here 
         dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
@@ -211,8 +211,8 @@ void Tree<SubBlockType, devices::gpu>::search()
         CudaCheckError();
    
         // "Reduce" the search space to eliminate the bad nodes
-        reduce_level<<<grid_size, threads>>>(_tree, this_level_start, nodes_in_level);
-        CudaCheckError();
+     //   reduce_level<<<grid_size, threads>>>(_tree, this_level_start, nodes_in_level);
+      //  CudaCheckError();
         
         // Map unsearched snps
         map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, this_level_start);

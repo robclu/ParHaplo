@@ -200,6 +200,7 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
         
 #ifdef DEBUG
     if (threadIdx.x == 0 && blockIdx.x == 0) {
+        printf("RUS : SIZEOF BOUNF    : %i\n", sizeof(snp_bounds[0]));
         printf("RUS : UNSEARCHED SNPS : %i\n", elements);
         for (size_t i = 0; i < tree.snps; ++i) 
             printf("%i ", snp_bounds[i].diff);
@@ -319,7 +320,7 @@ void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_sea
         printf("ML : NODE ID : %i\n", node_idx);
         printf("ML : UBOUND  : %i\n", node->lbound);
 #endif
-        
+       
         // Add the alignments for the node 
         add_alignments(tree, last_unaligned_idx, node_idx, thread_id);
         
@@ -346,6 +347,7 @@ void swap(TreeNode* left, TreeNode* right)
     *left          = *right;
     *right         = temp;
 }
+
 
 // Updates two nodes
 __device__
@@ -377,7 +379,7 @@ void update(TreeNode* left, TreeNode* right)
 // by movind them to the end of the array and then returning the index of the end of the array
 // also sorts the nodes by lower bound -- requires 2*log_2(N) operations
 __global__
-void reduce_level(internal::Tree tree, size_t start_node_idx, const size_t num_nodes)
+void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t num_nodes)
 {
     const size_t reductions         = (size_t)ceil(log2((double)(num_nodes)));
     const size_t thread_id          = blockIdx.x * blockDim.x + threadIdx.x;
@@ -408,10 +410,10 @@ void reduce_level(internal::Tree tree, size_t start_node_idx, const size_t num_n
             __syncthreads();
         }
 #ifdef DEBUG
-        __syncthreads();
         if (threadIdx.x == 0 && blockIdx.x == 0) {
             printf("RL : REDUCTIONS : %i\n", reductions);
             printf("RL : NODES      : %i\n", num_nodes);
+            printf("RL : NODE START : %i\n", start_node_idx);
             for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
                 printf("%i ", tree.node_ptr(i)->pruned);
             } printf("\n");
