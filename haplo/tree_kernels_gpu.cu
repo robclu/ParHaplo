@@ -293,43 +293,48 @@ void update_global_alignments(internal::Tree& tree, size_t* last_unaligned_idx, 
 
 __global__ 
 void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_searched_snp, 
-               size_t* last_unaligned_idx, const size_t prev_level_start, const size_t   this_level_start)
+               size_t* last_unaligned_idx, const size_t prev_level_start, const size_t   this_level_start,
+               const size_t nodes_in_level)
 {
     // Set node parameters
     const size_t            thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const size_t            node_idx  = thread_id + this_level_start;
-    TreeNode* const         node      = tree.node_ptr(node_idx);
-    const TreeNode* const   root_node = tree.node_ptr(prev_level_start + (threadIdx.x / 2));
-   
-    // Set some of the node parameters
-    node->haplo_idx = snp_bounds[0].index;
-    node->root_idx  = prev_level_start + (threadIdx.x / 2);
-    node->lbound    = root_node->lbound;
-    node->ubound    = root_node->ubound;
-    node->value     = threadIdx.x % 2 == 0 ? 0 : 1;
+    
+    // If a valid thread
+    if (thread_id < nodes_in_level) { 
+        TreeNode* const         node      = tree.node_ptr(node_idx);
+        const TreeNode* const   root_node = tree.node_ptr(prev_level_start + (threadIdx.x / 2));
+       
+        // Set some of the node parameters
+        node->haplo_idx = snp_bounds[0].index;
+        node->root_idx  = prev_level_start + (threadIdx.x / 2);
+        node->lbound    = root_node->lbound;
+        node->ubound    = root_node->ubound;
+        node->value     = threadIdx.x % 2 == 0 ? 0 : 1;
 
-    // Update the bounds for the node 
-    map_leaf_bounds(tree, last_searched_snp, node_idx);
+        // Update the bounds for the node 
+        map_leaf_bounds(tree, last_searched_snp, node_idx);
 
 #ifdef DEBUG 
-    printf("ML : NODE ID : %i\n", node_idx);
-    printf("ML : UBOUND  : %i\n", node->lbound);
+        printf("ML : NODE ID : %i\n", node_idx);
+        printf("ML : UBOUND  : %i\n", node->lbound);
 #endif
-    
-    // Add the alignments for the node 
-    add_alignments(tree, last_unaligned_idx, node_idx, thread_id);
-    
-    // The first thread needs to update the global alignments as well
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
-        update_global_alignments(tree, last_unaligned_idx, this_level_start);
         
+        // Add the alignments for the node 
+        add_alignments(tree, last_unaligned_idx, node_idx, thread_id);
+        
+        // The first thread needs to update the global alignments as well
+        if (threadIdx.x == 0 && blockIdx.x == 0) {
+            update_global_alignments(tree, last_unaligned_idx, this_level_start);
+            
 #ifdef DEBUG
-        printf("ML : ALIGNEMENTS : %i\n", *last_unaligned_idx);
-        for (size_t i = 0; i < tree.reads; ++i) 
-            printf("%i ", tree.aligned_reads[i]);
-        printf("\n");
+            printf("ML : ALIGNEMENTS : %i\n", *last_unaligned_idx);
+            for (size_t i = 0; i < tree.reads; ++i) 
+                printf("%i ", tree.aligned_reads[i]);
+            printf("\n");
 #endif
-    }   
+        }   
+    }
     __syncthreads();
 }
 
@@ -338,29 +343,32 @@ __device__
 void swap(TreeNode* left, TreeNode* right) 
 {
     TreeNode temp = *left;
-    *left         = *right;
-    *right        = temp;
+    *left          = *right;
+    *right         = temp;
 }
 
 // Updates two nodes
 __device__
 void update(TreeNode* left, TreeNode* right) 
 {
+#ifdef DEBUG 
+        printf("U : LPRUNED : %i\n", left->pruned);
+        printf("U : RPRUNED : %i\n", right->pruned);
+#endif
     // Check if the node with the higher upper bound needs to be pruned
     if (left->min_ubound <= right->lbound) {
         const size_t right_pruned = right->pruned;
         left->pruned             += right_pruned;
         right->pruned            -= right_pruned;
-        
-        // If the right node has not been pruned yet 
-        if (right->prune == 0) {
-            ++left->pruned;
-            right->prune = 1;
-        }
-        // Update the minimun upper bounds
-        left->min_ubound  = (size_t)min((double)left->min_ubound, (double)right->min_ubound);
-        right->min_ubound = (size_t)min((double)left->min_ubound, (double)right->min_ubound);
+    }        
+    // If the right node has not been pruned yet 
+    if (right->prune == 0) {
+        ++left->pruned;
+        right->prune = 1;
     }
+    // Update the minimun upper bounds
+    left->min_ubound  = (size_t)min((double)left->min_ubound, (double)right->min_ubound);
+    right->min_ubound = (size_t)min((double)left->min_ubound, (double)right->min_ubound);
 }
 
 // Compares two tree nodes 
@@ -371,46 +379,54 @@ void update(TreeNode* left, TreeNode* right)
 __global__
 void reduce_level(internal::Tree tree, size_t start_node_idx, const size_t num_nodes)
 {
-    const size_t reductions         = (size_t)ceil(log2((double)(num_nodes - 1)));
+    const size_t reductions         = (size_t)ceil(log2((double)(num_nodes)));
     const size_t thread_id          = blockIdx.x * blockDim.x + threadIdx.x;
-    const size_t node_idx           = thread_id + start_node_idx;
-    size_t       reduction_threads  = num_nodes - 1;
-   
-    for (size_t i = 0; i < reductions; ++i) {
-        // ----------------------------------- SORT STEP ----------------------------------------------------
-        
-        if (thread_id % 2 == 0 && thread_id != reduction_threads) {
-            if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
-                swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
+    
+    if (thread_id < num_nodes) {
+        const size_t node_idx           = thread_id + start_node_idx;
+        size_t       reduction_threads  = num_nodes - 1;
+       
+        for (size_t i = 0; i < reductions; ++i) {
+            // ----------------------------------- SORT STEP ----------------------------------------------------
+            
+            if (thread_id % 2 == 0 && thread_id != reduction_threads) {
+                if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
+                    swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
+                } 
+                update(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
             } 
-            update(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
-        } 
-        __syncthreads();
-        
-        // ----------------------------------- SWAP STEP ----------------------------------------------------
-        
-        if (reduction_threads % 2 == 1 && thread_id != reduction_threads) {
-            if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
-                swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
-            } 
-            update(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
+            __syncthreads();
+            
+            // ----------------------------------- SWAP STEP ----------------------------------------------------
+            
+            if (reduction_threads % 2 == 1 && thread_id != reduction_threads) {
+                if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
+                    swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
+                } 
+                update(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
+            }
+            __syncthreads();
         }
-        __syncthreads();
-    }
 #ifdef DEBUG
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
-        printf("RL : REDUCTIONS : %i\n", reductions);
-        for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
-            printf("%i ", tree.node_ptr(i)->lbound);
-        } printf("\n");
-        for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
-            printf("%i ", tree.node_ptr(i)->ubound);
-        } printf("\n");    
-        printf("SIZEOF : %i, %i, %i, %i, %i\n", sizeof(tree.nodes[node_idx]), sizeof(unsigned int), sizeof(uint8_t), sizeof(uint8_t*),
-                sizeof(TreeNode));
-    }
+        __syncthreads();
+        if (threadIdx.x == 0 && blockIdx.x == 0) {
+            printf("RL : REDUCTIONS : %i\n", reductions);
+            printf("RL : NODES      : %i\n", num_nodes);
+            for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
+                printf("%i ", tree.node_ptr(i)->pruned);
+            } printf("\n");
+            for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
+                printf("%i ", tree.node_ptr(i)->lbound);
+            } printf("\n");
+            for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
+                printf("%i ", tree.node_ptr(i)->ubound);
+            } printf("\n");    
+        }
 #endif
-    __syncthreads();
+    }
+#ifdef DEBUG 
+        printf("TH I : %i\n", thread_id);
+#endif
     
 }
 

@@ -198,15 +198,16 @@ void Tree<SubBlockType, devices::gpu>::search()
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate++ < 4) {
+    while (last_searched_snp < _snps && terminate++ < 5) {
         
         // We need to call the grid manager here 
         dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
-        const size_t threads = nodes_in_level < 1024 ? nodes_in_level : 1024;
+        const size_t threads = nodes_in_level < 1024 
+                             ? (nodes_in_level / 32 + 1) * 32 : 1024;
         
         // Perform a "mapping" step, which maps the bounds onto the nodes in the level
         map_level<<<grid_size, threads>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, 
-                                          prev_level_start, this_level_start);
+                                          prev_level_start, this_level_start, nodes_in_level);
         CudaCheckError();
    
         // "Reduce" the search space to eliminate the bad nodes

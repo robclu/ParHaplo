@@ -9,7 +9,7 @@
 
 namespace haplo {
     
-struct TreeNode {
+struct ALIGN(16) TreeNode {
     
     size_t          haplo_idx   ;
     size_t          root_idx    ; 
