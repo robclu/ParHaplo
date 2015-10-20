@@ -19,8 +19,8 @@ struct TreeNode {
     unsigned int    ubound      ;
     unsigned int    lbound      ;
     unsigned int    min_ubound  ;
-    uint8_t         value  : 4  ; 
-    uint8_t         prune  : 4  ;
+    uint16_t        value       ;   // 16 bits for memory alignment 
+    uint16_t        prune       ;   // 16 bits for memory alignment
     size_t*         indices     ;
     size_t*         read_ids    ;
     uint8_t*        read_values ;

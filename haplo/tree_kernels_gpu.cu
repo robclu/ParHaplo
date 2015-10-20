@@ -406,7 +406,7 @@ void reduce_level(internal::Tree tree, size_t start_node_idx, const size_t num_n
         for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
             printf("%i ", tree.node_ptr(i)->ubound);
         } printf("\n");    
-        printf("SIZEOF : %i, %i, %i, %i, %i\n", sizeof(size_t), sizeof(size_t*), sizeof(uint8_t), sizeof(uint8_t*),
+        printf("SIZEOF : %i, %i, %i, %i, %i\n", sizeof(tree.nodes[node_idx]), sizeof(unsigned int), sizeof(uint8_t), sizeof(uint8_t*),
                 sizeof(TreeNode));
     }
 #endif
