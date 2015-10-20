@@ -98,7 +98,7 @@ void map_leaf_bounds(internal::Tree& tree, const size_t last_searched_snp, const
     size_t          elements_used = 0, row_offset = 0;
     uint8_t         ref_value     = 0;
     TreeNode* const ref_node      = tree.node_ptr(node_idx);
-    const TreeNode* comp_node     = &tree.nodes[ref_node->root_idx];
+    const TreeNode* comp_node     = tree.node_ptr(ref_node->root_idx);
     
     for (size_t i = last_searched_snp; i > 0; --i) {
         for (size_t j = 0; j < comp_node->alignments; ++j) {
@@ -296,7 +296,8 @@ void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_sea
                size_t* last_unaligned_idx, const size_t prev_level_start, const size_t   this_level_start)
 {
     // Set node parameters
-    const size_t            node_idx  = threadIdx.x + this_level_start;
+    const size_t            thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t            node_idx  = thread_id + this_level_start;
     TreeNode* const         node      = tree.node_ptr(node_idx);
     const TreeNode* const   root_node = tree.node_ptr(prev_level_start + (threadIdx.x / 2));
    
@@ -306,12 +307,17 @@ void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_sea
     node->lbound    = root_node->lbound;
     node->ubound    = root_node->ubound;
     node->value     = threadIdx.x % 2 == 0 ? 0 : 1;
-    
+
     // Update the bounds for the node 
     map_leaf_bounds(tree, last_searched_snp, node_idx);
 
+#ifdef DEBUG 
+    printf("ML : NODE ID : %i\n", node_idx);
+    printf("ML : UBOUND  : %i\n", node->lbound);
+#endif
+    
     // Add the alignments for the node 
-    add_alignments(tree, last_unaligned_idx, node_idx, threadIdx.x);
+    add_alignments(tree, last_unaligned_idx, node_idx, thread_id);
     
     // The first thread needs to update the global alignments as well
     if (threadIdx.x == 0 && blockIdx.x == 0) {
@@ -336,31 +342,50 @@ void swap(TreeNode* left, TreeNode* right)
     *right        = temp;
 }
 
+// Updates two nodes
+__device__
+void update(TreeNode* left, TreeNode* right) 
+{
+    // Check if the node with the higher upper bound needs to be pruned
+    if (left->min_ubound <= right->lbound) {
+        const size_t right_pruned = right->pruned;
+        left->pruned             += right_pruned;
+        right->pruned            -= right_pruned;
+        
+        // If the right node has not been pruned yet 
+        if (right->prune == 0) {
+            ++left->pruned;
+            right->prune = 1;
+        }
+        // Update the minimun upper bounds
+        left->min_ubound  = (size_t)min((double)left->min_ubound, (double)right->min_ubound);
+        right->min_ubound = (size_t)min((double)left->min_ubound, (double)right->min_ubound);
+    }
+}
+
 // Compares two tree nodes 
 
 // "Reduces" the nodes, removing all the nodes with a lower bounds > than the highest upper bound
 // by movind them to the end of the array and then returning the index of the end of the array
 // also sorts the nodes by lower bound -- requires 2*log_2(N) operations
 __global__
-void reduce_level(internal::Tree tree, size_t* start_node_idx, const size_t* num_nodes)
+void reduce_level(internal::Tree tree, size_t start_node_idx, const size_t num_nodes)
 {
+    const size_t reductions         = (size_t)ceil(log2((double)(num_nodes - 1)));
     const size_t thread_id          = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t       reduction_threads  = *num_nodes - 1;
-    size_t       node_idx           = 0;
-    
-    while (reduction_threads > 1) {
+    const size_t node_idx           = thread_id + start_node_idx;
+    size_t       reduction_threads  = num_nodes - 1;
+   
+    for (size_t i = 0; i < reductions; ++i) {
         // ----------------------------------- SORT STEP ----------------------------------------------------
-        node_idx = thread_id + *start_node_idx;
+        
         if (thread_id % 2 == 0 && thread_id != reduction_threads) {
             if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
                 swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
             } 
-            // node_idx now has the lower bound 
-            if (tree.node_ptr(node_idx)->ubound <= tree.node_ptr(node_idx + 1)->lbound) {
-                // Add to counters here 
-            }
+            update(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
         } 
-        __synthreads();
+        __syncthreads();
         
         // ----------------------------------- SWAP STEP ----------------------------------------------------
         
@@ -368,16 +393,24 @@ void reduce_level(internal::Tree tree, size_t* start_node_idx, const size_t* num
             if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
                 swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
             } 
-            // node_idx is lower bound again
-            if (tree.node_ptr(node_idx)->ubound <= tree.node_ptr(node_idx + 1)->lbound) {
-                // Add to the counters again
-            }
+            update(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
         }
-        // Modify number of threads for next iteration
-        reduction_threads /= 2;
-        if (reduction_threads % 2 == 1) reduction_threads += 1;
         __syncthreads();
     }
+#ifdef DEBUG
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        printf("RL : REDUCTIONS : %i\n", reductions);
+        for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
+            printf("%i ", tree.node_ptr(i)->lbound);
+        } printf("\n");
+        for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
+            printf("%i ", tree.node_ptr(i)->ubound);
+        } printf("\n");    
+        printf("SIZEOF : %i, %i, %i, %i, %i\n", sizeof(size_t), sizeof(size_t*), sizeof(uint8_t), sizeof(uint8_t*),
+                sizeof(TreeNode));
+    }
+#endif
+    __syncthreads();
     
 }
 

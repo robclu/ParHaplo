@@ -7,12 +7,6 @@
 
 #include <stdint.h>
 
-#ifdef __CUDAACC__ 
-    #define CUDA_HD __host__ __device__
-#else 
-    #define CUDA_HD
-#endif
-
 namespace haplo {
     
 struct TreeNode {
@@ -21,39 +15,52 @@ struct TreeNode {
     size_t          root_idx    ; 
     size_t          node_idx    ;
     size_t          alignments  ;
+    size_t          pruned      ;
     unsigned int    ubound      ;
     unsigned int    lbound      ;
-    uint8_t         value       ;
+    unsigned int    min_ubound  ;
+    uint8_t         value  : 4  ; 
+    uint8_t         prune  : 4  ;
     size_t*         indices     ;
     size_t*         read_ids    ;
     uint8_t*        read_values ;
-    
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Constuctor 
+    // ------------------------------------------------------------------------------------------------------
+    TreeNode() noexcept 
+    : haplo_idx{0} , root_idx{0}, node_idx{0}, alignments{0}, pruned{0}     , ubound{0}, lbound{0}, 
+      min_ubound{0}, value{0}   , prune{0}   , indices(NULL), read_ids(NULL), read_values(NULL) {} 
+
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Assignment operator
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
-    void operator=(const TreeNode& other) const
+    void operator=(const TreeNode& other)
     {
-        other.haplo_idx  = haplo_idx    ;
-        other.root_idx   = root_idx     ;
-        other.alignments = alignements  ;
-        other.ubound     = ubound       ;
-        other.lbound     = lbound       ;
-        other.value      = value        ;
+        haplo_idx  = other.haplo_idx    ;
+        root_idx   = other.root_idx     ;
+        alignments = other.alignments   ;
+        pruned     = other.pruned       ;
+        ubound     = other.ubound       ;
+        lbound     = other.lbound       ;
+        min_ubound = other.min_ubound   ;
+        value      = other.value        ;
+        prune      = other.prune        ;
         
         // Pointer copy
-        if (other.alignments != alignments) {
-            free(other.indices); free(other.read_ids); free(other.read_values); 
+        if (alignments != other.alignments) {
+            free(indices); free(read_ids); free(read_values); 
           
-            other.indices       = new size_t[alignments];
-            other.read_ids      = new size_t[alignments];
-            other.read_values   = new uint8_t[alignments];
+            indices       = new size_t[other.alignments];
+            read_ids      = new size_t[other.alignments];
+            read_values   = new uint8_t[other.alignments];
         }
         
-        for (size_t i = 0; i < alignments; ++i) {
-            other.indices[i]     = indices[i];
-            other.read_ids[i]    = read_ids[i];
-            other.read_values[i] = read_values[i];
+        for (size_t i = 0; i < other.alignments; ++i) {
+            indices[i]     = other.indices[i];
+            read_ids[i]    = other.read_ids[i];
+            read_values[i] = other.read_values[i];
         }
     }
 };
