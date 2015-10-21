@@ -15,38 +15,38 @@ namespace internal  {
  
 struct Tree {    
 public:
-    //-------------------------------------------------------------------------------------------------------
+    //------------------------------------- ALIAS's ---------------------------------------------------------
     using read_info_type                = ReadInfo;
     using snp_info_type                 = SnpInfoGpu;
     using small_type                    = uint8_t;
     using node_type                     = TreeNode;
     using small_container               = thrust::host_vector<small_type>;
     //------------------------------------------------------------------------------------------------------- 
-   
+
+    size_t          snps;               // Number of snps to serach
+    size_t          reads;              // Number of reads for the sub-block
+    size_t*         search_snps;        // Snps (indices) which have been (and still need to be) searched
+    size_t*         aligned_reads;      // Reads (indices) which have been (and still need to be) searched
+    size_t*         alignment_offsets;  // The offset of the start of each set of alignments for a level 
+    small_type*     read_values;        // The values of the alignment of the reads for each node
+    small_type*     data;               // The actual data 
+    small_type*     haplotype;          // The final haplotype
+    small_type*     alignments;         // The final alignments
+    read_info_type* read_info;          // The information for each read for fast access
+    snp_info_type*  snp_info;           // The information for each snp for fast access
+    node_type*      nodes;              // The nodes which make up the tree
+
     //------------------------------------------------------------------------------------------------------- 
     /// @brief  Constructor to initialize avriables
     //------------------------------------------------------------------------------------------------------- 
     Tree(const size_t num_snps, const size_t num_reads)
-    : snps(num_snps), reads(num_reads), last_searched_snp(0), last_unaligned_idx(0) {}
+    : snps(num_snps), reads(num_reads) {}
 
-    size_t          snps;
-    size_t          reads;
-    size_t          last_searched_snp;
-    size_t          last_unaligned_idx;
-    size_t*         search_snps;
-    size_t*         aligned_reads;
-    small_type*     data;
-    small_type*     haplotype;
-    small_type*     alignments;
-    read_info_type* read_info;
-    snp_info_type*  snp_info;
-    node_type*      nodes; 
-    
     //------------------------------------------------------------------------------------------------------- 
     /// @brief      Gets a pointer to one of the nodes
     //------------------------------------------------------------------------------------------------------- 
     CUDA_HD
-    const TreeNode* node_ptr(const size_t i) const { return (const TreeNode*)(&nodes[i]); }
+    const TreeNode* node_ptr(const size_t i) const { return static_cast<const TreeNode*>(&nodes[i]); }
     
     //------------------------------------------------------------------------------------------------------- 
     /// @brief      Gets a pointer to one of the nodes

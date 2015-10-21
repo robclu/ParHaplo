@@ -10,6 +10,11 @@
 #include "grid_config.h"
 #include "tree.hpp"
 #include "tree_kernels_gpu.cu"
+#include "thrust/sequence.h"
+
+#define BIG_INPUT  24
+#define ALIGN_MEM  0.3f
+#define NODES_MEM  0.9f
 
 namespace haplo {
 
@@ -61,16 +66,18 @@ public:
     CUDA_H
     ~Tree() 
     {
-        cudaFree(_tree.data);
-        cudaFree(_tree.read_info);
-        cudaFree(_tree.snp_info);
-        cudaFree(_tree.nodes);
-        cudaFree(_tree.haplotype);
-        cudaFree(_tree.alignments);
-        cudaFree(_tree.search_snps);
-        cudaFree(_tree.aligned_reads);
-        cudaFree(_snp_bounds);
-        cudaFree(_last_unaligned_idx);
+        cudaFree(_tree.data)                ;
+        cudaFree(_tree.read_info)           ;
+        cudaFree(_tree.snp_info)            ;
+        cudaFree(_tree.haplotype)           ;
+        cudaFree(_tree.alignments)          ;
+        cudaFree(_tree.search_snps)         ;
+        cudaFree(_tree.aligned_reads)       ;
+        cudaFree(_tree.alignment_offsets)   ;
+        cudaFree(_snp_bounds)               ;
+        cudaFree(_last_unaligned_idx)       ;
+        cudaFree(_tree.read_values)         ;
+        cudaFree(_tree.nodes)               ;
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -93,29 +100,29 @@ Tree<SubBlockType, devices::gpu>::Tree(
 {
     cudaError_t error;
     
-    // Copy data to device
+    // Copy the actual data to the device
     thrust::host_vector<small_type> data_gpu_format = data.to_binary_vector();
     CudaSafeCall( cudaMalloc((void**)&_tree.data, sizeof(small_type) * data.size()) );
     CudaSafeCall( cudaMemcpy(_tree.data, thrust::raw_pointer_cast(&data_gpu_format[0])   , 
                     sizeof(small_type) * data_gpu_format.size(), cudaMemcpyHostToDevice) );
 
     // Copy the read data to the device 
-    cudaMalloc((void**)&_tree.read_info, sizeof(read_info_type) * read_info.size());
-    cudaMemcpy(_tree.read_info, thrust::raw_pointer_cast(&_read_info[0]),
-                    sizeof(read_info_type) * read_info.size(), cudaMemcpyHostToDevice); 
+    CudaSafeCall( cudaMalloc((void**)&_tree.read_info, sizeof(read_info_type) * read_info.size()) );
+    CudaSafeCall( cudaMemcpy(_tree.read_info, thrust::raw_pointer_cast(&_read_info[0]) ,
+                    sizeof(read_info_type) * read_info.size(), cudaMemcpyHostToDevice) );
     
     // Copy SNP data to the device 
-    cudaMalloc((void**)&_tree.snp_info, sizeof(snp_info_type) * snp_info.size());
-    cudaMemcpy(_tree.snp_info, thrust::raw_pointer_cast(&_snp_info[0]), 
-                    sizeof(snp_info_type) * snp_info.size(), cudaMemcpyHostToDevice); 
+    CudaSafeCall( cudaMalloc((void**)&_tree.snp_info, sizeof(snp_info_type) * snp_info.size()) );
+    CudaSafeCall( cudaMemcpy(_tree.snp_info, thrust::raw_pointer_cast(&_snp_info[0]) , 
+                    sizeof(snp_info_type) * snp_info.size(), cudaMemcpyHostToDevice) );
   
     // Allocate the haplotype and alignment data on the device 
-    cudaMalloc((void**)&_tree.haplotype, sizeof(small_type) * snps);
-    cudaMalloc((void**)&_tree.alignments, sizeof(small_type) * read_info.size());
+    CudaSafeCall( cudaMalloc((void**)&_tree.haplotype, sizeof(small_type) * snps) );
+    CudaSafeCall( cudaMalloc((void**)&_tree.alignments, sizeof(small_type) * read_info.size()) );;
     
     // Create a vector for the search snps
-    thrust::host_vector<size_t> snp_indices;
-    for (size_t i = 0; i < snps; ++i) snp_indices.push_back(i);
+    thrust::host_vector<size_t> snp_indices(snps);
+    thrust::sequence(snp_indices.begin(), snp_indices.end());
     
     // Copy snp search info to the device
     CudaSafeCall( cudaMalloc((void**)&_tree.search_snps, sizeof(size_t) * snps) );
@@ -123,14 +130,18 @@ Tree<SubBlockType, devices::gpu>::Tree(
                     sizeof(size_t) * snp_indices.size(), cudaMemcpyHostToDevice)         );
     
     // Create a vector for the aligned rows
-    thrust::host_vector<size_t> aligned;
-    for (size_t i = 0; i < reads; ++i) aligned.push_back(i);
+    thrust::host_vector<size_t> aligned_reads(reads);
+    thrust::sequence(aligned_reads.begin(), aligned_reads.end());
    
     // Copy aligned data to the device
-    cudaMalloc((void**)&_tree.aligned_reads, sizeof(size_t) * reads);
-    cudaMemcpy(_tree.aligned_reads, thrust::raw_pointer_cast(&aligned[0]), 
-                sizeof(size_t) * aligned.size(), cudaMemcpyHostToDevice);
+    CudaSafeCall( cudaMalloc((void**)&_tree.aligned_reads, sizeof(size_t) * reads) );
+    CudaSafeCall( cudaMemcpy(_tree.aligned_reads, thrust::raw_pointer_cast(&aligned_reads[0]), 
+                    sizeof(size_t) * aligned_reads.size(), cudaMemcpyHostToDevice)           );
     
+    // Copy the array for the aligned offsets
+    CudaSafeCall( cudaMalloc((void**)&_tree.alignment_offsets, sizeof(size_t) * reads) );
+    CudaSafeCall( cudaMemset(_tree.alignment_offsets, 0, sizeof(size_t) * reads) );
+
     // Create data for bounds array
     CudaSafeCall( cudaMalloc((void**)&_snp_bounds, sizeof(BoundsGpu) * snps) );
 
@@ -138,30 +149,30 @@ Tree<SubBlockType, devices::gpu>::Tree(
     CudaSafeCall( cudaMalloc((void**)&_last_unaligned_idx, sizeof(size_t))  );
     CudaSafeCall( cudaMemset(_last_unaligned_idx, 0, sizeof(size_t))        );
 
-    // ------------------------------------ NODE ALLOCATION -------------------------------------------------
+    size_t free_mem, total_mem;                 // Device memory
     
-    // Allocate space on the device for the tree nodes
-    size_t free_mem, total_mem;
-    cudaMemGetInfo(&free_mem, &total_mem);
-   
-    // DEBUG 
-    std::cout << "Free Memory Before : " << free_mem << "\n";
+    // --------------------------------------- READ VALUES --------------------------------------------------
     
-    // Determine the number of nodes to "safely allocate"
-    size_t num_nodes = 0.75 * free_mem / sizeof(TreeNode);
+    // If the tree is small, we can allocate the "correct" (worst case) amount of memory
+    if (snps <= BIG_INPUT) { 
+        CudaSafeCall( cudaMalloc((void**)&_tree.read_values, sizeof(uint8_t) * pow(2, snps)) );
+        CudaSafeCall( cudaMalloc((void**)&_tree.nodes, sizeof(TreeNode) * pow(2, snps)) );
+    } else {
+        cudaMemGetInfo(&free_mem, &total_mem);
+        // Allocate space for the alignments for the nodes
+        CudaSafeCall( cudaMalloc((void**)&_tree.read_values, ALIGN_MEM * free_mem) );
+        cudaMemGetInfo(&free_mem, &total_mem);
+        // Allocate space for the nodes themselves
+        size_t num_nodes = NODES_MEM * free_mem / sizeof(TreeNode);
+        CudaSafeCall( cudaMalloc((void**)&_tree.nodes, sizeof(TreeNode) * num_nodes) );
+#ifdef DEBUG
+        cudaMemGetInfo(&free_mem, &total_mem);
+        std::cout << "Free  Memory : " << free_mem  << "\n";
+        std::cout << "Total Memory : " << total_mem << "\n";
+        std::cout << "Total Nodes  : " << num_nodes << "\n";
+#endif
+    }
     
-    // Check that we can allocate the memory
-    error = cudaMalloc((void**)&_tree.nodes, sizeof(TreeNode) * num_nodes);
-    if (error != cudaSuccess) std::cout << "Error allocating memory\n";
-    
-    // DEBUG
-    cudaMemGetInfo(&free_mem, &total_mem);
-    std::cout << "Free Memory After: " << free_mem  << "\n";
-    std::cout << "Num Nodes        : " << num_nodes << "\n";
-    
-    // ------------------------------------- KERNEL ARGUMENTS -----------------------------------------------
-    
-
     // ---------------------------------------- HEAP LIMIT ---------------------------------------------------
     
     const size_t heap_mb = 64;                         // Excessive, but just incase
@@ -183,7 +194,8 @@ void Tree<SubBlockType, devices::gpu>::search()
     // because it needs to do the setup, so invoke that kernel first
     map_root_node<<<1, 1>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, _min_ubound, _device); 
     CudaCheckError();
-    
+
+/*    
     // Now we can do the mapping of the unsearched nodes
     map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, 0);
     CudaCheckError();
@@ -198,7 +210,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate++ < 35) {
+    while (last_searched_snp < _snps && terminate++ < 17) {
         
         // We need to call the grid manager here 
         dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
@@ -211,8 +223,8 @@ void Tree<SubBlockType, devices::gpu>::search()
         CudaCheckError();
    
         // "Reduce" the search space to eliminate the bad nodes
-     //   reduce_level<<<grid_size, threads>>>(_tree, this_level_start, nodes_in_level);
-      //  CudaCheckError();
+//        reduce_level<<<grid_size, threads>>>(_tree, this_level_start, nodes_in_level);
+//        CudaCheckError();
         
         // Map unsearched snps
         map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, this_level_start);
@@ -232,6 +244,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     }
    
     // Haplotype found
+*/
 }
 
 }           // End namespace haplo
