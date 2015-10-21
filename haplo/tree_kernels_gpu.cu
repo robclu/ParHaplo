@@ -216,72 +216,6 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
 #endif
 }
 
-
-// Add any unaligned reads to a node (snp site)
-__device__ 
-void add_alignments(internal::Tree& tree, size_t* last_unaligned_idx, 
-                    const size_t node_idx, const size_t thread_id)
-{
-    size_t read_offset = 0, align_count = 0, element_position = 0;
-   
-
-
-
-    // Get a pointer to the node
-    TreeNode* node = tree.node_ptr(node_idx);
-    
-    // Allocate some temp space for the node alignments (this is usually small)
-    size_t* alignments = new size_t[tree.snp_info[node->haplo_idx].elements()]; 
-    size_t* values     = new size_t[tree.snp_info[node->haplo_idx].elements()];
-    size_t* indices;
-    
-    if (thread_id == 0) {
-        indices = new size_t[tree.snp_info[node->haplo_idx].elements()];
-    }          
-    
-    // Go through all the unaligned reads
-    for (size_t i = *last_unaligned_idx; i < tree.reads; ++i) {
-        if (tree.aligned_reads[i] >= tree.snp_info[node->haplo_idx].start_index() &&
-            tree.aligned_reads[i] <= tree.snp_info[node->haplo_idx].end_index()  ) {
-        
-            // If the row crosses the snp
-            if (tree.read_info[tree.aligned_reads[i]].start_index() <= node->haplo_idx &&
-                tree.read_info[tree.aligned_reads[i]].end_index()   >= node->haplo_idx ) {
-            
-                // Get the offset in memory of the start of the read
-                read_offset         = tree.read_info[tree.aligned_reads[i]].offset();
-                element_position    = node->haplo_idx - tree.read_info[tree.aligned_reads[i]].start_index();
-                uint8_t  element    = tree.data[read_offset + element_position];
-            
-                // Do the alignement for the reads to this node
-                if ((element == 0 && node->value == 0) || (element == 1 && node->value == 1)) {
-                    values[align_count] = 1; alignments[align_count++] = tree.aligned_reads[i];
-                    if (thread_id == 0) indices[align_count - 1] = i; 
-                } else if ((element == 0 && node->value == 1) || (element == 1 && node->value == 0)) {
-                    values[align_count] = 0; alignments[align_count++] = tree.aligned_reads[i];
-                    if (thread_id == 0) indices[align_count - 1] = i; 
-                }
-            }
-        }
-    }
-   
-    // Move the found alignments to the node
-    node->alignments     = align_count;
-    node->read_ids       = new size_t[align_count];
-    node->read_values    = new uint8_t[align_count];
-   
-    if (thread_id == 0) node->indices = new size_t[align_count];
-    
-    for (size_t i = 0; i < align_count; ++i) {
-        node->read_ids[i]    = alignments[i];
-        node->read_values[i] = (uint8_t)values[i];
-        if (thread_id == 0) node->indices[i] = indices[i];
-    }
-    // Clean memory
-    free(alignments); free(values);
-    if (thread_id == 0) free(indices);
-}
-
 __global__ 
 void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_searched_snp, 
                size_t* last_unaligned_idx, const size_t prev_level_start, const size_t   this_level_start,
@@ -423,10 +357,48 @@ void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t
 }
 */
 
+// Updates the values of the alignments for a specific node
+__device__
+void add_node_alignments(internal::Tree& tree       , const size_t* const last_unaligned_idx, 
+                         const size_t    node_idx   , const size_t        alignment_offset  ,
+                         const size_t    alignments )
+{
+    TreeNode* const node            = tree.node_ptr(node_idx);
+    const size_t thread_id          = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t offset             = alignments * thread_id + alignment_offset;
+    size_t alignment_start          = tree.alignment_offsets[node->haplo_idx];
+    size_t read_offset, elem_pos; uint8_t element;
+    
+    // If there is a valid index for the alignment start
+    if (alignment_start != 0) {
+        --alignment_start;
+    
+        // Set the offset in the read_values array of the start of the reads for this node
+        node->align_idx = alignment_start;
+        
+        // For all the alignments for the snp
+        for (size_t i = alignment_start; i < alignment_start + alignments; ++i) {
+            // Find the element in the data array
+            read_offset = tree.read_info[tree.aligned_reads[i]].offset();
+            elem_pos    = node->haplo_idx - tree.read_info[tree.aligned_reads[i]].start_index();
+            element     = tree.data[read_offset + elem_pos];
+            
+            // Determine the alignment values of the node 
+            if ((element == 0 && node->value == 0) || (element == 1 && node->value == 1)) {
+                tree.read_values[offset + i - alignment_start] = 1;
+            } else if ((element == 0 && node->value == 1) || (element == 1 && node->value == 0)) {
+                tree.read_values[offset + i - alignment_start] = 0;
+            }
+        }
+    }
+}
+
+
+// Updates the indices which are have been aligned so far
 __device__ 
 void update_global_alignments(internal::Tree& tree, size_t* last_unaligned_idx, const size_t node_idx)   
 {
-    TreeNode* node = tree.node_ptr(node_idx);
+    const TreeNode* const node = tree.node_ptr(node_idx);
     __shared__ size_t  found   ; __shared__ size_t read_offset; __shared__ size_t  elem_pos     ;
     __shared__ size_t  elements; __shared__ size_t last_index ; __shared__ uint8_t element_value;
     
@@ -490,11 +462,17 @@ void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last
         tree.alignment_offsets[0] = last_unaligned_before + 1; // Set the start index in the alignment array 
     }
     
+    // Update the alignments values (how the reads are aligned) for this specific node
+    add_node_alignments(tree, last_unaligned_idx, 0, 0, *last_unaligned_idx - last_unaligned_before);
+    
 #ifdef DEBUG
     printf("MRN : ALIGNMENTS : %i\n", tree.alignment_offsets[0]);
     printf("MRN : ALIGNMENTS : %i\n", *last_unaligned_idx);
     for (size_t i = 0; i < tree.reads; ++i) 
         printf("%i ", tree.aligned_reads[i]);
+    printf("\n");
+    for (size_t i = 0; i < *last_unaligned_idx; ++i) 
+        printf("%i ", tree.read_values[i]);
     printf("\n");
     printf("MRN : UPPER BOUND : %i\n", node.ubound);
 #endif
