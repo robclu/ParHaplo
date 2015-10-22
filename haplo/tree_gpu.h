@@ -203,8 +203,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     CudaCheckError();
 
     // Now we can do the mapping of the unsearched nodes
-    map_unsearched_snps<<<1, unsearched_snps>>>(_tree               , _snp_bounds, last_searched_snp, 
-                                                _last_unaligned_idx );
+    map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, 0);
     CudaCheckError();
 
     // And the reduction
@@ -229,11 +228,11 @@ void Tree<SubBlockType, devices::gpu>::search()
                                           _alignment_offset , prev_level_start , this_level_start   , 
                                           nodes_in_level    );
         CudaCheckError();
-/*
+
         // "Reduce" the search space to eliminate the bad nodes
-//        reduce_level<<<grid_size, threads>>>(_tree, this_level_start, nodes_in_level);
-//        CudaCheckError();
-        
+        reduce_level<<<grid_size, threads>>>(_tree, this_level_start, nodes_in_level);
+        CudaCheckError();
+
         // Map unsearched snps
         map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, this_level_start);
         CudaCheckError();
@@ -249,7 +248,6 @@ void Tree<SubBlockType, devices::gpu>::search()
         prev_level_start  = this_level_start;
         this_level_start += nodes_in_level;
         nodes_in_level   *= 2;
-*/
     }
    
     // Haplotype found

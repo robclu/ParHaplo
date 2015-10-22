@@ -31,40 +31,49 @@ struct BoundsGpu {
 // Maps all the unsearched snps to an array of BoundsGpu structs which can then be reduces
 __global__ 
 void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_searched_snp,
-                         const size_t* last_unaligned_idx)
+                         const size_t start_node_idx)
 {
-    size_t read_start = 0, read_end   = 0, row_offset = 0 ;         // For data memory offset
-    size_t opp        = 0, same       = 0;                          // For counting same and opp column types
-    const size_t thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t    thread_id     = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t    ref_haplo_idx = tree.search_snps[thread_id + last_searched_snp + 1];
+    const TreeNode* comp_node     = tree.node_ptr(start_node_idx);
+    size_t same = 0, opp = 0;
     
     // Index of the haplotype for the comparison
-    const size_t ref_haplo_idx   = tree.search_snps[thread_id + last_searched_snp + 1];
     snp_bounds[thread_id].index  = ref_haplo_idx;
     snp_bounds[thread_id].offset = thread_id + last_searched_snp + 1;
-    
-    // Go through all the already aligned reads
-    for (size_t i = 0; i < *last_unaligned_idx; ++i) {
-        // Find the start and end of the aligned read
-        read_start = tree.read_info[tree.aligned_reads[i]].start_index();
-        read_end   = tree.read_info[tree.aligned_reads[i]].end_index();
-        
-        // Go through all the searched snps for this read
-        for (size_t j = 0; j <= last_searched_snp; ++j) {
-            // If any of the comp and ref snps (nodes) have overlapping positions
-            if (read_start <= tree.search_snps[j] && read_start <= ref_haplo_idx &&
-                read_end   >= tree.search_snps[j] && read_end   >= ref_haplo_idx ) {
-                
-                row_offset = tree.read_info[tree.aligned_reads[i]].offset();
 
-                // Get the values of the data at the two snp sites
-                uint8_t comp_value = tree.data[row_offset + (tree.search_snps[j] - read_start)];
-                uint8_t ref_value  = tree.data[row_offset + (ref_haplo_idx - read_start)];
+    // Go through all the set nodes    
+    for (size_t i = last_searched_snp + 1; i >= 1; --i) {
+        const size_t alignments       = tree.alignment_offsets[comp_node->haplo_idx + tree.reads];
+        const size_t alignment_offset = tree.alignment_offsets[comp_node->haplo_idx] - 1;        
+ 
+        for (size_t j = alignment_offset; j < alignment_offset + alignments; ++j) {
+            size_t row_offset = tree.read_info[tree.aligned_reads[j]].offset();
+            size_t read_start = tree.read_info[tree.aligned_reads[j]].start_index();
+            size_t read_end   = tree.read_info[tree.aligned_reads[j]].end_index();
+#ifdef DEBUG 
+            if (thread_id == 0) {
+    printf("A : %i\n", tree.aligned_reads[j]);
+            }
+#endif            
+            // If the reads cross the snp sites
+            if (read_start <= ref_haplo_idx && read_start <= comp_node->haplo_idx &&
+                read_end   >= ref_haplo_idx && read_end   >= comp_node->haplo_idx ) {
                 
+                // Values of the two elements
+                uint8_t ref_value  = tree.data[row_offset + (ref_haplo_idx - read_start)];
+                uint8_t comp_value = tree.data[row_offset + (comp_node->haplo_idx - read_start)]; 
+             
                 if (comp_value == ref_value && ref_value <= 1) ++same;
                 else if (comp_value != ref_value && ref_value <= 1 && comp_value <= 1) ++opp;
             }
         }
+        if (i > 1) {
+            // Go back up the tree
+            comp_node = tree.node_ptr(comp_node->root_idx);
+        }
     }
+    
     // Format the bounds 
     snp_bounds[thread_id].lower = min((unsigned int)same, (unsigned int)opp);
     snp_bounds[thread_id].upper = max((unsigned int)same, (unsigned int)opp);
@@ -175,7 +184,6 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
 #endif
 }
 
-/*
 // Swaps two nodes in the node array
 __device__ 
 void swap(TreeNode* left, TreeNode* right) 
@@ -184,7 +192,6 @@ void swap(TreeNode* left, TreeNode* right)
     *left          = *right;
     *right         = temp;
 }
-
 
 // Updates two nodes
 __device__
@@ -199,15 +206,18 @@ void update(TreeNode* left, TreeNode* right)
         const size_t right_pruned = right->pruned;
         left->pruned             += right_pruned;
         right->pruned            -= right_pruned;
-    }        
-    // If the right node has not been pruned yet 
-    if (right->prune == 0) {
-        ++left->pruned;
-        right->prune = 1;
+        
+        // If the right node has not been pruned yet 
+        if (right->prune == 0) {
+            ++left->pruned;
+            right->prune = 1;
+        }
     }
     // Update the minimun upper bounds
-    left->min_ubound  = (size_t)min((double)left->min_ubound, (double)right->min_ubound);
-    right->min_ubound = (size_t)min((double)left->min_ubound, (double)right->min_ubound);
+    left->min_ubound  = static_cast<size_t>(min(static_cast<double>(left->min_ubound) ,  
+                                                static_cast<double>(right->min_ubound)));
+    right->min_ubound = static_cast<size_t>(min(static_cast<double>(left->min_ubound) , 
+                                                static_cast<double>(right->min_ubound)));
 }
 
 // Compares two tree nodes 
@@ -218,9 +228,14 @@ void update(TreeNode* left, TreeNode* right)
 __global__
 void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t num_nodes)
 {
-    const size_t reductions         = (size_t)ceil(log2((double)(num_nodes)));
+    const size_t reductions         = static_cast<size_t>(ceil(log2(static_cast<double>(num_nodes))));
     const size_t thread_id          = blockIdx.x * blockDim.x + threadIdx.x;
-    
+   
+#ifdef DEBUG 
+    for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
+        printf("%i ", tree.node_ptr(i)->pruned);
+    } printf("\n");    
+#endif
     if (thread_id < num_nodes) {
         const size_t node_idx           = thread_id + start_node_idx;
         size_t       reduction_threads  = num_nodes - 1;
@@ -263,12 +278,8 @@ void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t
         }
 #endif
     }
-#ifdef DEBUG 
-        printf("TH I : %i\n", thread_id);
-#endif
-    
 }
-*/
+
 // Updates the values of the alignments for a specific node
 __device__
 void add_node_alignments(internal::Tree& tree       , const size_t* const last_unaligned_idx, 
@@ -347,28 +358,34 @@ void update_global_alignments(internal::Tree& tree, size_t* last_unaligned_idx, 
 __device__ 
 void map_leaf_bounds(internal::Tree& tree, const size_t last_searched_snp, const size_t node_idx)
 {
-    size_t          elements_used = 0, row_offset = 0;
-    uint8_t         ref_value     = 0, alignment = 0;
     TreeNode* const ref_node      = tree.node_ptr(node_idx);
     const TreeNode* comp_node     = tree.node_ptr(ref_node->root_idx);
-    
-    for (size_t i = last_searched_snp; i > 0; --i) {
+    size_t          elements_used = 0;
+   
+    // Each of the snps which have been serached 
+    for (size_t i = last_searched_snp; i >= 1; --i) {
         const size_t alignments       = tree.alignment_offsets[comp_node->haplo_idx + tree.reads];
         const size_t alignment_offset = tree.alignment_offsets[comp_node->haplo_idx];
         
+        // Each of the alignments for a snp
         for (size_t j = alignment_offset; j < alignment_offset + alignments; ++j) {
-            row_offset = tree.read_info[tree.aligned_reads[j]].offset();
-            ref_value  = tree.data[row_offset + ref_node->haplo_idx];
-            alignment  = tree.read_values[comp_node->align_idx + j];  
+            // If the aligned read crosses the snp index
+            if (tree.read_info[tree.aligned_reads[j]].start_index() <= ref_node->haplo_idx &&
+                tree.read_info[tree.aligned_reads[j]].end_index()   >= ref_node->haplo_idx ) {
+                
+                size_t row_offset  = tree.read_info[tree.aligned_reads[j]].offset();
+                uint8_t ref_value  = tree.data[row_offset + ref_node->haplo_idx];
+                uint8_t alignment  = tree.read_values[comp_node->align_idx + j];  
              
-            if ((ref_value == ref_node->value && ref_value <= 1 && alignment == 1) ||
-                (ref_value != ref_node->value && ref_value <= 1 && alignment == 0)) {
-                    // Optimal selection -- reduce the upper bound, dont increase lower bound
-                    --ref_node->ubound; ++elements_used;
-            } else if ((ref_value != ref_node->value && ref_value <= 1 && alignment == 1) ||
-                       (ref_value == ref_node->value && ref_value <= 1 && alignment == 0)) {
-                    // Non-optimal selection -- incread lower bound, don't reduce upper bound
-                    ++ref_node->lbound; ++elements_used;
+                if ((ref_value == ref_node->value && ref_value <= 1 && alignment == 1) ||
+                    (ref_value != ref_node->value && ref_value <= 1 && alignment == 0)) {
+                        // Optimal selection -- reduce the upper bound, dont increase lower bound
+                        --ref_node->ubound; ++elements_used;
+                } else if ((ref_value != ref_node->value && ref_value <= 1 && alignment == 1) ||
+                           (ref_value == ref_node->value && ref_value <= 1 && alignment == 0)) {
+                        // Non-optimal selection -- incread lower bound, don't reduce upper bound
+                        ++ref_node->lbound; ++elements_used;
+                }
             }
         }
         if (i > 1) {
