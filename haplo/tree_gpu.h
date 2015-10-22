@@ -51,6 +51,7 @@ private:
     tree_type                   _tree; 
     bound_type*                 _snp_bounds;
     size_t*                     _last_unaligned_idx;
+    size_t*                     _alignment_offset;
 public:    
     //-------------------------------------------------------------------------------------------------------
     /// @brief   Constructor 
@@ -75,9 +76,10 @@ public:
         cudaFree(_tree.aligned_reads)       ;
         cudaFree(_tree.alignment_offsets)   ;
         cudaFree(_snp_bounds)               ;
-        cudaFree(_last_unaligned_idx)       ;
         cudaFree(_tree.read_values)         ;
         cudaFree(_tree.nodes)               ;
+        cudaFree(_last_unaligned_idx)       ;
+        cudaFree(_alignment_offset)         ;
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -139,8 +141,8 @@ Tree<SubBlockType, devices::gpu>::Tree(
                     sizeof(size_t) * aligned_reads.size(), cudaMemcpyHostToDevice)           );
     
     // Copy the array for the aligned offsets
-    CudaSafeCall( cudaMalloc((void**)&_tree.alignment_offsets, sizeof(size_t) * reads) );
-    CudaSafeCall( cudaMemset(_tree.alignment_offsets, 0, sizeof(size_t) * reads) );
+    CudaSafeCall( cudaMalloc((void**)&_tree.alignment_offsets, sizeof(size_t) * reads * 2) );
+    CudaSafeCall( cudaMemset(_tree.alignment_offsets, 0, sizeof(size_t) * reads * 2) );
 
     // Create data for bounds array
     CudaSafeCall( cudaMalloc((void**)&_snp_bounds, sizeof(BoundsGpu) * snps) );
@@ -148,6 +150,10 @@ Tree<SubBlockType, devices::gpu>::Tree(
     // Allocate memory for the kernel arguments
     CudaSafeCall( cudaMalloc((void**)&_last_unaligned_idx, sizeof(size_t))  );
     CudaSafeCall( cudaMemset(_last_unaligned_idx, 0, sizeof(size_t))        );
+    
+    // Offset in the alignment array
+    CudaSafeCall( cudaMalloc((void**)&_alignment_offset, sizeof(size_t))  );
+    CudaSafeCall( cudaMemset(_alignment_offset, 0, sizeof(size_t))        );
 
     size_t free_mem, total_mem;                 // Device memory
     
@@ -192,12 +198,13 @@ void Tree<SubBlockType, devices::gpu>::search()
     
     // The first level of the tree (with the root node) is a little different
     // because it needs to do the setup, so invoke that kernel first
-    map_root_node<<<1, 1>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, _min_ubound, _device); 
+    map_root_node<<<1, 1>>>(_tree            , _snp_bounds, last_searched_snp, _last_unaligned_idx, 
+                            _alignment_offset, _min_ubound, _device          ); 
     CudaCheckError();
 
     // Now we can do the mapping of the unsearched nodes
-    map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, 
-                                                _last_unaligned_idx);
+    map_unsearched_snps<<<1, unsearched_snps>>>(_tree               , _snp_bounds, last_searched_snp, 
+                                                _last_unaligned_idx );
     CudaCheckError();
 
     // And the reduction
@@ -208,9 +215,9 @@ void Tree<SubBlockType, devices::gpu>::search()
     --unsearched_snps;
     
     // ----------------------------------------- OTHER NODES ------------------------------------------------
-/*
+
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate++ < 17) {
+    while (last_searched_snp < _snps && terminate++ < 1) {
         
         // We need to call the grid manager here 
         dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
@@ -219,9 +226,10 @@ void Tree<SubBlockType, devices::gpu>::search()
         
         // Perform a "mapping" step, which maps the bounds onto the nodes in the level
         map_level<<<grid_size, threads>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, 
-                                          prev_level_start, this_level_start, nodes_in_level);
+                                          _alignment_offset , prev_level_start , this_level_start   , 
+                                          nodes_in_level    );
         CudaCheckError();
-   
+/*
         // "Reduce" the search space to eliminate the bad nodes
 //        reduce_level<<<grid_size, threads>>>(_tree, this_level_start, nodes_in_level);
 //        CudaCheckError();
@@ -241,10 +249,10 @@ void Tree<SubBlockType, devices::gpu>::search()
         prev_level_start  = this_level_start;
         this_level_start += nodes_in_level;
         nodes_in_level   *= 2;
+*/
     }
    
     // Haplotype found
-*/
 }
 
 }           // End namespace haplo
