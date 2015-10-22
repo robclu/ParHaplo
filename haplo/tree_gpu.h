@@ -195,11 +195,11 @@ void Tree<SubBlockType, devices::gpu>::search()
     map_root_node<<<1, 1>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, _min_ubound, _device); 
     CudaCheckError();
 
-/*    
     // Now we can do the mapping of the unsearched nodes
-    map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, 0);
+    map_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, 
+                                                _last_unaligned_idx);
     CudaCheckError();
-    
+
     // And the reduction
     reduce_unsearched_snps<<<1, unsearched_snps>>>(_tree, _snp_bounds, last_searched_snp, unsearched_snps); 
     CudaCheckError();
@@ -208,7 +208,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     --unsearched_snps;
     
     // ----------------------------------------- OTHER NODES ------------------------------------------------
-
+/*
     size_t terminate = 0;
     while (last_searched_snp < _snps && terminate++ < 17) {
         

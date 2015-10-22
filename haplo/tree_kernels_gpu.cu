@@ -27,56 +27,48 @@ struct BoundsGpu {
     }
 };
 
-/*
-// Maps all the unsearched snps to a n array of BoundsGpu structs which can then be reduces
+
+// Maps all the unsearched snps to an array of BoundsGpu structs which can then be reduces
 __global__ 
 void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_searched_snp,
-                         const size_t comp_node_idx)
+                         const size_t* last_unaligned_idx)
 {
-    size_t read_start = 0, read_end = 0, row_offset = 0, opp = 0, same = 0;
+    size_t read_start = 0, read_end   = 0, row_offset = 0 ;         // For data memory offset
+    size_t opp        = 0, same       = 0;                          // For counting same and opp column types
     const size_t thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     
-    // Get a reference to the bound parameter
-    BoundsGpu* bounds = &snp_bounds[thread_id];
-    
     // Index of the haplotype for the comparison
-    const size_t ref_haplo_idx  = tree.search_snps[thread_id + last_searched_snp + 1];
-    bounds->index               = ref_haplo_idx;
-    bounds->offset              = thread_id + last_searched_snp + 1;
-            
-    // Get a pointer to the node
-    const TreeNode* comp_node = &tree.nodes[comp_node_idx];
+    const size_t ref_haplo_idx   = tree.search_snps[thread_id + last_searched_snp + 1];
+    snp_bounds[thread_id].index  = ref_haplo_idx;
+    snp_bounds[thread_id].offset = thread_id + last_searched_snp + 1;
     
-    // Go back up the tree and determine the 
-    for (size_t i = last_searched_snp + 1; i > 0; --i) {
-        // Go through the alignments for the node
-        for (size_t j = 0; j < comp_node->alignments; ++j) {
-            read_start = tree.read_info[comp_node->read_ids[j]].start_index();
-            read_end   = tree.read_info[comp_node->read_ids[j]].end_index();
+    // Go through all the already aligned reads
+    for (size_t i = 0; i < *last_unaligned_idx; ++i) {
+        // Find the start and end of the aligned read
+        read_start = tree.read_info[tree.aligned_reads[i]].start_index();
+        read_end   = tree.read_info[tree.aligned_reads[i]].end_index();
+        
+        // Go through all the searched snps for this read
+        for (size_t j = 0; j <= last_searched_snp; ++j) {
             // If any of the comp and ref snps (nodes) have overlapping positions
-            if (read_start <= comp_node->haplo_idx && read_start <= ref_haplo_idx &&
-                read_end   >= comp_node->haplo_idx && read_end   >= ref_haplo_idx ) {
-                    row_offset = tree.read_info[comp_node->read_ids[j]].offset();
-
-                    uint8_t comp_value = tree.data[row_offset + (comp_node->haplo_idx - read_start)];
-                    uint8_t ref_value  = tree.data[row_offset + (ref_haplo_idx - read_start)];
+            if (read_start <= tree.search_snps[j] && read_start <= ref_haplo_idx &&
+                read_end   >= tree.search_snps[j] && read_end   >= ref_haplo_idx ) {
                 
-                    if (comp_value == ref_value && ref_value <= 1) {
-                        ++same;
-                    } else if (comp_value != ref_value && ref_value <= 1 && comp_value <= 1) {
-                        ++opp;
-                    }
+                row_offset = tree.read_info[tree.aligned_reads[i]].offset();
+
+                // Get the values of the data at the two snp sites
+                uint8_t comp_value = tree.data[row_offset + (tree.search_snps[j] - read_start)];
+                uint8_t ref_value  = tree.data[row_offset + (ref_haplo_idx - read_start)];
+                
+                if (comp_value == ref_value && ref_value <= 1) ++same;
+                else if (comp_value != ref_value && ref_value <= 1 && comp_value <= 1) ++opp;
             }
-        }
-        if (i > 1) {
-            // Move the pointer up the tree (towards the root)
-            comp_node = tree.node_ptr(comp_node->root_idx);
         }
     }
     // Format the bounds 
-    bounds->lower = min((unsigned int)same, (unsigned int)opp);
-    bounds->upper = max((unsigned int)same, (unsigned int)opp);
-    bounds->diff  = bounds->upper - bounds->lower;
+    snp_bounds[thread_id].lower = min((unsigned int)same, (unsigned int)opp);
+    snp_bounds[thread_id].upper = max((unsigned int)same, (unsigned int)opp);
+    snp_bounds[thread_id].diff  = snp_bounds[thread_id].upper - snp_bounds[thread_id].lower;
     __syncthreads();
 
 #ifdef DEBUG   
@@ -92,6 +84,7 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
 #endif
 }
 
+/*
 // Very similar to the above function, but does the mapping for each left node of a level
 __device__ 
 void map_leaf_bounds(internal::Tree& tree, const size_t last_searched_snp, const size_t node_idx)
@@ -123,6 +116,7 @@ void map_leaf_bounds(internal::Tree& tree, const size_t last_searched_snp, const
     // For all remaining elements, we can reduce the upper bound
     ref_node->ubound -= (tree.snp_info[ref_node->haplo_idx].elements() - elements_used);
 }
+*/
 
 // Checks which of the two snps is more "vaulable", first by the bounds diff
 // parameters, and then by the snp index
@@ -163,9 +157,8 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
                             const size_t elements)
 {
     const size_t thread_id      = blockIdx.x * blockDim.x + threadIdx.x;
-    const size_t reductions     = (size_t)(ceil(log2((double)elements)));
-    size_t reduction_threads    = elements - 1;
-    size_t snp_idx_other        = 0;
+    const size_t reductions     = static_cast<size_t>(ceil(log2(static_cast<double>(elements))));
+    size_t reduction_threads    = elements - 1, snp_idx_other = 0;
     
     while (reduction_threads > 1) {
         // Only the first half of the threads do the reduction 
@@ -180,13 +173,13 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
                 snp_bounds[snp_idx_other] = temp;
             }
         }
-        // If we came from an odd number of bounds, the last one just fetches a value
+        // If there were an odd number of elements, the last one just fetches and moves a value 
         if (reduction_threads % 2 == 1) {
             if (thread_id == (reduction_threads / 2)) {
                 // There is an odd number of elements in the array,
                 // The last thread just needs to move a value 
-                BoundsGpu temp          = snp_bounds[thread_id];
-                snp_bounds[thread_id]  = snp_bounds[snp_idx_other];
+                BoundsGpu temp            = snp_bounds[thread_id];
+                snp_bounds[thread_id]     = snp_bounds[snp_idx_other];
                 snp_bounds[snp_idx_other] = temp;
             }
             reduction_threads /= 2; reduction_threads += 1;
@@ -216,6 +209,8 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
 #endif
 }
 
+
+/*
 __global__ 
 void map_level(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last_searched_snp, 
                size_t* last_unaligned_idx, const size_t prev_level_start, const size_t   this_level_start,
@@ -448,13 +443,11 @@ void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last
 #endif
     size_t last_unaligned_before = *last_unaligned_idx;
     
-    TreeNode& node  = tree.nodes[0];
-    node.haplo_idx  = tree.search_snps[last_searched_snp];
-    node.value      = 0; node.lbound     = 0; 
-    node.ubound = start_ubound - tree.snp_info[node.haplo_idx].elements();
-    
-    // Set the alignments for the tree root
-    //add_alignments(tree, last_unaligned_idx, 0, 0);
+    TreeNode* const node  = tree.node_ptr(0);
+    node->haplo_idx  = tree.search_snps[last_searched_snp];
+    node->value      = 0; 
+    node->lbound     = 0; 
+    node->ubound     = start_ubound - tree.snp_info[node->haplo_idx].elements();
    
     // Add the alignments to the overall alignments
     update_global_alignments(tree, last_unaligned_idx, 0);
@@ -468,13 +461,14 @@ void map_root_node(internal::Tree tree, BoundsGpu* snp_bounds, const size_t last
 #ifdef DEBUG
     printf("MRN : ALIGNMENTS : %i\n", tree.alignment_offsets[0]);
     printf("MRN : ALIGNMENTS : %i\n", *last_unaligned_idx);
+    printf("MRN : ALIGN IDX  : %i\n", node->align_idx);
     for (size_t i = 0; i < tree.reads; ++i) 
         printf("%i ", tree.aligned_reads[i]);
     printf("\n");
     for (size_t i = 0; i < *last_unaligned_idx; ++i) 
         printf("%i ", tree.read_values[i]);
     printf("\n");
-    printf("MRN : UPPER BOUND : %i\n", node.ubound);
+    printf("MRN : UPPER BOUND : %i\n", node->ubound);
 #endif
     
 }
