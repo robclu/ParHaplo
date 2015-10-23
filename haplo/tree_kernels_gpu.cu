@@ -51,11 +51,7 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
             size_t row_offset = tree.read_info[tree.aligned_reads[j]].offset();
             size_t read_start = tree.read_info[tree.aligned_reads[j]].start_index();
             size_t read_end   = tree.read_info[tree.aligned_reads[j]].end_index();
-#ifdef DEBUG 
-            if (thread_id == 0) {
-    printf("A : %i\n", tree.aligned_reads[j]);
-            }
-#endif            
+            
             // If the reads cross the snp sites
             if (read_start <= ref_haplo_idx && read_start <= comp_node->haplo_idx &&
                 read_end   >= ref_haplo_idx && read_end   >= comp_node->haplo_idx ) {
@@ -79,18 +75,6 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
     snp_bounds[thread_id].upper = max((unsigned int)same, (unsigned int)opp);
     snp_bounds[thread_id].diff  = snp_bounds[thread_id].upper - snp_bounds[thread_id].lower;
     __syncthreads();
-
-#ifdef DEBUG   
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
-        printf("MUS : UNSEARCHED SNPS : %i\n", last_searched_snp);
-        for (size_t i = 0; i < tree.snps; ++i) 
-            printf("%i ", snp_bounds[i].diff);
-        printf("\n");
-        for (size_t i = 0; i < tree.snps; ++i) 
-            printf("%i ", snp_bounds[i].index);
-        printf("\n");
-    }
-#endif
 }
 
 // Checks which of the two snps is more "vaulable", first by the bounds diff
@@ -110,10 +94,6 @@ bool more_valuable(BoundsGpu* snp_one, BoundsGpu* snp_two)
 __device__ 
 void swap_search_snp_indices(internal::Tree& tree, size_t last_searched_snp, const BoundsGpu* const bound)
 {
-#ifdef DEBUG
-    printf("SSSI : NEXT UNSEARCHED : %i\n", last_searched_snp + 1);
-    printf("SSSI : SWAP INDEX      : %i\n", bound->index);
-#endif 
     ++last_searched_snp;
     // If the value to swap is not already the value
     if (bound->index != tree.search_snps[last_searched_snp]) {
@@ -166,22 +146,6 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
         swap_search_snp_indices(tree, last_searched_snp, snp_bounds); 
     }
     __syncthreads();
-        
-#ifdef DEBUG
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
-        printf("RUS : SIZEOF BOUNF    : %i\n", sizeof(snp_bounds[0]));
-        printf("RUS : UNSEARCHED SNPS : %i\n", elements);
-        for (size_t i = 0; i < tree.snps; ++i) 
-            printf("%i ", snp_bounds[i].diff);
-        printf("\n");
-        for (size_t i = 0; i < tree.snps; ++i) 
-            printf("%i ", snp_bounds[i].index);
-        printf("\n");
-        for (size_t i = 0; i < tree.snps; ++i) 
-            printf("%i ", tree.search_snps[i]);
-        printf("\n");
-    }
-#endif
 }
 
 // Swaps two nodes in the node array
@@ -208,11 +172,6 @@ void update(TreeNode* left, TreeNode* right)
             ++left->pruned;
             right->prune = 1;
         }
-        
-#ifdef DEBUG 
-        printf("U : LPRUNED : %i\n", left->pruned);
-        printf("U : RPRUNED : %i\n", right->pruned);
-#endif
     }
     // Update the minimun upper bounds
     left->min_ubound  = static_cast<size_t>(min(static_cast<double>(left->min_ubound) ,  
@@ -229,44 +188,43 @@ void update(TreeNode* left, TreeNode* right)
 
 // Sorts a sub array bitonically 
 __device__ 
-void bitonic_out_in_sort(internal::Tree& tree       , const size_t start_offset    ,  
-                         const size_t    block_index, const size_t num_nodes       ,
-                         const size_t    total_nodes                               )
+void bitonic_out_in_sort(internal::Tree& tree       , const size_t start_idx    ,  
+                         const size_t    block_idx  , const size_t block_size   ,
+                         const size_t    total_nodes                            )
 {
-    const size_t start_id     = start_offset + block_index * num_nodes;
-    const size_t thread_id    = blockIdx.x * blockDim.x + threadIdx.x;
-    const size_t node_id      = thread_id % num_nodes;
-    const size_t comp_node_id = num_nodes - node_id - 1;
+    const size_t thread_idx    = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t node_idx      = thread_idx + (block_idx * (block_size / 2));
+    const size_t comp_node_idx = node_idx + (block_size - (thread_idx % (block_size / 2)) - 1)
+                               - (node_idx % (block_size / 2));
     
-    if ((node_id < num_nodes / 2) && (block_index * num_nodes + comp_node_id < total_nodes)) {
-        // First node compares with last node, second with second last ...
-        if (tree.node_ptr(start_id  + comp_node_id)->lbound  < 
-            tree.node_ptr(start_id + node_id)->lbound        ) {
+    if (comp_node_idx < total_nodes) {
+        if (tree.node_ptr(start_idx + comp_node_idx)->lbound  < 
+            tree.node_ptr(start_idx + node_idx)->lbound        ) {
                 // Then the nodes need to be swapped
-                swap(tree.node_ptr(start_id + comp_node_id), 
-                     tree.node_ptr(start_id + node_id)    );
+                swap(tree.node_ptr(start_idx + comp_node_idx), 
+                     tree.node_ptr(start_idx + node_idx)    );
         }
     }
 }
 
 
 __device__
-void bitonic_out_out_sort(internal::Tree& tree       , const size_t start_offset  ,
-                          const size_t    block_index, const size_t num_nodes     ,
-                          const size_t    total_nodes                             )
+void bitonic_out_out_sort(internal::Tree& tree       , const size_t start_idx ,
+                          const size_t    block_idx  , const size_t block_size,
+                          const size_t    total_nodes                         )
 {
-    const size_t start_id     = start_offset + block_index * num_nodes;
-    const size_t thread_id    = blockIdx.x * blockDim.x + threadIdx.x;
-    const size_t node_id      = thread_id % num_nodes;
-    const size_t comp_node_id = node_id + (num_nodes / 2);
-    
-    if ((node_id < num_nodes / 2) && (block_index * num_nodes + comp_node_id < total_nodes)) {
+    const size_t thread_idx    = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t node_idx      = thread_idx + (block_idx * (block_size / 2));
+    const size_t comp_node_idx = node_idx + (block_size / 2);
+
+    // Check that the node index is in the first half of the block and the comp node is in range
+    if (comp_node_idx < total_nodes) {
         // First node compares with the node __num_nodes__ ahead of it
-        if (tree.node_ptr(start_id + comp_node_id)->lbound < 
-            tree.node_ptr(start_id + node_id)->lbound      ) {
+        if (tree.node_ptr(start_idx + comp_node_idx)->lbound < 
+            tree.node_ptr(start_idx + node_idx)->lbound      ) {
                 // Then the nodes need to be swapped
-                swap(tree.node_ptr(start_id + comp_node_id), 
-                     tree.node_ptr(start_id + node_id)     );
+                swap(tree.node_ptr(start_idx + comp_node_idx), 
+                     tree.node_ptr(start_idx + node_idx)     );
         }
     }    
 }
@@ -278,33 +236,24 @@ void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t
     const size_t passes         = static_cast<size_t>(ceil(log2(static_cast<double>(num_nodes))));
     const size_t thread_id      = blockIdx.x * blockDim.x + threadIdx.x;
     size_t       block_size     = 2;
-
-    for (size_t pass = 0; pass < passes; ++pass) {
-        // We need a logarithmically decreasing number of out-in passes 
-        if (thread_id % block_size < block_size / 2) 
-            bitonic_out_in_sort(tree, start_node_idx, thread_id / block_size, block_size, num_nodes);
-        __syncthreads();
-        
-        // Now we need pass number of out-out bitonic sorts
-        size_t out_out_block_size = block_size / 2; 
-        for (size_t i = 0; i < pass; ++i) {
-            if (thread_id % out_out_block_size < out_out_block_size / 2) {
-                bitonic_out_out_sort(tree, start_node_idx, thread_id / out_out_block_size, 
-                                     out_out_block_size , num_nodes );
-            }
-            out_out_block_size /= 2;
+    
+    if (thread_id < num_nodes / 2) {
+        for (size_t pass = 0; pass < passes; ++pass) {
+            // We need a logarithmically decreasing number of out-in passes 
+            bitonic_out_in_sort(tree, start_node_idx, thread_id / (block_size / 2), block_size, num_nodes);
             __syncthreads();
-        }
-        block_size *= 2;
-    }
-#ifdef DEBUG
-            if (thread_id == 0) {
-                printf("A : \n");
-                for (size_t j = start_node_idx; j < start_node_idx + num_nodes; ++j) {
-                    printf("%i ", tree.node_ptr(j)->lbound);
-                } printf("\n"); 
+
+            // Now we need pass number of out-out bitonic sorts
+            size_t out_out_block_size = block_size / 2; 
+            for (size_t i = 0; i < pass; ++i) {
+                bitonic_out_out_sort(tree, start_node_idx, thread_id / (out_out_block_size / 2), 
+                                     out_out_block_size , num_nodes);
+                out_out_block_size /= 2;
+                __syncthreads();
             }
-#endif   
+            block_size *= 2;
+        }
+    }
 }
 
 // Updates the values of the alignments for a specific node
@@ -458,12 +407,6 @@ void map_level(internal::Tree tree          , BoundsGpu* snp_bounds      , const
                 tree.alignment_offsets[node->haplo_idx + tree.reads] = *last_unaligned_idx
                                                                      - last_unaligned_before;
             }
-#ifdef DEBUG
-            printf("ML : ALIGNEMENTS : %i\n", *last_unaligned_idx);
-            for (size_t i = 0; i < tree.reads; ++i) 
-                printf("%i ", tree.aligned_reads[i]);
-            printf("\n");
-#endif 
         }
         __syncthreads();
         
@@ -472,9 +415,6 @@ void map_level(internal::Tree tree          , BoundsGpu* snp_bounds      , const
         if (thread_id == 0) {
             // Move the alignment offset for the next iteration
             *alignment_offset += (nodes_in_level * tree.alignment_offsets[node->haplo_idx + tree.reads]);
-#ifdef DEBUG 
-            printf("ML : ALIGN OFFSET : %i\n", *alignment_offset);
-#endif
         }       
     }
 }
@@ -484,15 +424,6 @@ void map_root_node(internal::Tree tree       , BoundsGpu* snp_bounds    , const 
                    size_t* last_unaligned_idx, size_t* alignment_offset , const size_t start_ubound     , 
                    const size_t device_index )
 {
-#ifdef DEBUG
-    printf("Device Index : %i\n", device_index);
-    printf("Start Bound  : %i\n" , start_ubound);
-
-    for (size_t i = 0; i < tree.reads; ++i) printf("%i ", tree.aligned_reads[i]);
-    printf("\n");
-    for (size_t i = 0; i < tree.snps;  ++i) printf("%i ", tree.search_snps[i]);
-    printf("\n");
-#endif
     size_t last_unaligned_before = *last_unaligned_idx;
     
     TreeNode* const node  = tree.node_ptr(0);
@@ -511,20 +442,6 @@ void map_root_node(internal::Tree tree       , BoundsGpu* snp_bounds    , const 
     // Update the alignments values (how the reads are aligned) for this specific node
     add_node_alignments(tree, last_unaligned_idx, 0, alignment_offset);
     *alignment_offset += tree.alignment_offsets[tree.reads];        
-    
-#ifdef DEBUG
-    printf("MRN : ALIGNMENTS : %i\n", tree.alignment_offsets[0]);
-    printf("MRN : ALIGNMENTS : %i\n", *last_unaligned_idx);
-    printf("MRN : ALIGN IDX  : %i\n", node->align_idx);
-    for (size_t i = 0; i < tree.reads; ++i) 
-        printf("%i ", tree.aligned_reads[i]);
-    printf("\n");
-    for (size_t i = 0; i < *last_unaligned_idx; ++i) 
-        printf("%i ", tree.read_values[i]);
-    printf("\n");
-    printf("MRN : UPPER BOUND : %i\n", node->ubound);
-#endif
-    
 }
 
 }               // End namespace haplo
