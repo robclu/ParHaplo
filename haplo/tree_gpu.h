@@ -47,6 +47,7 @@ private:
     size_t                      _reads;
     size_t                      _min_ubound;
     size_t                      _device;
+    size_t                      _nih_cols;
     // ------------------------------------------ DEVICE ----------------------------------------------------
     tree_type                   _tree; 
     bound_type*                 _snp_bounds;
@@ -57,9 +58,7 @@ public:
     /// @brief   Constructor 
     //-------------------------------------------------------------------------------------------------------
     CUDA_H
-    Tree(binary_vector& data  , read_info_container& read_info, snp_info_container         , 
-         const size_t   snps  , const size_t         reads    , const size_t min_ubound    ,
-         const size_t   device);
+    Tree(SubBlockType& sub_block, const size_t device);
 
     //-------------------------------------------------------------------------------------------------------
     /// @brief      Destuctor 
@@ -92,60 +91,61 @@ public:
 // ------------------------------------------------ IMPLEMENTATIONS -----------------------------------------
 
 template <typename SubBlockType>
-Tree<SubBlockType, devices::gpu>::Tree(
-                 binary_vector& data    , read_info_container& read_info, snp_info_container snp_info   ,   
-                 const size_t   snps    , const size_t         reads    , const size_t       min_ubound ,
-                 const size_t   device  )
-: _data(data)            , _read_info(read_info) , _snp_info(snp_info)    , _haplotype(snps)  , 
-  _alignments(reads)     , _tree(snps, reads)    , _snps(snps)            , _reads(reads)     ,
-  _min_ubound(min_ubound), _device(device)
+Tree<SubBlockType, devices::gpu>::Tree(SubBlockType& sub_block, const size_t device)
+: _data(sub_block.data())                   , _read_info(sub_block.read_info())         , 
+  _snp_info(sub_block.snp_info())           , _haplotype(sub_block.snp_info().size())   , 
+  _alignments(sub_block.read_info().size())                                             , 
+  _tree(sub_block.snp_info().size()         , sub_block.read_info().size())             , 
+  _snps(sub_block.snp_info().size())        , _reads(sub_block.read_info().size())      ,
+  _min_ubound(sub_block.size())             , _device(device)                           ,
+  _nih_cols(sub_block.nih_columns())
 {
     cudaError_t error;
     
     // Copy the actual data to the device
-    thrust::host_vector<small_type> data_gpu_format = data.to_binary_vector();
-    CudaSafeCall( cudaMalloc((void**)&_tree.data, sizeof(small_type) * data.size()) );
+    thrust::host_vector<small_type> data_gpu_format = _data.to_binary_vector();
+    CudaSafeCall( cudaMalloc((void**)&_tree.data, sizeof(small_type) * _data.size()) );
     CudaSafeCall( cudaMemcpy(_tree.data, thrust::raw_pointer_cast(&data_gpu_format[0])   , 
                     sizeof(small_type) * data_gpu_format.size(), cudaMemcpyHostToDevice) );
 
     // Copy the read data to the device 
-    CudaSafeCall( cudaMalloc((void**)&_tree.read_info, sizeof(read_info_type) * read_info.size()) );
+    CudaSafeCall( cudaMalloc((void**)&_tree.read_info, sizeof(read_info_type) * _reads) );
     CudaSafeCall( cudaMemcpy(_tree.read_info, thrust::raw_pointer_cast(&_read_info[0]) ,
-                    sizeof(read_info_type) * read_info.size(), cudaMemcpyHostToDevice) );
+                    sizeof(read_info_type) * _reads, cudaMemcpyHostToDevice) );
     
     // Copy SNP data to the device 
-    CudaSafeCall( cudaMalloc((void**)&_tree.snp_info, sizeof(snp_info_type) * snp_info.size()) );
+    CudaSafeCall( cudaMalloc((void**)&_tree.snp_info, sizeof(snp_info_type) * _snps) );
     CudaSafeCall( cudaMemcpy(_tree.snp_info, thrust::raw_pointer_cast(&_snp_info[0]) , 
-                    sizeof(snp_info_type) * snp_info.size(), cudaMemcpyHostToDevice) );
+                    sizeof(snp_info_type) * _snps, cudaMemcpyHostToDevice) );
   
     // Allocate the haplotype and alignment data on the device 
-    CudaSafeCall( cudaMalloc((void**)&_tree.haplotype, sizeof(small_type) * snps) );
-    CudaSafeCall( cudaMalloc((void**)&_tree.alignments, sizeof(small_type) * read_info.size()) );;
+    CudaSafeCall( cudaMalloc((void**)&_tree.haplotype, sizeof(small_type) * _snps) );
+    CudaSafeCall( cudaMalloc((void**)&_tree.alignments, sizeof(small_type) * _reads) );;
     
     // Create a vector for the search snps
-    thrust::host_vector<size_t> snp_indices(snps);
+    thrust::host_vector<size_t> snp_indices(_snps);
     thrust::sequence(snp_indices.begin(), snp_indices.end());
     
     // Copy snp search info to the device
-    CudaSafeCall( cudaMalloc((void**)&_tree.search_snps, sizeof(size_t) * snps) );
+    CudaSafeCall( cudaMalloc((void**)&_tree.search_snps, sizeof(size_t) * _snps) );
     CudaSafeCall( cudaMemcpy(_tree.search_snps, thrust::raw_pointer_cast(&snp_indices[0]), 
                     sizeof(size_t) * snp_indices.size(), cudaMemcpyHostToDevice)         );
     
     // Create a vector for the aligned rows
-    thrust::host_vector<size_t> aligned_reads(reads);
+    thrust::host_vector<size_t> aligned_reads(_reads);
     thrust::sequence(aligned_reads.begin(), aligned_reads.end());
    
     // Copy aligned data to the device
-    CudaSafeCall( cudaMalloc((void**)&_tree.aligned_reads, sizeof(size_t) * reads) );
+    CudaSafeCall( cudaMalloc((void**)&_tree.aligned_reads, sizeof(size_t) * _reads) );
     CudaSafeCall( cudaMemcpy(_tree.aligned_reads, thrust::raw_pointer_cast(&aligned_reads[0]), 
                     sizeof(size_t) * aligned_reads.size(), cudaMemcpyHostToDevice)           );
     
     // Copy the array for the aligned offsets
-    CudaSafeCall( cudaMalloc((void**)&_tree.alignment_offsets, sizeof(size_t) * reads * 2) );
-    CudaSafeCall( cudaMemset(_tree.alignment_offsets, 0, sizeof(size_t) * reads * 2) );
+    CudaSafeCall( cudaMalloc((void**)&_tree.alignment_offsets, sizeof(size_t) * _reads * 2) );
+    CudaSafeCall( cudaMemset(_tree.alignment_offsets, 0, sizeof(size_t) * _reads * 2) );
 
     // Create data for bounds array
-    CudaSafeCall( cudaMalloc((void**)&_snp_bounds, sizeof(BoundsGpu) * snps) );
+    CudaSafeCall( cudaMalloc((void**)&_snp_bounds, sizeof(BoundsGpu) * _snps) );
 
     // Allocate memory for the kernel arguments
     CudaSafeCall( cudaMalloc((void**)&_last_unaligned_idx, sizeof(size_t))  );
@@ -160,9 +160,9 @@ Tree<SubBlockType, devices::gpu>::Tree(
     // --------------------------------------- READ VALUES --------------------------------------------------
     
     // If the tree is small, we can allocate the "correct" (worst case) amount of memory
-    if (snps <= BIG_INPUT) { 
-        CudaSafeCall( cudaMalloc((void**)&_tree.read_values, sizeof(uint8_t) * pow(2, snps)) );
-        CudaSafeCall( cudaMalloc((void**)&_tree.nodes, sizeof(TreeNode) * pow(2, snps)) );
+    if (_snps <= BIG_INPUT) { 
+        CudaSafeCall( cudaMalloc((void**)&_tree.read_values, sizeof(uint8_t) * pow(2, _snps)) );
+        CudaSafeCall( cudaMalloc((void**)&_tree.nodes, sizeof(TreeNode) * pow(2, _snps)) );
     } else {
         cudaMemGetInfo(&free_mem, &total_mem);
         // Allocate space for the alignments for the nodes
@@ -193,7 +193,9 @@ void Tree<SubBlockType, devices::gpu>::search()
     size_t this_level_start  = 1;                    // Start index in array for this level
     size_t nodes_in_level    = 2;                    // Number of nodes in the level
     size_t last_searched_snp = 0;                    // Index of the last searched snp
-   
+  
+    std::cout << "NIH COLUMNS : " << _nih_cols << "\n";
+    
     // --------------------------------------- ROOT NODE ----------------------------------------------------
     
     // The first level of the tree (with the root node) is a little different
@@ -216,7 +218,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate++ < 25) {
+    while (last_searched_snp < _snps && terminate++ < 22) {
         
         // We need to call the grid manager here 
         dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
@@ -249,6 +251,8 @@ void Tree<SubBlockType, devices::gpu>::search()
         this_level_start += nodes_in_level;
         nodes_in_level   *= 2;
     }
+    
+    is_sorted<<<1, 1>>>(_tree, prev_level_start, nodes_in_level / 2);
    
     // Haplotype found
 }

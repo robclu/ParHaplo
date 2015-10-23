@@ -33,9 +33,7 @@ BOOST_AUTO_TEST_CASE( canCreateTree )
     // Later use device manager
     size_t device_index = 0;
     
-    tree_type tree(sub_block.data()            , sub_block.read_info()         , sub_block.snp_info(), 
-                   sub_block.snp_info().size() , sub_block.read_info().size()  , sub_block.size()    , 
-                   device_index                );
+    tree_type tree(sub_block, device_index);
     
     // Search the tree for the haplotype 
     tree.search();

@@ -42,31 +42,36 @@ void map_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const size_
     snp_bounds[thread_id].index  = ref_haplo_idx;
     snp_bounds[thread_id].offset = thread_id + last_searched_snp + 1;
 
-    // Go through all the set nodes    
-    for (size_t i = last_searched_snp + 1; i >= 1; --i) {
-        const size_t alignments       = tree.alignment_offsets[comp_node->haplo_idx + tree.reads];
-        const size_t alignment_offset = tree.alignment_offsets[comp_node->haplo_idx] - 1;        
- 
-        for (size_t j = alignment_offset; j < alignment_offset + alignments; ++j) {
-            size_t row_offset = tree.read_info[tree.aligned_reads[j]].offset();
-            size_t read_start = tree.read_info[tree.aligned_reads[j]].start_index();
-            size_t read_end   = tree.read_info[tree.aligned_reads[j]].end_index();
-            
-            // If the reads cross the snp sites
-            if (read_start <= ref_haplo_idx && read_start <= comp_node->haplo_idx &&
-                read_end   >= ref_haplo_idx && read_end   >= comp_node->haplo_idx ) {
+    // If the SNP is NIH 
+    if (tree.snp_info[ref_haplo_idx].type() == 1) {
+        snp_bounds[thread_id].index = tree.snps + 1;
+    } else { 
+        // Go through all the set nodes    
+        for (size_t i = last_searched_snp + 1; i >= 1; --i) {
+            const size_t alignments       = tree.alignment_offsets[comp_node->haplo_idx + tree.reads];
+            const size_t alignment_offset = tree.alignment_offsets[comp_node->haplo_idx] - 1;        
+     
+            for (size_t j = alignment_offset; j < alignment_offset + alignments; ++j) {
+                size_t row_offset = tree.read_info[tree.aligned_reads[j]].offset();
+                size_t read_start = tree.read_info[tree.aligned_reads[j]].start_index();
+                size_t read_end   = tree.read_info[tree.aligned_reads[j]].end_index();
                 
-                // Values of the two elements
-                uint8_t ref_value  = tree.data[row_offset + (ref_haplo_idx - read_start)];
-                uint8_t comp_value = tree.data[row_offset + (comp_node->haplo_idx - read_start)]; 
-             
-                if (comp_value == ref_value && ref_value <= 1) ++same;
-                else if (comp_value != ref_value && ref_value <= 1 && comp_value <= 1) ++opp;
+                // If the reads cross the snp sites
+                if (read_start <= ref_haplo_idx && read_start <= comp_node->haplo_idx &&
+                    read_end   >= ref_haplo_idx && read_end   >= comp_node->haplo_idx ) {
+                    
+                    // Values of the two elements
+                    uint8_t ref_value  = tree.data[row_offset + (ref_haplo_idx - read_start)];
+                    uint8_t comp_value = tree.data[row_offset + (comp_node->haplo_idx - read_start)]; 
+                 
+                    if (comp_value == ref_value && ref_value <= 1) ++same;
+                    else if (comp_value != ref_value && ref_value <= 1 && comp_value <= 1) ++opp;
+                }
             }
-        }
-        if (i > 1) {
-            // Go back up the tree
-            comp_node = tree.node_ptr(comp_node->root_idx);
+            if (i > 1) {
+                // Go back up the tree
+                comp_node = tree.node_ptr(comp_node->root_idx);
+            }
         }
     }
     
@@ -443,5 +448,28 @@ void map_root_node(internal::Tree tree       , BoundsGpu* snp_bounds    , const 
     add_node_alignments(tree, last_unaligned_idx, 0, alignment_offset);
     *alignment_offset += tree.alignment_offsets[tree.reads];        
 }
+
+__global__ 
+void is_sorted(internal::Tree tree, const size_t start_index, const size_t nodes)
+{
+    size_t prev = tree.nodes[start_index].lbound;
+    size_t end  = start_index;
+    bool sorted = true;
+   
+    for (size_t i = start_index + 1; i < start_index + nodes; ++i) {
+        if (tree.nodes[i].lbound >= prev) 
+            prev = tree.nodes[i].lbound;
+        else {
+            sorted = false;
+            end = i;
+        }
+    }
+    if (sorted) printf("Sorted\n");
+    else {
+        printf("Not sorted %i", end - start_index);
+        printf(" %i\n", nodes);
+    }
+}
+
 
 }               // End namespace haplo
