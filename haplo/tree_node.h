@@ -26,9 +26,9 @@ struct ALIGN(16) TreeNode {
     /// @brief      Constuctor 
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
-    TreeNode() noexcept 
+    TreeNode() 
     : haplo_idx{0} , root_idx{0}, align_idx{0} , pruned{0}, 
-      ubound{0}    , lbound{0}  , min_ubound{0}, value{0} , prune{0}   {} 
+      ubound{0}    , lbound{0}  , min_ubound{0}, value{0} , prune{0} {} 
 
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Destructor

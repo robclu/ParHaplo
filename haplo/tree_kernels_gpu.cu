@@ -197,10 +197,6 @@ void swap(TreeNode* left, TreeNode* right)
 __device__
 void update(TreeNode* left, TreeNode* right) 
 {
-#ifdef DEBUG 
-        printf("U : LPRUNED : %i\n", left->pruned);
-        printf("U : RPRUNED : %i\n", right->pruned);
-#endif
     // Check if the node with the higher upper bound needs to be pruned
     if (left->min_ubound <= right->lbound) {
         const size_t right_pruned = right->pruned;
@@ -212,6 +208,11 @@ void update(TreeNode* left, TreeNode* right)
             ++left->pruned;
             right->prune = 1;
         }
+        
+#ifdef DEBUG 
+        printf("U : LPRUNED : %i\n", left->pruned);
+        printf("U : RPRUNED : %i\n", right->pruned);
+#endif
     }
     // Update the minimun upper bounds
     left->min_ubound  = static_cast<size_t>(min(static_cast<double>(left->min_ubound) ,  
@@ -225,59 +226,85 @@ void update(TreeNode* left, TreeNode* right)
 // "Reduces" the nodes, removing all the nodes with a lower bounds > than the highest upper bound
 // by movind them to the end of the array and then returning the index of the end of the array
 // also sorts the nodes by lower bound -- requires 2*log_2(N) operations
+
+// Sorts a sub array bitonically 
+__device__ 
+void bitonic_out_in_sort(internal::Tree& tree       , const size_t start_offset    ,  
+                         const size_t    block_index, const size_t num_nodes       ,
+                         const size_t    total_nodes                               )
+{
+    const size_t start_id     = start_offset + block_index * num_nodes;
+    const size_t thread_id    = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t node_id      = thread_id % num_nodes;
+    const size_t comp_node_id = num_nodes - node_id - 1;
+    
+    if ((node_id < num_nodes / 2) && (block_index * num_nodes + comp_node_id < total_nodes)) {
+        // First node compares with last node, second with second last ...
+        if (tree.node_ptr(start_id  + comp_node_id)->lbound  < 
+            tree.node_ptr(start_id + node_id)->lbound        ) {
+                // Then the nodes need to be swapped
+                swap(tree.node_ptr(start_id + comp_node_id), 
+                     tree.node_ptr(start_id + node_id)    );
+        }
+    }
+}
+
+
+__device__
+void bitonic_out_out_sort(internal::Tree& tree       , const size_t start_offset  ,
+                          const size_t    block_index, const size_t num_nodes     ,
+                          const size_t    total_nodes                             )
+{
+    const size_t start_id     = start_offset + block_index * num_nodes;
+    const size_t thread_id    = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t node_id      = thread_id % num_nodes;
+    const size_t comp_node_id = node_id + (num_nodes / 2);
+    
+    if ((node_id < num_nodes / 2) && (block_index * num_nodes + comp_node_id < total_nodes)) {
+        // First node compares with the node __num_nodes__ ahead of it
+        if (tree.node_ptr(start_id + comp_node_id)->lbound < 
+            tree.node_ptr(start_id + node_id)->lbound      ) {
+                // Then the nodes need to be swapped
+                swap(tree.node_ptr(start_id + comp_node_id), 
+                     tree.node_ptr(start_id + node_id)     );
+        }
+    }    
+}
+
+// Reduces a level using a parallel bitonic sort
 __global__
 void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t num_nodes)
 {
-    const size_t reductions         = static_cast<size_t>(ceil(log2(static_cast<double>(num_nodes))));
-    const size_t thread_id          = blockIdx.x * blockDim.x + threadIdx.x;
-   
-#ifdef DEBUG 
-    for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
-        printf("%i ", tree.node_ptr(i)->pruned);
-    } printf("\n");    
-#endif
-    if (thread_id < num_nodes) {
-        const size_t node_idx           = thread_id + start_node_idx;
-        size_t       reduction_threads  = num_nodes - 1;
-       
-        for (size_t i = 0; i < reductions; ++i) {
-            // ----------------------------------- SORT STEP ------------------------------------------------
-            
-            if (thread_id % 2 == 0 && thread_id != reduction_threads) {
-                if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
-                    swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
-                } 
-                update(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
-            } 
-            __syncthreads();
-            
-            // ----------------------------------- SWAP STEP ------------------------------------------------
-            
-            if (reduction_threads % 2 == 1 && thread_id != reduction_threads) {
-                if (tree.node_ptr(node_idx)->lbound > tree.node_ptr(node_idx + 1)->lbound) {
-                    swap(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
-                } 
-                update(tree.node_ptr(node_idx), tree.node_ptr(node_idx + 1));
+    const size_t passes         = static_cast<size_t>(ceil(log2(static_cast<double>(num_nodes))));
+    const size_t thread_id      = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t       block_size     = 2;
+
+    for (size_t pass = 0; pass < passes; ++pass) {
+        // We need a logarithmically decreasing number of out-in passes 
+        if (thread_id % block_size < block_size / 2) 
+            bitonic_out_in_sort(tree, start_node_idx, thread_id / block_size, block_size, num_nodes);
+        __syncthreads();
+        
+        // Now we need pass number of out-out bitonic sorts
+        size_t out_out_block_size = block_size / 2; 
+        for (size_t i = 0; i < pass; ++i) {
+            if (thread_id % out_out_block_size < out_out_block_size / 2) {
+                bitonic_out_out_sort(tree, start_node_idx, thread_id / out_out_block_size, 
+                                     out_out_block_size , num_nodes );
             }
+            out_out_block_size /= 2;
             __syncthreads();
         }
-#ifdef DEBUG
-        if (threadIdx.x == 0 && blockIdx.x == 0) {
-            printf("RL : REDUCTIONS : %i\n", reductions);
-            printf("RL : NODES      : %i\n", num_nodes);
-            printf("RL : NODE START : %i\n", start_node_idx);
-            for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
-                printf("%i ", tree.node_ptr(i)->pruned);
-            } printf("\n");
-            for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
-                printf("%i ", tree.node_ptr(i)->lbound);
-            } printf("\n");
-            for (size_t i = start_node_idx; i < start_node_idx + num_nodes; ++i) {
-                printf("%i ", tree.node_ptr(i)->ubound);
-            } printf("\n");    
-        }
-#endif
+        block_size *= 2;
     }
+#ifdef DEBUG
+            if (thread_id == 0) {
+                printf("A : \n");
+                for (size_t j = start_node_idx; j < start_node_idx + num_nodes; ++j) {
+                    printf("%i ", tree.node_ptr(j)->lbound);
+                } printf("\n"); 
+            }
+#endif   
 }
 
 // Updates the values of the alignments for a specific node

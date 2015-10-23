@@ -216,7 +216,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate++ < 1) {
+    while (last_searched_snp < _snps && terminate++ < 19) {
         
         // We need to call the grid manager here 
         dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
