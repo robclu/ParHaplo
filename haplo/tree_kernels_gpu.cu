@@ -147,7 +147,7 @@ void reduce_unsearched_snps(internal::Tree tree, BoundsGpu* snp_bounds, const si
         __syncthreads();
     }
     // The first thread needs to swap the search result
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
+    if (thread_id == 0) {
         swap_search_snp_indices(tree, last_searched_snp, snp_bounds); 
     }
     __syncthreads();
@@ -161,35 +161,6 @@ void swap(TreeNode* left, TreeNode* right)
     *left          = *right;
     *right         = temp;
 }
-
-// Updates two nodes
-__device__
-void update(TreeNode* left, TreeNode* right) 
-{
-    // Check if the node with the higher upper bound needs to be pruned
-    if (left->min_ubound <= right->lbound) {
-        const size_t right_pruned = right->pruned;
-        left->pruned             += right_pruned;
-        right->pruned            -= right_pruned;
-        
-        // If the right node has not been pruned yet 
-        if (right->prune == 0) {
-            ++left->pruned;
-            right->prune = 1;
-        }
-    }
-    // Update the minimun upper bounds
-    left->min_ubound  = static_cast<size_t>(min(static_cast<double>(left->min_ubound) ,  
-                                                static_cast<double>(right->min_ubound)));
-    right->min_ubound = static_cast<size_t>(min(static_cast<double>(left->min_ubound) , 
-                                                static_cast<double>(right->min_ubound)));
-}
-
-// Compares two tree nodes 
-
-// "Reduces" the nodes, removing all the nodes with a lower bounds > than the highest upper bound
-// by movind them to the end of the array and then returning the index of the end of the array
-// also sorts the nodes by lower bound -- requires 2*log_2(N) operations
 
 // Sorts a sub array bitonically 
 __device__ 
@@ -238,9 +209,9 @@ void bitonic_out_out_sort(internal::Tree& tree       , const size_t start_idx ,
 __global__
 void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t num_nodes)
 {
-    const size_t passes         = static_cast<size_t>(ceil(log2(static_cast<double>(num_nodes))));
-    const size_t thread_id      = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t       block_size     = 2;
+    const size_t        passes         = static_cast<size_t>(ceil(log2(static_cast<double>(num_nodes))));
+    const size_t        thread_id      = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t              block_size     = 2, prune_idx = INT_MAX;
     
     if (thread_id < num_nodes / 2) {
         for (size_t pass = 0; pass < passes; ++pass) {
@@ -259,6 +230,27 @@ void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t
             block_size *= 2;
         }
     }
+    
+    // Nodes are now sorted, find the first node with LB > UB[0]
+    // First pass (we need 2 because we only have nodes / 2 threads)
+    if (thread_id > 0) {
+        if ( (tree.node_ptr(start_node_idx + thread_id + num_nodes / 2)->lbound >= 
+              tree.node_ptr(start_node_idx)->ubound                             )     &&
+             (tree.node_ptr(start_node_idx + thread_id + num_nodes / 2 - 1)->lbound < 
+              tree.node_ptr(start_node_idx)->ubound                                 )) {
+                prune_idx = start_node_idx + thread_id + num_nodes / 2;
+                printf("PU : %i\n", tree.node_ptr(start_node_idx)->ubound);
+                printf("PL : %i\n", tree.node_ptr(prune_idx)->lbound);
+        }
+        else if ( (tree.node_ptr(start_node_idx + thread_id)->lbound >= 
+                   tree.node_ptr(start_node_idx)->ubound             ) &&
+                  (tree.node_ptr(start_node_idx + thread_id - 1)->lbound < 
+                   tree.node_ptr(start_node_idx)->ubound                 )) { 
+                prune_idx = start_node_idx + thread_id;
+                printf("PU : %i\n", tree.node_ptr(start_node_idx)->ubound);
+                printf("PL : %i\n", tree.node_ptr(prune_idx)->lbound);    }
+    }
+    if (thread_id + start_node_idx == prune_idx) printf("PRUNE IDX : %i\n", prune_idx);
 }
 
 // Updates the values of the alignments for a specific node
@@ -469,6 +461,61 @@ void is_sorted(internal::Tree tree, const size_t start_index, const size_t nodes
         printf("Not sorted %i", end - start_index);
         printf(" %i\n", nodes);
     }
+}
+
+__global__ 
+void add_tree_alignments(internal::Tree tree, const size_t node_idx) 
+{
+    const TreeNode* const node   = tree.node_ptr(node_idx);
+    const size_t thread_id       = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t alignment_idx   = tree.aligned_reads[tree.alignment_offsets[node->haplo_idx] - 1 + thread_id];
+    
+    // Add the value to the alignments for the tree
+    tree.alignments[alignment_idx] = tree.read_values[node->align_idx + thread_id]; 
+}
+
+__device__ size_t node_idx;
+
+__global__
+void find_temp_haplotype(internal::Tree tree, const size_t start_node_idx) 
+{
+    TreeNode* node         = tree.node_ptr(start_node_idx);
+    size_t node_alignments = 0, is_last_iter    = 0;
+    node_idx               = start_node_idx;
+    
+    do {
+        // Set the values for the haplotype 
+        tree.haplotype[node->haplo_idx]             = node->value;
+        tree.haplotype[node->haplo_idx + tree.snps] = !node->haplo_idx;
+        
+        // Get the number of alignments for the node 
+        node_alignments = tree.alignment_offsets[node->haplo_idx + tree.reads];
+        if (node_alignments > 0) {
+            size_t grid_x  = node_alignments / 256 + 1;
+            size_t block_x = node_alignments > 256 ? 256 : node_alignments;
+            // Add the alignements to the tree's alignments 
+            add_tree_alignments<<<grid_x, block_x>>>(tree, node_idx);
+            CudaCheckError();
+        }
+        if (node->root_idx == 0 || is_last_iter == 1) ++is_last_iter;
+        node_idx = node->root_idx;
+        node     = tree.node_ptr(node->root_idx);
+    } while (is_last_iter < 2);
+    
+#ifdef DEBUG 
+    for (size_t i = 0; i < tree.snps; ++i) 
+        printf("%i ", static_cast<unsigned>(tree.haplotype[i]));
+    printf("\n");
+    for (size_t i = tree.snps; i < 2 *tree.snps; ++i) 
+        printf("%i ", static_cast<unsigned>(tree.haplotype[i]));
+    printf("\n");    
+    for (size_t i = tree.reads; i < tree.reads; ++i) 
+        printf("%i ", tree.aligned_reads[i]);
+    printf("\n");   
+    for (size_t i = tree.reads; i < tree.reads; ++i) 
+        printf("%i ", static_cast<unsigned>(tree.alignments[i]));
+    printf("\n");  
+#endif
 }
 
 

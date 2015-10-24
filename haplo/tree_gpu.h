@@ -218,7 +218,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
     size_t terminate = 0;
-    while (last_searched_snp < _snps && terminate++ < 22) {
+    while (last_searched_snp < _snps - _nih_cols) {
         
         // We need to call the grid manager here 
         dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
@@ -253,8 +253,8 @@ void Tree<SubBlockType, devices::gpu>::search()
     }
     
     is_sorted<<<1, 1>>>(_tree, prev_level_start, nodes_in_level / 2);
+    find_temp_haplotype<<<1, 1>>>(_tree, prev_level_start);
    
-    // Haplotype found
 }
 
 }           // End namespace haplo
