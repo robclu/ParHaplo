@@ -254,6 +254,16 @@ void Tree<SubBlockType, devices::gpu>::search()
         nodes_in_level   *= 2;
     }
     
+    size_t* last_unaligned_read;
+    CudaSafeCall( cudaMemcpy(last_unaligned_read, last_unaligned_idx, sizeof(size_t), cudaMemcpyDeviceToHost) );    
+    CudaCheckError();
+    
+    dim3 grid_size(_reads - *last_unaligned_read, 1, 1);
+    dim3 block_size(_num_nih > BLOCK_SIZE ? BLOCK_SIZE : _num_nih, _num_nih / BLOCK_SIZE + 1, 1);
+    // Align all the reads which were not aligned
+    align_unaligned_reads<<<grid_size, block_size, _num_nih * 2 * sizeof(size_t)>>>(tree, last_unaligned_idx,
+                                                                                    last_searched_snp);
+    
     is_sorted<<<1, 1>>>(_tree, prev_level_start, nodes_in_level / 2);
     find_temp_haplotype<<<1, 1>>>(_tree, prev_level_start);
    

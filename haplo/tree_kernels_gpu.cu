@@ -523,5 +523,57 @@ void find_temp_haplotype(internal::Tree tree, const size_t start_node_idx)
 #endif
 }
 
+#define BLOCK_SIZE 1024
+__global__
+void align_unaligned_reads(internal::Tree tree, const size_t* last unaligned_idx, const size_t last_searched_snp) 
+{
+    extern __shared__ size_t values[];
+    const size_t row_index      = blockIdx.x + *last_unaligned_idx;
+    const size_t thread_id      = threadIdx.y * BLOCK_SIZE + threadIdx.x;
+    const size_t haplo_idx      = tree.snp_info[thread_id + last_searched_snp + 1];
+    const size_t total_elements = tree.snps - last_searched_snp - 1;
+    size_t reduction_threads    = total_elements;
+    auto read_info              = tree.read_info[read_idx];
+    
+    // Load the values into shared memory
+    if (read_info.start_index() <= haplo_idx && read_info.end_index() >= haplo_idx) {
+        // SNP is valid and may have a value 
+        tree.data(read_info.offset() + haplo_idx == 0 
+                                                 ? values[thread_id] = 1 
+                                                 : values[thread_id + total_elements] = 1;
+    } else {
+        values[thread_id] = 0; values[thread_id + total_elements] = 0;
+    }
+    __syncthreads();
+    
+    do {
+        bool odd_num_threads = false;
+        
+        // Check if there is an odd number of threads to reduce
+        if (reduction_threads % 2 == 1 && thread_id == reduction_threads / 2) odd_num_threads = true;
+        
+        // Reduce all the even numbered elements
+        reduction_threads /= 2;
+        if (thread_id < reduction_threads) {
+            values[thread_id] += values[thread_id + reduction_threads];
+            values[thread_id + total_elements] += values[thread_id + total_elements + reduction_threads];
+        }        
+        
+        // If there are an odd number of elements move the last element
+        if (odd_num_threads && thread_id == reduction_threads) {
+            values[thread_id] = values[thread_id + reduction_threads];
+            values[thread_id + total_elements] += values[thread_id + total_elements + reduction_threads];
+            reduction_thread += 1;
+        }
+        __syncthreads;
+    } while (reduction_threads > 1);
+#ifdef DEBUG
+    if (thread_id == 0) {
+        printf("ROW ID : %i\n", row_idx);
+        printf("ZEROS  : %i\n", values[0]);
+        printf("ONES   : %i\n", values[total_elements]);
+    }
+#endif
+}
 
 }               // End namespace haplo
