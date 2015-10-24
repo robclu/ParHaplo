@@ -15,17 +15,20 @@
 
 using namespace std::chrono;
 
-static constexpr const char* input_100_10  = "new_outputs/geraci/100_10_0.1_0.4/output_5298.txt";
+static constexpr const char* input_100_10  = "new_outputs/geraci/350_10_0.1_0.4/output_49738.txt";
 
 BOOST_AUTO_TEST_SUITE( TreeGpuSuite )
 
 BOOST_AUTO_TEST_CASE( canCreateTree )
 {
-    using block_type    = haplo::Block<5298, 4, 4>;
+    using block_type    = haplo::Block<49738, 4, 4>;
     using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
     using tree_type     = haplo::Tree<subblock_type, haplo::devices::gpu>;
-    
+   
     block_type      block(input_100_10);
+    
+    std::cout << "NUM_SUB_BLOCKS " <<  block.num_subblocks() << "\n";
+
     subblock_type   sub_block(block, 1);
 
     // For now just use the first device 

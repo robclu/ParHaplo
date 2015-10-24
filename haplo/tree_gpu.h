@@ -15,6 +15,7 @@
 #define BIG_INPUT  24
 #define ALIGN_MEM  0.3f
 #define NODES_MEM  0.9f
+#define MAX_HEIGHT 21
 
 namespace haplo {
 
@@ -230,7 +231,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
-    _nih_cols -= 11;
+    _nih_cols -= 35;
     size_t terminate = 0;
     while (last_searched_snp < _snps - _nih_cols) {
         
@@ -263,7 +264,9 @@ void Tree<SubBlockType, devices::gpu>::search()
         // Update variables for next iteration 
         prev_level_start  = this_level_start;
         this_level_start += nodes_in_level;
-        nodes_in_level   *= 2;
+        
+        if (++terminate < MAX_HEIGHT)
+            nodes_in_level   *= 2;
     }
    
     // Get the number of unaligned reads 
