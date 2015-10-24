@@ -71,15 +71,24 @@ void Evaluator::get_haplotypes(const char* input_file, haplo_container& haplotyp
 double Evaluator::recon_rate(const haplo_container& ref_haplos, const haplo_container& sol_haplos) const 
 {
     size_t count = 0;
+    size_t counts[4] = {0,0,0,0};
     for (size_t i = 0; i < ref_haplos[0].size(); ++i) {
+        counts[0] += ref_haplos[0].get(i) ^ sol_haplos[0].get(i);
+        counts[1] += ref_haplos[1].get(i) ^ sol_haplos[1].get(i);
+        counts[2] += ref_haplos[0].get(i) ^ sol_haplos[1].get(i);
+        counts[3] += ref_haplos[1].get(i) ^ sol_haplos[0].get(i);
+/*
         count += std::min(  (ref_haplos[0].get(i) ^ sol_haplos[0].get(i)) + 
                             (ref_haplos[1].get(i) ^ sol_haplos[1].get(i))
                             ,
                             (ref_haplos[0].get(i) ^ sol_haplos[1].get(i)) + 
                             (ref_haplos[1].get(i) ^ sol_haplos[0].get(i)) 
                         );
+*/
     }
-    return static_cast<double>(count) / ( 2.0 * static_cast<double>(ref_haplos[0].size()));
+    return static_cast<double>(std::min(counts[0] + counts[1], counts[2] + counts[3])) / (2.0 * static_cast<double>(ref_haplos[0].size()));
+    
+//    return static_cast<double>(count) / ( 2.0 * static_cast<double>(ref_haplos[0].size()));
 }
 
 }       // End namespace haplo

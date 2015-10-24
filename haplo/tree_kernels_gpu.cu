@@ -3,6 +3,8 @@
 #include "math.h"
 #include "tree_internal.h"
 
+#define BLOCK_SIZE 1024
+
 namespace haplo {
 
 struct BoundsGpu {
@@ -247,7 +249,6 @@ void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t
                 prune_idx = start_node_idx + thread_id;
         }
     }
-    if (thread_id + start_node_idx == prune_idx) printf("PRUNE IDX : %i\n", prune_idx);
 }
 
 // Updates the values of the alignments for a specific node
@@ -411,9 +412,6 @@ void map_level(internal::Tree tree          , BoundsGpu* snp_bounds      , const
             *alignment_offset += (nodes_in_level * tree.alignment_offsets[node->haplo_idx + tree.reads]);
         }       
     }
-#ifdef DEBUG 
-    printf("ALIGNMENTS : %i\n", *last_unaligned_idx);
-#endif
 }
 
 __global__
@@ -502,35 +500,16 @@ void find_temp_haplotype(internal::Tree tree, const size_t start_node_idx)
         node     = tree.node_ptr(node->root_idx);
         ++counter;
     } while (is_last_iter < 2);
-    
-#ifdef DEBUG 
-    for (size_t i = 0; i < tree.snps; ++i) 
-        printf("%i", static_cast<unsigned>(tree.haplotype[i]));
-    printf("\n");
-    for (size_t i = tree.snps; i < 2 *tree.snps; ++i) 
-        printf("%i", static_cast<unsigned>(tree.haplotype[i]));
-    printf("\n");    
-    for (size_t i = 0; i < tree.snps; ++i) 
-        printf("%i ", tree.search_snps[i]);
-    printf("\n");    
-    for (size_t i = 0; i < tree.reads; ++i) 
-        printf("%i ", tree.aligned_reads[i]);
-    printf("\n");   
-    for (size_t i = 0; i < tree.reads; ++i) 
-        printf("%i ", static_cast<unsigned>(tree.alignments[i]));
-    printf("\n");  
-    printf("ITERATIONS : %i\n", counter);
-#endif
 }
 
-#define BLOCK_SIZE 1024
+// Aligns all the reads which do not have an alignment after solving the IH columns
 __global__
-void align_unaligned_reads(internal::Tree tree, const size_t* last unaligned_idx, const size_t last_searched_snp) 
+void align_unaligned_reads(internal::Tree tree, const size_t* last_unaligned_idx, const size_t last_searched_snp) 
 {
     extern __shared__ size_t values[];
-    const size_t row_index      = blockIdx.x + *last_unaligned_idx;
+    const size_t read_idx       = blockIdx.x + *last_unaligned_idx;
     const size_t thread_id      = threadIdx.y * BLOCK_SIZE + threadIdx.x;
-    const size_t haplo_idx      = tree.snp_info[thread_id + last_searched_snp + 1];
+    const size_t haplo_idx      = tree.search_snps[thread_id + last_searched_snp + 1];
     const size_t total_elements = tree.snps - last_searched_snp - 1;
     size_t reduction_threads    = total_elements;
     auto read_info              = tree.read_info[read_idx];
@@ -538,9 +517,9 @@ void align_unaligned_reads(internal::Tree tree, const size_t* last unaligned_idx
     // Load the values into shared memory
     if (read_info.start_index() <= haplo_idx && read_info.end_index() >= haplo_idx) {
         // SNP is valid and may have a value 
-        tree.data(read_info.offset() + haplo_idx == 0 
-                                                 ? values[thread_id] = 1 
-                                                 : values[thread_id + total_elements] = 1;
+        tree.data[read_info.offset() + haplo_idx] == 0 
+                                                  ? values[thread_id] = 1 
+                                                  : values[thread_id + total_elements] = 1;
     } else {
         values[thread_id] = 0; values[thread_id + total_elements] = 0;
     }
@@ -561,19 +540,115 @@ void align_unaligned_reads(internal::Tree tree, const size_t* last unaligned_idx
         
         // If there are an odd number of elements move the last element
         if (odd_num_threads && thread_id == reduction_threads) {
-            values[thread_id] = values[thread_id + reduction_threads];
-            values[thread_id + total_elements] += values[thread_id + total_elements + reduction_threads];
-            reduction_thread += 1;
+            values[thread_id]                  = values[thread_id + reduction_threads];
+            values[thread_id + total_elements] = values[thread_id + total_elements + reduction_threads];
+            reduction_threads += 1;
         }
         __syncthreads;
     } while (reduction_threads > 1);
-#ifdef DEBUG
+    
+    // Set the alignment for the haplotype
     if (thread_id == 0) {
-        printf("ROW ID : %i\n", row_idx);
-        printf("ZEROS  : %i\n", values[0]);
-        printf("ONES   : %i\n", values[total_elements]);
+        values[thread_id] > values[thread_id + total_elements] 
+                        ? tree.alignments[read_idx] = 0 : tree.alignments[read_idx] = 1;
     }
-#endif
+}
+
+// Solves for the haplotype values for the NIH columns 
+// Each block solves for one of the NIH columns
+__global__
+void solve_nih_columns(internal::Tree tree, const size_t last_searched_snp )
+{
+    extern __shared__ size_t values[];
+    const size_t thread_id   = threadIdx.y * BLOCK_SIZE + threadIdx.x;
+    const size_t haplo_idx   = tree.search_snps[last_searched_snp + blockIdx.x + 1];
+    size_t reduction_threads = tree.reads - 1;
+    auto snp_info            = tree.snp_info[haplo_idx];
+    
+    // Load the values into shared memory
+    if (snp_info.start_index() <= thread_id && snp_info.end_index() >= thread_id) {
+        auto value     = tree.data[tree.read_info[thread_id].offset() + haplo_idx];
+        auto alignment = tree.alignments[thread_id];
+        if (value == 0) {
+            if (alignment == 0) {
+                values[thread_id]     = 1; values[thread_id + 1] = 0;
+                values[thread_id + 2] = 0;
+            } else {
+                values[thread_id]     = 1; values[thread_id + 2] = 1;
+                values[thread_id + 2] = 1;
+            }
+        } else if (value == 1) {
+            if (alignment == 0) {
+                values[thread_id]     = 0; values[thread_id + 1] = 1; 
+                values[thread_id + 2] = 1; 
+            } else {
+                values[thread_id]     = 0; values[thread_id + 1] = 0; 
+                values[thread_id + 2] = 1; 
+            }
+        }
+    } else {
+        values[thread_id]     = 0; values[thread_id + 1] = 0; 
+        values[thread_id + 2] = 0;
+    }
+    __syncthreads();
+    
+    // Do the reduction to find the value with the lowest score
+    do {
+        bool odd_num_threads = false;
+        
+        if (reduction_threads % 2 == 1 && thread_id == reduction_threads / 2) 
+            odd_num_threads = true;
+        
+        // Now use half the threads for the reduction
+        reduction_threads /= 2;
+        if (thread_id < reduction_threads) {
+            values[thread_id]     += values[thread_id + reduction_threads * 3];
+            values[thread_id + 1] += values[thread_id + reduction_threads * 3 + 1];
+            values[thread_id + 2] += values[thread_id + reduction_threads * 3 + 2];
+        }
+        
+        // If there are an off number of elements then just move the last element
+        if (odd_num_threads && thread_id == reduction_threads) {
+            values[thread_id]     = values[thread_id + reduction_threads * 3];
+            values[thread_id + 1] = values[thread_id + reduction_threads * 3 + 1];
+            values[thread_id + 2] = values[thread_id + reduction_threads * 3 + 2];
+            reduction_threads += 1;
+        }
+    } while (reduction_threads > 1);
+    __syncthreads();
+    
+    // First thread then sets the haplotype value
+    if (thread_id == 0) {
+        if (values[0] >= values[1]) {
+            if (values[0] >= values[2]) {
+                tree.haplotype[haplo_idx] = 0; 
+                tree.haplotype[haplo_idx + tree.snps] = 0;
+            } else {
+                tree.haplotype[haplo_idx] = 1; 
+                tree.haplotype[haplo_idx + tree.snps] = 0;
+            }
+        } else {
+            if (values[1] >= values[2]) {
+                tree.haplotype[haplo_idx] = 0;
+                tree.haplotype[haplo_idx + tree.snps] = 1;
+            } else {
+                tree.haplotype[haplo_idx] = 1; 
+                tree.haplotype[haplo_idx + tree.snps] = 0;
+            }
+        }
+    }
+    __syncthreads();
+}
+
+__global__
+void print_haplotypes(internal::Tree tree)
+{
+    for (size_t i = 0; i < tree.snps; ++i) 
+        printf("%i", static_cast<unsigned>(tree.haplotype[i]));
+    printf("\n");
+    for (size_t i = tree.snps; i < 2 * tree.snps; ++i) 
+        printf("%i", static_cast<unsigned>(tree.haplotype[i]));
+    printf("\n");
 }
 
 }               // End namespace haplo

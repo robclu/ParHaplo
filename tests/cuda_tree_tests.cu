@@ -27,7 +27,6 @@ BOOST_AUTO_TEST_CASE( canCreateTree )
     
     block_type      block(input_100_10);
     subblock_type   sub_block(block, 1);
-    sub_block.print();
 
     // For now just use the first device 
     // Later use device manager
@@ -37,6 +36,10 @@ BOOST_AUTO_TEST_CASE( canCreateTree )
     
     // Search the tree for the haplotype 
     tree.search();
+    
+    block.merge_haplotype(sub_block);
+    
+    block.print_haplotypes();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

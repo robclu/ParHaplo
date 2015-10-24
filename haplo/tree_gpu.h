@@ -37,6 +37,7 @@ public:
     using bound_type                    = BoundsGpu;
     //-------------------------------------------------------------------------------------------------------
 private:
+    SubBlockType&               _sub_block;
     // -------------------------------------------- HOST ----------------------------------------------------
     binary_vector&              _data;
     read_info_container&        _read_info;
@@ -48,6 +49,7 @@ private:
     size_t                      _min_ubound;
     size_t                      _device;
     size_t                      _nih_cols;
+    size_t                      _last_unaligned_read;
     // ------------------------------------------ DEVICE ----------------------------------------------------
     tree_type                   _tree; 
     bound_type*                 _snp_bounds;
@@ -86,19 +88,27 @@ public:
     //-------------------------------------------------------------------------------------------------------
     CUDA_H
     void search();
+private:
+    
+    //-------------------------------------------------------------------------------------------------------
+    /// @brief      Puts the haplotype back into the sub_block 
+    //-------------------------------------------------------------------------------------------------------
+    CUDA_H 
+    void set_sub_block_haplotypes();
 };
 
 // ------------------------------------------------ IMPLEMENTATIONS -----------------------------------------
 
 template <typename SubBlockType>
 Tree<SubBlockType, devices::gpu>::Tree(SubBlockType& sub_block, const size_t device)
-: _data(sub_block.data())                   , _read_info(sub_block.read_info())         , 
+: _sub_block(sub_block)                     ,
+  _data(sub_block.data())                   , _read_info(sub_block.read_info())         , 
   _snp_info(sub_block.snp_info())           , _haplotype(sub_block.snp_info().size())   , 
   _alignments(sub_block.read_info().size())                                             , 
   _tree(sub_block.snp_info().size()         , sub_block.read_info().size())             , 
   _snps(sub_block.snp_info().size())        , _reads(sub_block.read_info().size())      ,
   _min_ubound(sub_block.size())             , _device(device)                           ,
-  _nih_cols(sub_block.nih_columns())
+  _nih_cols(sub_block.nih_columns())        , _last_unaligned_read(0)            
 {
     cudaError_t error;
     
@@ -151,7 +161,8 @@ Tree<SubBlockType, devices::gpu>::Tree(SubBlockType& sub_block, const size_t dev
 
     // Allocate memory for the kernel arguments
     CudaSafeCall( cudaMalloc((void**)&_last_unaligned_idx, sizeof(size_t))  );
-    CudaSafeCall( cudaMemset(_last_unaligned_idx, 0, sizeof(size_t))        );
+    CudaSafeCall( cudaMemcpy(_last_unaligned_idx, &_last_unaligned_read, 
+                    sizeof(size_t), cudaMemcpyHostToDevice            ));
     
     // Offset in the alignment array
     CudaSafeCall( cudaMalloc((void**)&_alignment_offset, sizeof(size_t))  );
@@ -219,6 +230,7 @@ void Tree<SubBlockType, devices::gpu>::search()
     
     // ----------------------------------------- OTHER NODES ------------------------------------------------
 
+    _nih_cols -= 11;
     size_t terminate = 0;
     while (last_searched_snp < _snps - _nih_cols) {
         
@@ -253,21 +265,52 @@ void Tree<SubBlockType, devices::gpu>::search()
         this_level_start += nodes_in_level;
         nodes_in_level   *= 2;
     }
-    
-    size_t* last_unaligned_read;
-    CudaSafeCall( cudaMemcpy(last_unaligned_read, last_unaligned_idx, sizeof(size_t), cudaMemcpyDeviceToHost) );    
+   
+    // Get the number of unaligned reads 
+    CudaSafeCall( cudaMemcpy(&_last_unaligned_read, _last_unaligned_idx, sizeof(size_t), cudaMemcpyDeviceToHost) );    
     CudaCheckError();
     
-    dim3 grid_size(_reads - *last_unaligned_read, 1, 1);
-    dim3 block_size(_num_nih > BLOCK_SIZE ? BLOCK_SIZE : _num_nih, _num_nih / BLOCK_SIZE + 1, 1);
-    // Align all the reads which were not aligned
-    align_unaligned_reads<<<grid_size, block_size, _num_nih * 2 * sizeof(size_t)>>>(tree, last_unaligned_idx,
-                                                                                    last_searched_snp);
+    // Create a block for each of the unaligned snps
+    dim3 grid_size(_reads - _last_unaligned_read, 1, 1);
+    dim3 block_size(_nih_cols > BLOCK_SIZE ? BLOCK_SIZE : _nih_cols, _nih_cols / BLOCK_SIZE + 1, 1);
     
-    is_sorted<<<1, 1>>>(_tree, prev_level_start, nodes_in_level / 2);
+    // Align all the reads which were not aligned
+    align_unaligned_reads<<<grid_size, block_size, _nih_cols * 2 * sizeof(size_t)>>>(_tree, _last_unaligned_idx,
+                                                                                     last_searched_snp);
+    
+//    is_sorted<<<1, 1>>>(_tree, prev_level_start, nodes_in_level / 2);
+    // Find the haplotype for the ih columns
     find_temp_haplotype<<<1, 1>>>(_tree, prev_level_start);
    
+    // Create a block for each of the unsolved nih columns
+    grid_size  = dim3(_snps - last_searched_snp - 1, 1, 1);
+    block_size = dim3(_reads > BLOCK_SIZE ? BLOCK_SIZE : _reads, _reads / BLOCK_SIZE + 1, 1);
+    
+    // Lastly, find the final haplotype which includes the nih columns
+    solve_nih_columns<<<grid_size, block_size, _reads * 3 * sizeof(size_t)>>>(_tree, last_searched_snp);
+    cudaDeviceSynchronize();
+    
+    // Move the haplotypes to the sub-block 
+    set_sub_block_haplotypes();
 }
+
+template <typename SubBlockType>
+void Tree<SubBlockType, devices::gpu>::set_sub_block_haplotypes()
+{
+   // Create a host vector to get the haplotype data into
+    thrust::host_vector<uint8_t> haplotypes(_snps * 2);
+    
+    // Get the data 
+    CudaSafeCall( cudaMemcpy(thrust::raw_pointer_cast(&haplotypes[0]), _tree.haplotype,
+                        sizeof(uint8_t) * _snps * 2, cudaMemcpyDeviceToHost           ));
+    
+    // Go trough the haplotypes and set the values in the sub_block
+    for (size_t i = 0; i < _snps; ++i) {
+        _sub_block._haplo_one.set(i, haplotypes[i]);
+        _sub_block._haplo_two.set(i, haplotypes[i + _snps]);
+    }
+}
+
 
 }           // End namespace haplo
 #endif      // PARAHAPLO_TREE_GPU_H
