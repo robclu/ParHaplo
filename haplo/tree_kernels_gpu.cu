@@ -239,16 +239,13 @@ void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t
              (tree.node_ptr(start_node_idx + thread_id + num_nodes / 2 - 1)->lbound < 
               tree.node_ptr(start_node_idx)->ubound                                 )) {
                 prune_idx = start_node_idx + thread_id + num_nodes / 2;
-                printf("PU : %i\n", tree.node_ptr(start_node_idx)->ubound);
-                printf("PL : %i\n", tree.node_ptr(prune_idx)->lbound);
         }
         else if ( (tree.node_ptr(start_node_idx + thread_id)->lbound >= 
                    tree.node_ptr(start_node_idx)->ubound             ) &&
                   (tree.node_ptr(start_node_idx + thread_id - 1)->lbound < 
                    tree.node_ptr(start_node_idx)->ubound                 )) { 
                 prune_idx = start_node_idx + thread_id;
-                printf("PU : %i\n", tree.node_ptr(start_node_idx)->ubound);
-                printf("PL : %i\n", tree.node_ptr(prune_idx)->lbound);    }
+        }
     }
     if (thread_id + start_node_idx == prune_idx) printf("PRUNE IDX : %i\n", prune_idx);
 }
@@ -414,6 +411,9 @@ void map_level(internal::Tree tree          , BoundsGpu* snp_bounds      , const
             *alignment_offset += (nodes_in_level * tree.alignment_offsets[node->haplo_idx + tree.reads]);
         }       
     }
+#ifdef DEBUG 
+    printf("ALIGNMENTS : %i\n", *last_unaligned_idx);
+#endif
 }
 
 __global__
@@ -480,13 +480,13 @@ __global__
 void find_temp_haplotype(internal::Tree tree, const size_t start_node_idx) 
 {
     TreeNode* node         = tree.node_ptr(start_node_idx);
-    size_t node_alignments = 0, is_last_iter    = 0;
+    size_t node_alignments = 0, is_last_iter    = 0, counter = 0;
     node_idx               = start_node_idx;
     
     do {
         // Set the values for the haplotype 
         tree.haplotype[node->haplo_idx]             = node->value;
-        tree.haplotype[node->haplo_idx + tree.snps] = !node->haplo_idx;
+        tree.haplotype[node->haplo_idx + tree.snps] = !node->value;
         
         // Get the number of alignments for the node 
         node_alignments = tree.alignment_offsets[node->haplo_idx + tree.reads];
@@ -495,26 +495,31 @@ void find_temp_haplotype(internal::Tree tree, const size_t start_node_idx)
             size_t block_x = node_alignments > 256 ? 256 : node_alignments;
             // Add the alignements to the tree's alignments 
             add_tree_alignments<<<grid_x, block_x>>>(tree, node_idx);
-            CudaCheckError();
+            cudaDeviceSynchronize();
         }
         if (node->root_idx == 0 || is_last_iter == 1) ++is_last_iter;
         node_idx = node->root_idx;
         node     = tree.node_ptr(node->root_idx);
+        ++counter;
     } while (is_last_iter < 2);
     
 #ifdef DEBUG 
     for (size_t i = 0; i < tree.snps; ++i) 
-        printf("%i ", static_cast<unsigned>(tree.haplotype[i]));
+        printf("%i", static_cast<unsigned>(tree.haplotype[i]));
     printf("\n");
     for (size_t i = tree.snps; i < 2 *tree.snps; ++i) 
-        printf("%i ", static_cast<unsigned>(tree.haplotype[i]));
+        printf("%i", static_cast<unsigned>(tree.haplotype[i]));
     printf("\n");    
-    for (size_t i = tree.reads; i < tree.reads; ++i) 
+    for (size_t i = 0; i < tree.snps; ++i) 
+        printf("%i ", tree.search_snps[i]);
+    printf("\n");    
+    for (size_t i = 0; i < tree.reads; ++i) 
         printf("%i ", tree.aligned_reads[i]);
     printf("\n");   
-    for (size_t i = tree.reads; i < tree.reads; ++i) 
+    for (size_t i = 0; i < tree.reads; ++i) 
         printf("%i ", static_cast<unsigned>(tree.alignments[i]));
     printf("\n");  
+    printf("ITERATIONS : %i\n", counter);
 #endif
 }
 

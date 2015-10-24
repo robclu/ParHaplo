@@ -119,8 +119,10 @@ Tree<SubBlockType, devices::gpu>::Tree(SubBlockType& sub_block, const size_t dev
                     sizeof(snp_info_type) * _snps, cudaMemcpyHostToDevice) );
   
     // Allocate the haplotype and alignment data on the device 
-    CudaSafeCall( cudaMalloc((void**)&_tree.haplotype, sizeof(small_type) * _snps) );
-    CudaSafeCall( cudaMalloc((void**)&_tree.alignments, sizeof(small_type) * _reads) );;
+    CudaSafeCall( cudaMalloc((void**)&_tree.haplotype, sizeof(small_type) * 2 * _snps) );
+    CudaSafeCall( cudaMemset(_tree.haplotype, 0, sizeof(small_type) * 2 * _snps)       );
+    CudaSafeCall( cudaMalloc((void**)&_tree.alignments, sizeof(small_type) * _reads)   );
+    CudaSafeCall( cudaMemset(_tree.alignments, 0, sizeof(small_type) *  _reads)        );
     
     // Create a vector for the search snps
     thrust::host_vector<size_t> snp_indices(_snps);
