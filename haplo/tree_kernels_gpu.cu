@@ -4,6 +4,8 @@
 #include "tree_internal.h"
 
 #define BLOCK_SIZE 1024
+#define MAX_BLOCKS 65535 
+#define WARP_SIZE  32
 
 namespace haplo {
 
@@ -170,7 +172,8 @@ void bitonic_out_in_sort(internal::Tree& tree       , const size_t start_idx    
                          const size_t    block_idx  , const size_t block_size   ,
                          const size_t    total_nodes                            )
 {
-    const size_t thread_idx    = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t thread_idx    = blockIdx.x * blockDim.x + threadIdx.x +
+                                 (blockIdx.y * blockDim.y + threadIdx.y) * BLOCK_SIZE * MAX_BLOCKS;
     const size_t node_idx      = thread_idx + (block_idx * (block_size / 2));
     const size_t comp_node_idx = node_idx + (block_size - (thread_idx % (block_size / 2)) - 1)
                                - (node_idx % (block_size / 2));
@@ -191,7 +194,8 @@ void bitonic_out_out_sort(internal::Tree& tree       , const size_t start_idx ,
                           const size_t    block_idx  , const size_t block_size,
                           const size_t    total_nodes                         )
 {
-    const size_t thread_idx    = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t thread_idx    = blockIdx.x * blockDim.x + threadIdx.x +
+                                 (blockIdx.y * blockDim.y + threadIdx.y) * BLOCK_SIZE * MAX_BLOCKS;
     const size_t node_idx      = thread_idx + (block_idx * (block_size / 2));
     const size_t comp_node_idx = node_idx + (block_size / 2);
 
@@ -212,7 +216,8 @@ __global__
 void reduce_level(internal::Tree tree, const size_t start_node_idx, const size_t num_nodes)
 {
     const size_t        passes         = static_cast<size_t>(ceil(log2(static_cast<double>(num_nodes))));
-    const size_t        thread_id      = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t        thread_id      = blockIdx.x * blockDim.x + threadIdx.x +
+                                         (blockIdx.y * blockDim.y + threadIdx.y) * BLOCK_SIZE * MAX_BLOCKS;
     size_t              block_size     = 2, prune_idx = INT_MAX;
     
     if (thread_id < num_nodes / 2) {
@@ -374,7 +379,8 @@ void map_level(internal::Tree tree          , BoundsGpu* snp_bounds      , const
                const size_t this_level_start, const size_t nodes_in_level)
 {
     // Set node parameters
-    const size_t thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t thread_id = blockIdx.x * blockDim.x + threadIdx.x + 
+                             (blockIdx.y * blockDim.y + threadIdx.y) * BLOCK_SIZE * MAX_BLOCKS;
     const size_t node_idx  = thread_id + this_level_start;
     
     // If a valid thread
@@ -385,10 +391,10 @@ void map_level(internal::Tree tree          , BoundsGpu* snp_bounds      , const
        
         // Set some of the node parameters
         node->haplo_idx = snp_bounds[0].index;
-        node->root_idx  = prev_level_start + (threadIdx.x / 2);
+        node->root_idx  = prev_level_start + (thread_id / 2);
         node->lbound    = root_node->lbound;
         node->ubound    = root_node->ubound;
-        node->value     = threadIdx.x % 2 == 0 ? 0 : 1;
+        node->value     = thread_id % 2 == 0 ? 0 : 1;
 
         // Update the bounds for the node 
         map_leaf_bounds(tree, last_searched_snp, node_idx);

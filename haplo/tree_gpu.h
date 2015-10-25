@@ -202,20 +202,28 @@ Tree<SubBlockType, devices::gpu>::Tree(SubBlockType& sub_block, const size_t dev
 template <typename SubBlockType>
 void Tree<SubBlockType, devices::gpu>::search()
 {
+    std::cout << "NIH COLUMNS : " << _nih_cols << "\n";
+    
     size_t unsearched_snps   = _snps - 1;            // SNPs still to search 
     size_t prev_level_start  = 0;                    // Start index in array for previous level
     size_t this_level_start  = 1;                    // Start index in array for this level
     size_t nodes_in_level    = 2;                    // Number of nodes in the level
     size_t last_searched_snp = 0;                    // Index of the last searched snp
-  
-    std::cout << "NIH COLUMNS : " << _nih_cols << "\n";
+    int    device;
+    
+    cudaDeviceProp device_props;                    // Properties of the device
+   
+    // ---------------------------------- DEVICE PROPERTIES -------------------------------------------------
+    
+    cudaGetDevice(&device);
+    cudaGetDeviceProperties(&device_props, device); // Get the device properties
     
     // --------------------------------------- ROOT NODE ----------------------------------------------------
     
     // The first level of the tree (with the root node) is a little different
     // because it needs to do the setup, so invoke that kernel first
     map_root_node<<<1, 1>>>(_tree            , _snp_bounds, last_searched_snp, _last_unaligned_idx, 
-                            _alignment_offset, _min_ubound, _device          ); 
+                            _alignment_offset, _min_ubound, static_cast<size_t>(device)          ); 
     CudaCheckError();
 
     // Now we can do the mapping of the unsearched nodes
@@ -236,18 +244,21 @@ void Tree<SubBlockType, devices::gpu>::search()
     while (last_searched_snp < _snps - _nih_cols) {
         
         // We need to call the grid manager here 
-        dim3 grid_size(nodes_in_level / 1024 + 1, 1, 1);
-        const size_t threads = nodes_in_level < 1024 
-                             ? (nodes_in_level / 32 + 1) * 32 : 1024;
+        dim3 grid_size( (nodes_in_level / BLOCK_SIZE + 1) % device_props.maxGridSize[0]    , 
+                        (nodes_in_level / BLOCK_SIZE + 1) / device_props.maxGridSize[0] + 1, 
+                        1);
+        dim3 block_size( nodes_in_level < BLOCK_SIZE ? (nodes_in_level / WARP_SIZE + 1) * WARP_SIZE : BLOCK_SIZE,
+                         grid_size.y > 1 ? BLOCK_SIZE : 1,
+                         1);
         
         // Perform a "mapping" step, which maps the bounds onto the nodes in the level
-        map_level<<<grid_size, threads>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, 
-                                          _alignment_offset , prev_level_start , this_level_start   , 
-                                          nodes_in_level    );
+        map_level<<<grid_size, block_size>>>(_tree, _snp_bounds, last_searched_snp, _last_unaligned_idx, 
+                                             _alignment_offset , prev_level_start , this_level_start   , 
+                                             nodes_in_level    );
         CudaCheckError();
 
         // "Reduce" the search space to eliminate the bad nodes
-        reduce_level<<<grid_size, threads>>>(_tree, this_level_start, nodes_in_level);
+        reduce_level<<<grid_size, block_size>>>(_tree, this_level_start, nodes_in_level);
         CudaCheckError();
 
         // Map unsearched snps
