@@ -5,6 +5,7 @@
 #include "math.h"
 
 #define BLOCK_SIZE 1024
+//#undef DEBUG
 
 namespace haplo {
 
@@ -27,34 +28,40 @@ void map_distances(data_type& data, graph_type& graph, const size_t threads)
     
     bool    first_valid = false , second_valid = false;
     uint8_t first_value = 0     , second_value = 0    ;
-    
-    // Check if each of the values is valid
-    if (read_info_one.start_index() <= snp_idx && read_info_one.end_index() >= snp_idx) {
-        first_valid = true;
-        first_value = data.data[read_info_one.offset() + snp_idx];
-    }
-    if (read_info_two.start_index() <= snp_idx && read_info_two.end_index() >= snp_idx) {
-        second_valid = true;
-        second_value = data.data[read_info_two.offset() + snp_idx];
-    }
+
+    if (read_idx_one < data.reads && read_idx_two < data.reads) {    
+        // Check if each of the values is valid
+        if (read_info_one.start_index() <= snp_idx && read_info_one.end_index() >= snp_idx) {
+            first_valid = true;
+            first_value = data.data[read_info_one.offset() + snp_idx - read_info_one.start_index()];
+        }
+        if (read_info_two.start_index() <= snp_idx && read_info_two.end_index() >= snp_idx) {
+            second_valid = true;
+            second_value = data.data[read_info_two.offset() + snp_idx - read_info_two.start_index()];
+        }
+        
+        // Set the values for the graph edge
+        graph.edges[blockIdx.x].f1 = read_idx_one;
+        graph.edges[blockIdx.x].f2 = read_idx_two;
+    } 
     
     // Load the distance into the shared array
     if (first_valid && second_valid) {
         if (first_value != second_value && first_value <= 1 && second_value <= 1) {
-            distance[snp_idx] = 10;
+            distance[snp_idx] = 20;
             distance[snp_idx + threads] = 1;
         } else if (first_value != second_value && (first_value <= 1 || second_value <= 1)) {
-            distance[snp_idx] = 5;
+            distance[snp_idx] = 10;
             distance[snp_idx + threads] = 1;
         } else if (first_value == second_value) {
-            distance[snp_idx] = 0;
+            distance[snp_idx] = 5;
             distance[snp_idx + threads] = 1;
         }
     } else if (first_valid && !second_valid && first_value <= 1) {
-        distance[snp_idx] = 5;
+        distance[snp_idx] = 10;
         distance[snp_idx + threads] = 1;
     } else if (second_valid && !first_valid && second_value <= 1) {
-        distance[snp_idx] = 5;
+        distance[snp_idx] = 10;
         distance[snp_idx + threads] = 1;
     } else if (!first_valid && !second_valid) {
         distance[snp_idx] = 0;
@@ -62,14 +69,11 @@ void map_distances(data_type& data, graph_type& graph, const size_t threads)
     }
     __syncthreads();    
     
-    // Set the values for the graph edge
-    graph.edges[blockIdx.x].f1 = read_idx_one;
-    graph.edges[blockIdx.x].f2 = read_idx_two;
-    
     if (threadIdx.y == 0 && blockIdx.x == 2) {
         printf("R1: %i\n", read_idx_one);
         printf("R@: %i\n", read_idx_two);
-        for (size_t i = 0; i < threads; ++i) 
+        printf("R@: %i\n", snp_idx);
+        for (size_t i = 0; i < 2 * threads; ++i) 
             printf("%i ", distance[i]);
         printf("\n");
     } 
@@ -99,17 +103,22 @@ void reduce_distances(data_type& data, graph_type& graph, const size_t threads)
         __syncthreads();
     }
     // Set the weight of the edge
-    if (distance[threads] > 0) {
+    if (distance[threads] > 0 && threadIdx.y == 0) {
         graph.edges[blockIdx.x].distance = static_cast<float>(distance[0] / 10.f) /
                                            static_cast<float>(distance[threads])  ;
-    } else {
+    } else if (threadIdx.y == 0 && distance[threads] == 0) {
+        graph.edges[blockIdx.x].distance = 0.0f;
+    }
+    
+    // Modify the value so that it's easier to sort 
+    if (graph.edges[blockIdx.x].distance == 1.0f && threadIdx.y == 0) {
         graph.edges[blockIdx.x].distance = 0.0f;
     }
     
     if (threadIdx.y == 0 && blockIdx.x == 2) {
-        for (size_t i = 0; i < threads; ++i) 
-            printf("%i ", distance[i]);
-        printf("\n");
+        for (size_t i = 0; i < 2 * threads; ++i) 
+            printf("%.2f ", distance[i]);
+        printf("\n%i\n", distance[threads]);
     } 
 }
  
@@ -121,101 +130,69 @@ void swap_edges(graph_type& graph, const size_t edge_idx_one, const size_t edge_
     graph.edges[edge_idx_two] = temp; 
 }
 
-// Sorts the edges
+// Out to in operation for bitonic sort
 __global__ 
-void bitonic_out_in_sort(graph_type& graph, const size_t block_size, const size_t total_elements)
+void bitonic_out_in_sort(graph_type graph, const size_t block_size, const size_t total_elements)
 {
     const size_t block_idx  = blockIdx.x / (block_size / 2);
     const size_t idx_one    = blockIdx.x + (block_idx * (block_size / 2));
     const size_t idx_two    = idx_one + (block_size - (blockIdx.x % (block_size / 2)) - 1) 
                             - (idx_one % (block_size / 2));
-  
+    
     // If the dimensions are in range
-    if (idx_two < total_elements && idx_one < total_elements && threadIdx.y == 0) {
-        printf("I1 %i\n", idx_one); 
-        printf("I2 %i\n", idx_two); 
-        printf("BI %i\n", block_idx);
-        
+    if (idx_one < total_elements && idx_two < total_elements && threadIdx.y == 0) {
         // The edges need to be swapped if the right one is larger than the left one
         // or if the left one has a value of 0.5, since those must be removed
-        if (graph.edges[idx_one].distance == 0.5f) {
+        if (graph.edges[idx_one].distance <= graph.edges[idx_two].distance) {
             swap_edges(graph, idx_one, idx_two);
-        } else if (graph.edges[idx_two].distance > graph.edges[idx_one].distance &&
-                   graph.edges[idx_two].distance != 0.5f) {
-            swap_edges(graph, idx_one, idx_two);
-        }
+        } 
     }
 }
 
+// Out to out operation fr bitonic sort
 __global__
-void bitonic_out_out_sort(graph_type& graph, const size_t block_size, const size_t total_elements)
+void bitonic_out_out_sort(graph_type graph, const size_t block_size, const size_t total_elements)
 {
     const size_t block_idx = blockIdx.x / (block_size / 2);
-    const size_t idx_one = blockIdx.y + (block_idx * (block_size / 2));
-    const size_t idx_two = idx_one + (block_size / 2);
+    const size_t idx_one   = blockIdx.x + (block_idx * (block_size / 2));
+    const size_t idx_two   = idx_one + (block_size / 2);
 
     // Check that the node index is in the first half of the block and the comp node is in range
-    if (idx_two < total_elements) {
-        if ( (graph.edges[idx_one].distance < graph.edges[idx_two].distance                 &&
-              graph.edges[idx_two].distance != 0.5f                                           ) ||
-             (graph.edges[idx_one].distance == 0.5f && graph.edges[idx_two].distance != 0.5f) ) {
-                swap_edges(graph, idx_one, idx_two);       
-        }        
+    if (idx_one < total_elements && idx_two < total_elements && threadIdx.y == 0) {
+        // The edges need to be swapped if the right one is larger than the left one
+        // or if the left one has a value of 0.5, since those must be removed
+        if (graph.edges[idx_one].distance <= graph.edges[idx_two].distance) {
+            swap_edges(graph, idx_one, idx_two);
+        }
     }    
 }
 
 __device__ 
-size_t find_last_valid_edge(const graph_type& graph, size_t last_edge_index)
+size_t find_last_valid_edge(const graph_type& graph)
 {
-    bool found_end = false;   
+    bool   found_end       = false;   
+    size_t last_valid_edge = 0;
     while (!found_end) {
-       if (graph.edges[last_edge_index].distance != 0.5f) 
-            found_end = true;
+       if (graph.edges[last_valid_edge].distance != 0.0f) 
+            ++last_valid_edge;
         else 
-            --last_edge_index;
+            found_end = true;
     }
-    return last_edge_index;
+    return last_valid_edge;
 }
 
-// Reduces a level using a parallel bitonic sort
+// Prints the edges of a node
 __global__
 void print_edges(data_type data, graph_type graph)
 {
-    /*
-    const size_t    total_vertices = data.reads * (data.reads - 1) / 2;
-    const size_t    passes         = static_cast<size_t>(ceil(log2(static_cast<double>(gridDim.x))));
-    size_t          block_size     = 2;
-    
-    if (blockIdx.x < gridDim.x / 2) {
-        for (size_t pass = 0; pass < passes; ++pass) {
-            // We need a logarithmically decreasing number of out-in passes 
-            bitonic_out_in_sort(graph, blockIdx.x / (block_size / 2), block_size);
-            __syncthreads();
-
-            // Now we need pass number of out-out bitonic sorts
-            size_t out_out_block_size = block_size / 2; 
-            for (size_t i = 0; i < pass; ++i) {
-                bitonic_out_out_sort(graph, blockIdx.x / (out_out_block_size / 2), out_out_block_size);
-                out_out_block_size /= 2;
-                __syncthreads();
+    if (threadIdx.y == 0 && blockIdx.x == 0) {   
+        for (size_t i = 0; i < data.reads * (data.reads -1) / 2; ++i) {
+            if (graph.edges[i].distance != 0.0f) {
+                printf("%.4f ", graph.edges[i].distance);
+                printf("%i\n", i);
             }
-            block_size *= 2;
         }
-    }
-    
-    const size_t last_valid_edge = find_last_valid_edge(graph, total_vertices - 1);
-   */
-    
-        for (size_t i = 0; i < data.reads * (data.reads -1) / 2; ++i)
-            printf("%.2f ", graph.edges[i].distance);
-        printf("\n");
-/*
-        for (size_t i = 0; i < data.reads * (data.reads -1) / 2; ++i)
-            printf("%i ", graph.edges[i].f1);
-        printf("\n");        
-        for (size_t i = 0; i < data.reads * (data.reads -1) / 2; ++i)
-            printf("%i ", graph.edges[i].f2);
-*/
+    } 
 }
 
 __global__
@@ -225,6 +202,16 @@ void search_graph(data_type data, graph_type graph, size_t threads)
     
     map_distances(data, graph, threads);
     reduce_distances(data, graph, threads);
+}
+
+__global__ 
+void map_to_partitions(graph_type graph)
+{
+    const size_t last_valid_edge = find_last_valid_edge(graph);
+    
+#ifdef DEBUG
+    printf("LVE : %i\n", last_valid_edge);
+#endif
 }
 
 }               // End namespace haplo

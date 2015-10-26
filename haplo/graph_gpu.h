@@ -144,28 +144,43 @@ void Graph<SubBlockType, devices::gpu>::search()
     search_graph<<<grid_size, block_size, sizeof(size_t) * 2 * block_size.y>>>(_data_gpu, _graph, block_size.y);    
     CudaCheckError();
     
+    // Sort the edges
     sort_edges(grid_size, block_size);
+    
+    // Create partitions
+    map_to_partitions<<<grid_size, block_size>>>(_graph);
 }
 
 template <typename SubBlockType>
 void Graph<SubBlockType, devices::gpu>::sort_edges(dim3 grid_size, dim3 block_size)
 {
-    const size_t    edges            = grid_size.x;
-    const size_t    passes           = static_cast<size_t>(std::ceil(std::log2(static_cast<double>(edges)))); 
-    size_t          block_size_sort  = 2;
+    const size_t    edges             = grid_size.x;
+    const size_t    passes            = static_cast<size_t>(std::ceil(std::log2(static_cast<double>(edges)))); 
+    size_t          out_in_block_size = 2;
+    size_t          out_out_block_size;
     
     // Only need half the threads
     grid_size.x /= 2;
     
-    for (size_t pass = 0; pass < 3; ++pass) {
-        bitonic_out_in_sort<<<grid_size, block_size>>>(_graph, block_size_sort, edges); 
+    for (size_t pass = 0; pass < passes; ++pass) {
+        bitonic_out_in_sort<<<grid_size, block_size>>>(_graph, out_in_block_size, edges); 
         CudaCheckError();
+        cudaThreadSynchronize();
         
-        block_size_sort *= 2;
+        out_out_block_size = out_in_block_size / 2;
+        for (size_t i = 0; i < pass; ++i) {
+            bitonic_out_out_sort<<<grid_size, block_size>>>(_graph, out_out_block_size, edges);
+            CudaCheckError();
+            cudaThreadSynchronize();
+            out_out_block_size /= 2;
+        }
+        out_in_block_size *= 2;
     }
-    
+    cudaThreadSynchronize();
+#ifdef DEBUG 
     print_edges<<<1, 1>>>(_data_gpu, _graph);
     CudaCheckError();
+#endif
 }
 
 }           // End namespace haplo

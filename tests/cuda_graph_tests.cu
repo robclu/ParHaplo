@@ -15,18 +15,18 @@
 
 using namespace std::chrono;
 
-static constexpr const char* test_input   = "output_files/output_simulated_265.txt";
-static constexpr const char* input_zero   = "input_files/input_zero.txt";
+static constexpr const char* test_input    = "output_files/output_simulated_265.txt";
+static constexpr const char* test_input1   = "new_outputs/geraci/100_8_0.1_0.4/output_4534.txt";
 
 BOOST_AUTO_TEST_SUITE( GraphGpuSuite )
 
 BOOST_AUTO_TEST_CASE( canCreateGraph )
 {
-    using block_type    = haplo::Block<265, 4, 4>;
+    using block_type    = haplo::Block<4534, 4, 4>;
     using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
     using graph_type    = haplo::Graph<subblock_type, haplo::devices::gpu>;
    
-    block_type block(test_input);
+    block_type block(test_input1);
     
     std::cout << "NUM_SUB_BLOCKS " <<  block.num_subblocks() << "\n";
 

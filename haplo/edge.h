@@ -19,7 +19,7 @@ struct ALIGN(16) Edge {
     /// @brief      Constructor to set the variables
     // ------------------------------------------------------------------------------------------------------
     CUDA_HD
-    Edge() noexcept : distance{0.0f}, f1{0}, f2{0} {}
+    Edge() noexcept : distance{-1.0f}, f1{0}, f2{0} {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Assignment operator
