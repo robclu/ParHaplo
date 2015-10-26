@@ -47,8 +47,6 @@ private:
     // ------------------------------------------ DEVICE ----------------------------------------------------
     data_type                   _data_gpu; 
     graph_type                  _graph;
-    size_t*                     _elems_set_one;
-    size_t*                     _elems_set_two;
 public:    
     //-------------------------------------------------------------------------------------------------------
     /// @brief   Constructor 
@@ -70,8 +68,8 @@ public:
         cudaFree(_graph.set_two       );
         cudaFree(_graph.set_one       );
         cudaFree(_graph.set_two       );
-        cudaFree(_elems_set_one       );
-        cudaFree(_elems_set_one       );
+        cudaFree(_graph.haplo_one     );
+        cudaFree(_graph.haplo_two     );
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -121,13 +119,16 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
     // Allocate space for the partitions
     CudaSafeCall( cudaMalloc((void**)&_graph.set_one, sizeof(size_t) * _reads) );
     CudaSafeCall( cudaMalloc((void**)&_graph.set_two, sizeof(size_t) * _reads) );
+    CudaSafeCall( cudaMemset(_graph.set_one, INT_MAX, sizeof(size_t) * _reads) );
+    CudaSafeCall( cudaMemset(_graph.set_two, INT_MAX, sizeof(size_t) * _reads) );
+    
+    // Allocate space for the haplotypes
+    CudaSafeCall( cudaMalloc((void**)&_graph.haplo_one, sizeof(size_t) * _snps) );
+    CudaSafeCall( cudaMalloc((void**)&_graph.haplo_two, sizeof(size_t) * _snps) );
     
     // Allocate space for each of the values which contribute to the switch error rate (MEC score)
     CudaSafeCall( cudaMalloc((void**)&_graph.set_one_counts, sizeof(size_t) * _snps * 2) );
     CudaSafeCall( cudaMalloc((void**)&_graph.set_two_counts, sizeof(size_t) * _snps * 2) );
-    
-    CudaSafeCall( cudaMalloc((void**)&_elems_set_one, sizeof(size_t)) );
-    CudaSafeCall( cudaMalloc((void**)&_elems_set_two, sizeof(size_t)) );
  
     // Check that there is enough space for the edges
     size_t free_memory, total_memory;
@@ -167,8 +168,7 @@ void Graph<SubBlockType, devices::gpu>::search()
     sort_edges(grid_size, block_size);
     
     // Create partitions
-    map_to_partitions<<<grid_size, block_size, sizeof(uint8_t) * _data_gpu.reads * 2 >>>(_data_gpu, _graph, 
-                                                                                        _elems_set_one, _elems_set_two);
+    map_to_partitions<<<grid_size, block_size, sizeof(uint8_t) * _data_gpu.reads * 2 >>>(_data_gpu, _graph);
     CudaCheckError();
     cudaDeviceSynchronize();
     
@@ -182,12 +182,19 @@ void Graph<SubBlockType, devices::gpu>::search()
     
     // Determine the starting score for the haplotype
     determine_base_switch_error<1><<<grid_size, block_size, sizeof(size_t) * _reads * 2, streams[0]>>>(
-                                                                    _data_gpu, _graph, _elems_set_one, _elems_set_two);
+                                                                                        _data_gpu, _graph);
     CudaCheckError();
     determine_base_switch_error<2><<<grid_size, block_size, sizeof(size_t) * _reads * 2, streams[1]>>>(
-                                                                    _data_gpu, _graph, _elems_set_one, _elems_set_two); 
+                                                                                        _data_gpu, _graph); 
     CudaCheckError();
     cudaDeviceSynchronize();
+   
+    // Partition the unpartitioned reads
+    grid_size = dim3(_reads, _snps / BLOCK_SIZE + 1, 1);
+    block_size = dim3(1, _snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1);
+    
+    add_unpartitioned<<<grid_size, block_size, sizeof(size_t) * 2 * _snps>>>(_data_gpu, _graph);
+    CudaCheckError();
     
     // Print the haplotypes 
     print_haplotypes<<<1, 1>>>(_data_gpu, _graph);

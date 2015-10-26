@@ -187,67 +187,15 @@ void search_graph(data_type data, graph_type graph, size_t threads)
     reduce_distances(data, graph, threads);
 }
 
-// For now we assume the number of partitions is less than 6000
-// Add dynamic parallelism
+// We store a fragment as partitioned by setting the element at it's index, to its index
 template <uint8_t Set> __device__ 
-uint8_t in_set(graph_type&  graph        , const uint32_t fragment, const size_t block_idx_start, 
-               const size_t block_idx_end, uint8_t*      shared_set)
+inline uint8_t in_set(graph_type&  graph, const size_t fragment)
 { 
-    // Need to extend this to use multiple blocks 
-    const size_t frag_idx           = threadIdx.y;
-    size_t       reduction_threads  = Set == 1 ? graph.set_one_size : graph.set_two_size;
-
-    if (blockIdx.x == 0 && threadIdx.y == 0) {
-        for (size_t i = 0; i < reduction_threads; ++i) {
-            if (Set == 1 ? graph.set_one[i] == fragment : graph.set_two[i] == fragment) {
-                return true;
-            }
-        }
-        return false;
-    }
-/*
-    if (blockIdx.x >= block_idx_start && blockIdx.x < block_idx_end && frag_idx < reduction_threads) {    
-        shared_set[frag_idx] = Set == 1 ? graph.set_one[frag_idx] == fragment 
-                                        : graph.set_two[frag_idx] == fragment;
-        __syncthreads();
-        
-        // Perform the reduction  
-        while (reduction_threads > 1) {
-            if (frag_idx < (reduction_threads / 2)) {
-                // If the thread is part of the first half of the threads
-                shared_set[frag_idx] += shared_set[frag_idx + (reduction_threads / 2)];
-            } 
-            if (reduction_threads % 2 == 1) {
-                if (frag_idx == reduction_threads / 2) {
-                    // If there are an odd number of elements then move the last element
-                    shared_set[frag_idx] = shared_set[frag_idx + (reduction_threads / 2)];
-                }
-                reduction_threads /= 2; reduction_threads += 1;
-            } else reduction_threads /= 2;               
-            __syncthreads();
-        }
-    }
-    if (threadIdx.y == 0 && blockIdx.x == 0) result = shared_set[0];
-    if (frag_idx < Set == 1 ? graph.set_one_size : graph.set_two_size) shared_set[frag_idx] = 0;
-    __syncthreads();
-    
-    return result;
-*/
+    return Set == 1 
+                ? graph.set_one[fragment] == fragment 
+                : graph.set_two[fragment] == fragment;
 }
 
-template <uint8_t Set> __device__
-uint8_t in_set_linear(const graph_type& graph, const size_t fragment, const size_t* elems_set_one,
-                     const size_t* elems_set_two)
-{
-    size_t elements = Set == 1 ? *elems_set_one : *elems_set_two;
-    
-    for (size_t i = 0; i < elements; ++i) {
-        if (Set == 1 ? graph.set_one[i] == fragment : graph.set_two[i] == fragment) {
-            return true;
-        }
-    }
-    return false;
-}
 
 __device__
 void partition_next_largest_fragment(graph_type& graph, size_t& last_set_edge, const size_t last_valid_edge,
@@ -258,29 +206,29 @@ void partition_next_largest_fragment(graph_type& graph, size_t& last_set_edge, c
    
     if (blockIdx.x == 0 && threadIdx.y == 0) { 
         while (last_set_edge < last_valid_edge - 1 && !found) {
-            uint8_t f1_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f1, 0, 1, shared_set); 
-            uint8_t f1_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f1, 0, 1, shared_set); 
-            uint8_t f2_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f2, 0, 1, shared_set); 
-            uint8_t f2_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f2, 0, 1, shared_set);  
+            uint8_t f1_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f1); 
+            uint8_t f1_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f1); 
+            uint8_t f2_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f2); 
+            uint8_t f2_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f2);  
             
             if (f1_in_set_1 && !f2_in_set_2 && !f2_in_set_1) {
                 // f1 in set one, add f2 to set two
-                graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f2;
-                ++(graph.set_two_size);
+                graph.set_two[graph.edges[last_set_edge].f2] = graph.edges[last_set_edge].f2;
+                ++graph.set_two_size;
                 found = true;
             } else if (f2_in_set_1 && !f1_in_set_2 && !f1_in_set_1) {
                 // f2 in set one, add f1 to set two
-                graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f1;
-                ++(graph.set_two_size);
+                graph.set_two[graph.edges[last_set_edge].f1] = graph.edges[last_set_edge].f1;
+                ++graph.set_two_size;
                 found = true;
             } else if (f1_in_set_2 && !f2_in_set_1 && !f2_in_set_2) {
                 // f1 in set 2, add f2 so set one
-                graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f2;
-                ++(graph.set_one_size);
+                graph.set_one[graph.edges[last_set_edge].f2] = graph.edges[last_set_edge].f2;
+                ++graph.set_one_size;
                 found = true;
             } else if (f2_in_set_2 && !f1_in_set_1 && !f1_in_set_2) {
                 // f2 in set 2, add f1 to set one
-                graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f1;
+                graph.set_one[graph.edges[last_set_edge].f1] = graph.edges[last_set_edge].f1;
                 ++(graph.set_one_size);
                 found = true;
             } else ++last_set_edge;
@@ -302,29 +250,30 @@ void partition_next_smallest_fragment(graph_type& graph, size_t& last_set_edge, 
     
     if (blockIdx.x == 0 && threadIdx.y == 0) { 
         while (last_set_edge >= 1 && !found) {
-            uint8_t f1_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f1, 0, 1, shared_set); 
-            uint8_t f1_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f1, 0, 1, shared_set); 
-            uint8_t f2_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f2, 0, 1, shared_set); 
-            uint8_t f2_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f2, 0, 1, shared_set); 
+            // This is all constant-time lookup
+            uint8_t f1_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f1); 
+            uint8_t f1_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f1); 
+            uint8_t f2_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f2); 
+            uint8_t f2_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f2); 
             
             if (f1_in_set_1 && !f2_in_set_1 && !f2_in_set_2) {
                 // f1 in set one, add f2 to set one
-                graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f2;
-                ++(graph.set_one_size);
+                graph.set_one[graph.edges[last_set_edge].f2] = graph.edges[last_set_edge].f2;
+                ++graph.set_one_size;
                 found = true;
             } else if (f2_in_set_1 && !f1_in_set_1 && !f1_in_set_2) {
                 // f2 in set one, add f1 to set one
-                graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f1;
+                graph.set_one[graph.edges[last_set_edge].f1] = graph.edges[last_set_edge].f1;
                 ++(graph.set_one_size);
                 found = true;
             } else if (f1_in_set_2 && !f2_in_set_2 && !f2_in_set_1) {
                 // f1 in set 2, add f2 so set two
-                graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f2;
+                graph.set_two[graph.edges[last_set_edge].f2] = graph.edges[last_set_edge].f2;
                 ++(graph.set_two_size);
                 found = true;
             } else if (f2_in_set_2 && !f1_in_set_2 && !f1_in_set_1) {
                 // f2 in set 2, add f1 to set one
-                graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f1;
+                graph.set_two[graph.edges[last_set_edge].f1] = graph.edges[last_set_edge].f1;
                 ++(graph.set_two_size);
                 found = true;
             } else --last_set_edge;
@@ -339,30 +288,32 @@ void partition_next_smallest_fragment(graph_type& graph, size_t& last_set_edge, 
 }
 
 __device__ 
-void print_sets(graph_type& graph, const size_t* elems_set_one, const size_t* elems_set_two)
+void print_sets(graph_type& graph, const size_t elements)
 {
     if (threadIdx.y == 0 && blockIdx.x == 8) {
-        for (size_t i = 0; i < *elems_set_one; ++i) 
-            printf("%i ", graph.set_one[i]);
+        for (size_t i = 0; i < elements; ++i) 
+            if (graph.set_one[i] == i) 
+                printf("%i ", graph.set_one[i]);
         printf("\n");
-        for (size_t i = 0; i < *elems_set_two; ++i) 
-            printf("%i ", graph.set_two[i]);
+        for (size_t i = 0; i < elements; ++i) 
+            if (graph.set_two[i] == i)
+                printf("%i ", graph.set_two[i]);
         printf("\n"); 
     }
 }
 
 template <uint8_t Set> __global__
-void determine_base_switch_error(data_type data, graph_type graph, const size_t* elements_set_one, const size_t* elements_set_two)
+void determine_base_switch_error(data_type data, graph_type graph)
 {   
     const size_t snp_idx  = blockIdx.x / Set;   // Second half of the block are for set 2
     const size_t read_idx = threadIdx.y;
     
     extern __shared__ size_t counts[];  // Number of 1's and zeros in the alignments
     
-    print_sets(graph, elements_set_one, elements_set_two);
+    print_sets(graph, data.reads);
     
     if (snp_idx < data.snps) {
-        if (read_idx < data.reads && in_set_linear<Set>(graph, read_idx, elements_set_one, elements_set_two)) {
+        if (read_idx < data.reads && in_set<Set>(graph, read_idx)) {
             auto read_info = data.read_info[read_idx];
             if (read_info.start_index() <= snp_idx &&
                 read_info.end_index()   >= snp_idx) {
@@ -402,14 +353,73 @@ void determine_base_switch_error(data_type data, graph_type graph, const size_t*
         if (Set == 1) {
             graph.set_one_counts[snp_idx] = counts[0];
             graph.set_one_counts[snp_idx + data.snps] = counts[data.reads];
+            graph.haplo_one[snp_idx] = counts[0] >= counts[data.reads] 
+                                     ? 0 : 1;
         } else if (Set == 2) {
             graph.set_two_counts[snp_idx] = counts[0];
             graph.set_two_counts[snp_idx + data.snps] = counts[data.reads];
+            graph.haplo_two[snp_idx] = counts[0] >= counts[data.reads] 
+                                     ? 0 : 1;
         }
     }
     __syncthreads();
 }
 
+__global__
+void add_unpartitioned(data_type data, graph_type graph)
+{
+    // Each block partitions one unpartitioned read 
+    extern __shared__ uint8_t scores[];
+    
+    const size_t read_idx = blockIdx.x;
+    const size_t snp_idx  = threadIdx.y;
+    
+    if (!in_set<1>(graph, read_idx) && !in_set<2>(graph, read_idx) && read_idx < data.reads) {
+       if (snp_idx < data.snps) {
+           auto read_info = data.read_info[read_idx];
+           if (read_info.start_index() <= snp_idx && read_info.end_index() >= snp_idx) {
+               // Check to see if the value against set 1 conflicts 
+               uint8_t value = data.data[read_info.offset() + snp_idx - read_info.start_index()];
+               if (value == graph.haplo_one[snp_idx]) 
+                   scores[snp_idx] = 0;
+               else scores[snp_idx] = 1;
+               if (value == graph.haplo_two[snp_idx])
+                   scores[snp_idx + data.snps] = 0;
+               else scores[snp_idx + data.snps] = 1;
+           }
+       } else {
+           scores[snp_idx] = 0; 
+           scores[snp_idx + data.snps] = 0;
+       }
+        __syncthreads(); 
+        
+        // And now we reduce the snps to find the total contribution of the read to the sets
+        size_t reduction_threads = data.snps;
+        while (reduction_threads > 1) {
+            if (snp_idx < reduction_threads / 2) {
+                scores[snp_idx]             += scores[snp_idx + reduction_threads / 2];
+                scores[snp_idx + data.snps] += scores[snp_idx + data.snps + reduction_threads / 2];
+            }
+            // If therea are an odd number of elements to reduce, move the last one
+            if (reduction_threads % 2 == 1) {
+                if (snp_idx == reduction_threads) {
+                    scores[snp_idx]             = scores[snp_idx + reduction_threads / 2];
+                    scores[snp_idx + data.snps] = scores[snp_idx + data.snps + reduction_threads / 2];
+                }
+                reduction_threads /= 2; reduction_threads += 1;
+            } else reduction_threads /= 2;
+            __syncthreads();
+        }
+        // Add the result to the set in the graph
+        if (threadIdx.y == 0 ) {
+            scores[0] <= scores[data.snps]
+                ? graph.set_one[read_idx] = read_idx
+                : graph.set_two[read_idx] = read_idx;
+        }
+    }
+    __syncthreads();
+}
+    
 __global__
 void print_haplotypes(data_type data, graph_type graph)
 {
@@ -429,7 +439,7 @@ void print_haplotypes(data_type data, graph_type graph)
 }
 
 __global__ 
-void map_to_partitions(data_type data, graph_type graph, size_t* elements_set_one, size_t* elements_set_two)
+void map_to_partitions(data_type data, graph_type graph)
 {
     const size_t last_valid_edge        = find_last_valid_edge(graph);
     size_t       last_set_edge_forward  = 1;
@@ -439,8 +449,8 @@ void map_to_partitions(data_type data, graph_type graph, size_t* elements_set_on
     extern __shared__ uint8_t sets[];
     
     // Add the first elements in the partitions
-    graph.set_one[0] = graph.edges[0].f1 + 1; graph.set_one_size = 1;
-    graph.set_two[0] = graph.edges[0].f2 + 1; graph.set_two_size = 1;
+    graph.set_one[graph.edges[0].f1] = graph.edges[0].f1; graph.set_one_size = 1;
+    graph.set_two[graph.edges[0].f2] = graph.edges[0].f2; graph.set_two_size = 1;
     
     // Partition the remaining fragments
     while (keep_partitioning) {
@@ -457,11 +467,7 @@ void map_to_partitions(data_type data, graph_type graph, size_t* elements_set_on
                 keep_partitioning = false;
         }
     }  
-   
-    if (threadIdx.y == 0 && blockIdx.x == 0) {
-        *elements_set_one = graph.set_one_size;
-        *elements_set_two = graph.set_two_size;
-    }
+    print_sets(graph, data.reads);
 }
 
 }               // End namespace haplo
