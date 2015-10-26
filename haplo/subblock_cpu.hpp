@@ -246,7 +246,7 @@ SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock&
   _elements(0)                                                          ,
   _base_start_row(0)                                                    ,
   _data(0)                                                              ,
-  _tree(*this, block.subblock(index + 1) - block.subblock(index) + 1)   ,
+  _tree(*this, 0)                                                       ,
   _read_info(0)                                                 
 {
     std::ostringstream error_message;

@@ -21,7 +21,7 @@ UNINSTALL_DIR   := $(addsuffix /nano, $(INSTALL_DIR))
 #	NXX     : The compiler for the nvidia cuda gpu implementation                      #
 ########################################################################################
 
-CXX 			:= g++
+CXX 			:= g++-4.8
 NXX             := nvcc -ccbin $(CXX)
 
 ########################################################################################
@@ -49,7 +49,7 @@ NXX_LDIR        := -L/usr\local/cuda-7.0/lib64
 ########################################################################################
 
 CXX_FLAGS 		:= -std=c++11 -Wall 
-NXX_FLAGS       := -arch=sm_35 --std=c++11 -O3
+NXX_FLAGS       := -arch=sm_30 --std=c++11 -G -g
 PXX_FLAGS       :=
 
 ALL_TESTS       =   small_container_tests.o             \
@@ -58,6 +58,7 @@ ALL_TESTS       =   small_container_tests.o             \
 					data_converter.o                    \
 					data_converter_tests.o              \
 					evaluator_test.o                    \
+					graph_tests.o                       \
 					block_tests.o                       \
 					sorter_tests.o                      \
 					node_selector_tests.o               \
@@ -209,6 +210,9 @@ build_tests: $(ALL_TESTS)
 cuda_container_tests.o: cuda_container_tests.cu
 	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
 
+cuda_graph_tests.o: cuda_graph_tests.cu
+	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -dc $<
+	
 cuda_link_tests.o: cuda_link_tests.cu
 	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
 
@@ -225,6 +229,10 @@ cuda_container_tests: NXX_FLAGS += -DSTAND_ALONE
 cuda_container_tests: cuda_container_tests.o 
 	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
 
+cuda_graph_tests: NXX_FLAGS += -DSTAND_ALONE
+cuda_graph_tests: cuda_graph_tests.o 
+	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
+	
 cuda_link_tests: NXX_FLAGS += -DSTAND_ALONE
 cuda_link_tests: cuda_link_tests.o 
 	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	

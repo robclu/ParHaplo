@@ -69,8 +69,8 @@ public:
     /// @param[in]  sub_block   The sub block for which this tree solves teh haplotype
     /// @param[in]  nodes       The number of nodes in the tree
     // ------------------------------------------------------------------------------------------------------
-    Tree(sub_block_type& sub_block, const size_t nodes) noexcept 
-    : _sub_block(sub_block), _start_node(0), _start_node_worst_case(0), _nodes(nodes) {}
+    Tree(sub_block_type& sub_block, const size_t nodes) noexcept    // Change nodes 
+    : _sub_block(sub_block), _start_node(0), _start_node_worst_case(0), _nodes(0) {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Desctructor
