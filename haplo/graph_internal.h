@@ -15,8 +15,10 @@ public:
     Edge*           edges;                  // The edges for the graph
     size_t*         set_one;                // The first partition
     size_t*         set_two;                // The second partition
-    size_t          set_one_size;            // Number of fragments in p1
-    size_t          set_two_size;            // Number of fragments in p2 
+    size_t*         set_one_counts;         // Number of 0's and 1s for set 1
+    size_t*         set_two_counts;         // number of 0's and 1's for set 2 
+    size_t          set_one_size;           // Number of fragments in p1
+    size_t          set_two_size;           // Number of fragments in p2 
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Initializes the class variables 

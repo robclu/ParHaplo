@@ -13,7 +13,7 @@ using graph_type = internal::Graph;
 using data_type  = Data;
 
 extern __shared__ size_t distance[];
-extern __shared__ uint8_t shared_sets[];
+extern __shared__ size_t counts[];
 
 __device__
 void map_distances(data_type& data, graph_type& graph, const size_t threads)
@@ -235,7 +235,18 @@ uint8_t in_set(graph_type&  graph        , const uint32_t fragment, const size_t
 */
 }
 
+template <uint8_t Set> __device__
+uint8_t in_set_linear(graph_type& graph, const size_t fragment)
+{
+    size_t elements = Set == 1 ? graph.set_one_size : graph.set_two_size;
 
+    for (size_t i = 0; i < elements; ++i) {
+        if (Set == 1 ? graph.set_one[i] == fragment : graph.set_two[i] == fragment) {
+            return true;
+        }
+    }
+    return false;
+}
 
 __device__
 void partition_next_largest_fragment(graph_type& graph, size_t& last_set_edge, const size_t last_valid_edge,
@@ -339,6 +350,82 @@ void print_sets(graph_type& graph)
     }
 }
 
+
+template <uint8_t Set> __global__
+void determine_base_switch_error(data_type data, graph_type graph)
+{   
+    const size_t snp_idx  = blockIdx.x / Set;   // Second half of the block are for set 2
+    const size_t read_idx = threadIdx.y;
+    
+    extern __shared__ size_t counts[];  // Number of 1's and zeros in the alignments
+
+    if (snp_idx < data.snps) {
+        if (read_idx < data.reads && in_set_linear<Set>(graph, read_idx)) {
+            auto read_info = data.read_info[read_idx];
+            if (read_info.start_index() <= snp_idx &&
+                read_info.end_index()   >= snp_idx) {
+                // Load the value into shared memory
+                if (data.data[read_info.offset() + snp_idx - read_info.start_index()] == 0) 
+                    counts[read_idx] = 1;
+                else if (data.data[read_info.offset() + snp_idx - read_info.start_index()] == 1)
+                    counts[read_idx + data.reads] = 1;
+                else {
+                    counts[read_idx] = 0; counts[read_idx + data.snps] = 0;
+                }
+            }
+        }
+    }
+    __syncthreads();
+    
+    // Now reduce the arrays
+    size_t reduction_threads = data.reads;
+    while (reduction_threads > 1) {
+        if (read_idx < reduction_threads / 2) {
+            counts[read_idx]              += counts[read_idx + reduction_threads / 2];
+            counts[read_idx + data.reads] += counts[read_idx + data.reads + reduction_threads / 2];
+        }
+        // If there are an odd number of elements in the array
+        if (reduction_threads % 2 == 1) {
+            if (read_idx == reduction_threads / 2) {
+                counts[read_idx]                = counts[read_idx + reduction_threads / 2];
+                counts[read_idx + data.reads]   = counts[read_idx + data.reads + reduction_threads / 2];            
+            }
+            reduction_threads /= 2; reduction_threads += 1;
+        } else reduction_threads /= 2;
+        __syncthreads();
+    }
+    
+    // The first thread then moves the values into the arary for the graph
+    if (threadIdx.y == 0) {
+        if (Set == 1) {
+            graph.set_one_counts[snp_idx] = counts[0];
+            graph.set_one_counts[snp_idx + data.snps] = counts[data.snps];
+        } else if (Set == 2) {
+            graph.set_two_counts[snp_idx] = counts[0];
+            graph.set_two_counts[snp_idx + data.snps] = counts[data.snps];
+        }
+    }
+    __syncthreads();
+}
+
+__global__
+void print_haplotypes(data_type data, graph_type graph)
+{
+    // Haplotype from set 1
+    for (size_t i = 0; i < data.snps; ++i) {
+        if (graph.set_one_counts[i] >= graph.set_one_counts[i + data.snps]) 
+            printf("0");
+        else 
+            printf("1");
+    } printf("\n");
+    for (size_t i = 0; i < data.snps; ++i) {
+        if (graph.set_two_counts[i] >= graph.set_two_counts[i + data.snps]) 
+            printf("0");
+        else 
+            printf("1");
+    } printf("\n"); 
+}
+
 __global__ 
 void map_to_partitions(data_type data, graph_type graph)
 {
@@ -348,11 +435,6 @@ void map_to_partitions(data_type data, graph_type graph)
     bool         keep_partitioning      = true;
    
     extern __shared__ uint8_t sets[];
-    
-#ifdef DEBUG
-    if (threadIdx.y == 0 && blockIdx.x == 0)
-        printf("LVE : %i\n", last_valid_edge);
-#endif
     
     // Add the first elements in the partitions
     graph.set_one[0] = graph.edges[0].f1 + 1; graph.set_one_size = 1;
@@ -367,15 +449,16 @@ void map_to_partitions(data_type data, graph_type graph)
             partition_next_largest_fragment(graph, last_set_edge_forward, last_valid_edge, &sets[0]);
             partition_next_smallest_fragment(graph, last_set_edge_backward, &sets[0]);   
             
-            if (last_set_edge_forward == last_valid_edge || last_set_edge_backward == 1                           ||
-                (last_set_edge_forward == last_edge_fwd_before && last_set_edge_backward == last_edge_back_before) ||
-                (graph.set_one_size + graph.set_two_size == data.reads)                                           ) {
-                keep_partitioning = false;
+            if (last_set_edge_forward == last_valid_edge || last_set_edge_backward == 1     ||
+                (last_set_edge_forward == last_edge_fwd_before                              && 
+                 last_set_edge_backward == last_edge_back_before)                           ||
+                (graph.set_one_size + graph.set_two_size == data.reads)                     ) {
+                    keep_partitioning = false;
             }
         }  
     }
     
-    print_sets(graph);
+//    print_sets(graph);
 }
 
 }               // End namespace haplo

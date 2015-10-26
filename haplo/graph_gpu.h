@@ -60,12 +60,14 @@ public:
     CUDA_H
     ~Graph() 
     {
-        cudaFree(_data_gpu.data     );
-        cudaFree(_data_gpu.read_info);
-        cudaFree(_data_gpu.snp_info );
-        cudaFree(_graph.edges       );
-        cudaFree(_graph.set_one     );
-        cudaFree(_graph.set_two     );
+        cudaFree(_data_gpu.data       );
+        cudaFree(_data_gpu.read_info  );
+        cudaFree(_data_gpu.snp_info   );
+        cudaFree(_graph.edges         );
+        cudaFree(_graph.set_one       );
+        cudaFree(_graph.set_two       );
+        cudaFree(_graph.set_one_counts);
+        cudaFree(_graph.set_two_counts);
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -115,6 +117,10 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
     // Allocate space for the partitions
     CudaSafeCall( cudaMalloc((void**)&_graph.set_one, sizeof(size_t) * _reads) );
     CudaSafeCall( cudaMalloc((void**)&_graph.set_two, sizeof(size_t) * _reads) );
+    
+    // Allocate space for each of the values which contribute to the switch error rate (MEC score)
+    CudaSafeCall( cudaMalloc((void**)&_graph.set_one_counts, sizeof(size_t) * _snps * 2) );
+    CudaSafeCall( cudaMalloc((void**)&_graph.set_two_counts, sizeof(size_t) * _snps * 2) );
  
     // Check that there is enough space for the edges
     size_t free_memory, total_memory;
@@ -155,6 +161,28 @@ void Graph<SubBlockType, devices::gpu>::search()
     
     // Create partitions
     map_to_partitions<<<grid_size, block_size, sizeof(uint8_t) * _data_gpu.reads * 2 >>>(_data_gpu, _graph);
+    CudaCheckError();
+    
+    // Create streams 
+    cudaStream_t streams[2];
+    cudaStreamCreate(&streams[0]); cudaStreamCreate(&streams[1]);
+    
+    // Resize the grid 
+    grid_size = dim3(_snps, _reads / BLOCK_SIZE + 1, 1);
+    block_size = dim3(1, _reads > BLOCK_SIZE ? BLOCK_SIZE : _reads, 1);
+    
+    // Determine the starting score for the haplotype
+    determine_base_switch_error<1><<<grid_size, block_size, sizeof(size_t) * _snps * 2, streams[0]>>>(
+                                                                                            _data_gpu, _graph);
+    CudaCheckError();
+    determine_base_switch_error<2><<<grid_size, block_size, sizeof(size_t) * _snps * 2, streams[1]>>>(
+                                                                                            _data_gpu, _graph); 
+    CudaCheckError();
+    cudaDeviceSynchronize();
+    
+    // Print the haplotypes 
+    print_haplotypes<<<1, 1>>>(_data_gpu, _graph);
+    CudaCheckError();
 }
 
 template <typename SubBlockType>
