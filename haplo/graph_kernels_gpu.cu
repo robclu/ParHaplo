@@ -236,10 +236,11 @@ uint8_t in_set(graph_type&  graph        , const uint32_t fragment, const size_t
 }
 
 template <uint8_t Set> __device__
-uint8_t in_set_linear(graph_type& graph, const size_t fragment)
+uint8_t in_set_linear(const graph_type& graph, const size_t fragment, const size_t* elems_set_one,
+                     const size_t* elems_set_two)
 {
-    size_t elements = Set == 1 ? graph.set_one_size : graph.set_two_size;
-
+    size_t elements = Set == 1 ? *elems_set_one : *elems_set_two;
+    
     for (size_t i = 0; i < elements; ++i) {
         if (Set == 1 ? graph.set_one[i] == fragment : graph.set_two[i] == fragment) {
             return true;
@@ -265,22 +266,22 @@ void partition_next_largest_fragment(graph_type& graph, size_t& last_set_edge, c
             if (f1_in_set_1 && !f2_in_set_2 && !f2_in_set_1) {
                 // f1 in set one, add f2 to set two
                 graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f2;
-                ++graph.set_two_size;
+                ++(graph.set_two_size);
                 found = true;
             } else if (f2_in_set_1 && !f1_in_set_2 && !f1_in_set_1) {
                 // f2 in set one, add f1 to set two
                 graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f1;
-                ++graph.set_two_size;
+                ++(graph.set_two_size);
                 found = true;
             } else if (f1_in_set_2 && !f2_in_set_1 && !f2_in_set_2) {
                 // f1 in set 2, add f2 so set one
                 graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f2;
-                ++graph.set_one_size;
+                ++(graph.set_one_size);
                 found = true;
             } else if (f2_in_set_2 && !f1_in_set_1 && !f1_in_set_2) {
                 // f2 in set 2, add f1 to set one
                 graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f1;
-                ++graph.set_one_size;
+                ++(graph.set_one_size);
                 found = true;
             } else ++last_set_edge;
         }
@@ -309,22 +310,22 @@ void partition_next_smallest_fragment(graph_type& graph, size_t& last_set_edge, 
             if (f1_in_set_1 && !f2_in_set_1 && !f2_in_set_2) {
                 // f1 in set one, add f2 to set one
                 graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f2;
-                ++graph.set_one_size;
+                ++(graph.set_one_size);
                 found = true;
             } else if (f2_in_set_1 && !f1_in_set_1 && !f1_in_set_2) {
                 // f2 in set one, add f1 to set one
                 graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f1;
-                ++graph.set_one_size;
+                ++(graph.set_one_size);
                 found = true;
             } else if (f1_in_set_2 && !f2_in_set_2 && !f2_in_set_1) {
                 // f1 in set 2, add f2 so set two
                 graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f2;
-                ++graph.set_two_size;
+                ++(graph.set_two_size);
                 found = true;
             } else if (f2_in_set_2 && !f1_in_set_2 && !f1_in_set_1) {
                 // f2 in set 2, add f1 to set one
                 graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f1;
-                ++graph.set_two_size;
+                ++(graph.set_two_size);
                 found = true;
             } else --last_set_edge;
         }
@@ -338,29 +339,30 @@ void partition_next_smallest_fragment(graph_type& graph, size_t& last_set_edge, 
 }
 
 __device__ 
-void print_sets(graph_type& graph)
+void print_sets(graph_type& graph, const size_t* elems_set_one, const size_t* elems_set_two)
 {
-    if (threadIdx.y == 0 && blockIdx.x == 0) {
-        for (size_t i = 0; i < graph.set_one_size; ++i) 
+    if (threadIdx.y == 0 && blockIdx.x == 8) {
+        for (size_t i = 0; i < *elems_set_one; ++i) 
             printf("%i ", graph.set_one[i]);
         printf("\n");
-        for (size_t i = 0; i < graph.set_two_size; ++i) 
+        for (size_t i = 0; i < *elems_set_two; ++i) 
             printf("%i ", graph.set_two[i]);
         printf("\n"); 
     }
 }
 
-
 template <uint8_t Set> __global__
-void determine_base_switch_error(data_type data, graph_type graph)
+void determine_base_switch_error(data_type data, graph_type graph, const size_t* elements_set_one, const size_t* elements_set_two)
 {   
     const size_t snp_idx  = blockIdx.x / Set;   // Second half of the block are for set 2
     const size_t read_idx = threadIdx.y;
     
     extern __shared__ size_t counts[];  // Number of 1's and zeros in the alignments
-
+    
+    print_sets(graph, elements_set_one, elements_set_two);
+    
     if (snp_idx < data.snps) {
-        if (read_idx < data.reads && in_set_linear<Set>(graph, read_idx)) {
+        if (read_idx < data.reads && in_set_linear<Set>(graph, read_idx, elements_set_one, elements_set_two)) {
             auto read_info = data.read_info[read_idx];
             if (read_info.start_index() <= snp_idx &&
                 read_info.end_index()   >= snp_idx) {
@@ -370,7 +372,7 @@ void determine_base_switch_error(data_type data, graph_type graph)
                 else if (data.data[read_info.offset() + snp_idx - read_info.start_index()] == 1)
                     counts[read_idx + data.reads] = 1;
                 else {
-                    counts[read_idx] = 0; counts[read_idx + data.snps] = 0;
+                    counts[read_idx] = 0; counts[read_idx + data.reads] = 0;
                 }
             }
         }
@@ -399,10 +401,10 @@ void determine_base_switch_error(data_type data, graph_type graph)
     if (threadIdx.y == 0) {
         if (Set == 1) {
             graph.set_one_counts[snp_idx] = counts[0];
-            graph.set_one_counts[snp_idx + data.snps] = counts[data.snps];
+            graph.set_one_counts[snp_idx + data.snps] = counts[data.reads];
         } else if (Set == 2) {
             graph.set_two_counts[snp_idx] = counts[0];
-            graph.set_two_counts[snp_idx + data.snps] = counts[data.snps];
+            graph.set_two_counts[snp_idx + data.snps] = counts[data.reads];
         }
     }
     __syncthreads();
@@ -427,7 +429,7 @@ void print_haplotypes(data_type data, graph_type graph)
 }
 
 __global__ 
-void map_to_partitions(data_type data, graph_type graph)
+void map_to_partitions(data_type data, graph_type graph, size_t* elements_set_one, size_t* elements_set_two)
 {
     const size_t last_valid_edge        = find_last_valid_edge(graph);
     size_t       last_set_edge_forward  = 1;
@@ -441,24 +443,25 @@ void map_to_partitions(data_type data, graph_type graph)
     graph.set_two[0] = graph.edges[0].f2 + 1; graph.set_two_size = 1;
     
     // Partition the remaining fragments
-    if (threadIdx.y == 0 && blockIdx.x == 0) {
-        while (keep_partitioning) {
-            size_t last_edge_back_before = last_set_edge_backward;
-            size_t last_edge_fwd_before  = last_set_edge_forward;
+    while (keep_partitioning) {
+        size_t last_edge_back_before = last_set_edge_backward;
+        size_t last_edge_fwd_before  = last_set_edge_forward;
 
-            partition_next_largest_fragment(graph, last_set_edge_forward, last_valid_edge, &sets[0]);
-            partition_next_smallest_fragment(graph, last_set_edge_backward, &sets[0]);   
-            
-            if (last_set_edge_forward == last_valid_edge || last_set_edge_backward == 1     ||
-                (last_set_edge_forward == last_edge_fwd_before                              && 
-                 last_set_edge_backward == last_edge_back_before)                           ||
-                (graph.set_one_size + graph.set_two_size == data.reads)                     ) {
-                    keep_partitioning = false;
-            }
-        }  
+        partition_next_largest_fragment(graph, last_set_edge_forward, last_valid_edge, &sets[0]);
+        partition_next_smallest_fragment(graph, last_set_edge_backward, &sets[0]);   
+        
+        if (last_set_edge_forward == last_valid_edge || last_set_edge_backward == 1     ||
+            (last_set_edge_forward == last_edge_fwd_before                              && 
+             last_set_edge_backward == last_edge_back_before)                           ||
+            (graph.set_one_size + graph.set_two_size == data.reads)                    ) {
+                keep_partitioning = false;
+        }
+    }  
+   
+    if (threadIdx.y == 0 && blockIdx.x == 0) {
+        *elements_set_one = graph.set_one_size;
+        *elements_set_two = graph.set_two_size;
     }
-    
-//    print_sets(graph);
 }
 
 }               // End namespace haplo
