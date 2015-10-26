@@ -71,6 +71,12 @@ public:
     //-------------------------------------------------------------------------------------------------------
     CUDA_H
     void search();
+    
+    //-------------------------------------------------------------------------------------------------------
+    /// @brief      Sorts the edges
+    //-------------------------------------------------------------------------------------------------------
+    CUDA_H
+    void sort_edges(dim3 grid_size, dim3 block_size);
 };
 
 // ------------------------------------------------ IMPLEMENTATIONS -----------------------------------------
@@ -136,6 +142,30 @@ void Graph<SubBlockType, devices::gpu>::search()
     
     // Invoke the search kernel 
     search_graph<<<grid_size, block_size, sizeof(size_t) * 2 * block_size.y>>>(_data_gpu, _graph, block_size.y);    
+    CudaCheckError();
+    
+    sort_edges(grid_size, block_size);
+}
+
+template <typename SubBlockType>
+void Graph<SubBlockType, devices::gpu>::sort_edges(dim3 grid_size, dim3 block_size)
+{
+    const size_t    edges            = grid_size.x;
+    const size_t    passes           = static_cast<size_t>(std::ceil(std::log2(static_cast<double>(edges)))); 
+    size_t          block_size_sort  = 2;
+    
+    // Only need half the threads
+    grid_size.x /= 2;
+    
+    for (size_t pass = 0; pass < 3; ++pass) {
+        bitonic_out_in_sort<<<grid_size, block_size>>>(_graph, block_size_sort, edges); 
+        CudaCheckError();
+        
+        block_size_sort *= 2;
+    }
+    
+    print_edges<<<1, 1>>>(_data_gpu, _graph);
+    CudaCheckError();
 }
 
 }           // End namespace haplo
