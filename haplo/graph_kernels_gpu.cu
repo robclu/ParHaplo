@@ -13,6 +13,7 @@ using graph_type = internal::Graph;
 using data_type  = Data;
 
 extern __shared__ size_t distance[];
+extern __shared__ uint8_t shared_sets[];
 
 __device__
 void map_distances(data_type& data, graph_type& graph, const size_t threads)
@@ -48,35 +49,22 @@ void map_distances(data_type& data, graph_type& graph, const size_t threads)
     // Load the distance into the shared array
     if (first_valid && second_valid) {
         if (first_value != second_value && first_value <= 1 && second_value <= 1) {
-            distance[snp_idx] = 20;
-            distance[snp_idx + threads] = 1;
+            distance[snp_idx] = 10; distance[snp_idx + threads] = 1;
         } else if (first_value != second_value && (first_value <= 1 || second_value <= 1)) {
-            distance[snp_idx] = 10;
-            distance[snp_idx + threads] = 1;
-        } else if (first_value == second_value) {
-            distance[snp_idx] = 5;
-            distance[snp_idx + threads] = 1;
-        }
+            distance[snp_idx] = 5; distance[snp_idx + threads] = 1;
+        } else if (first_value == second_value && first_value <= 1 && second_value <= 1) {
+            distance[snp_idx] = 0; distance[snp_idx + threads] = 1;
+        } else if (first_value == second_value & first_value > 1 && second_value > 1) {
+            distance[snp_idx] = 0; distance[snp_idx + threads] = 0;
+        }   
     } else if (first_valid && !second_valid && first_value <= 1) {
-        distance[snp_idx] = 10;
-        distance[snp_idx + threads] = 1;
+        distance[snp_idx] = 5; distance[snp_idx + threads] = 1;
     } else if (second_valid && !first_valid && second_value <= 1) {
-        distance[snp_idx] = 10;
-        distance[snp_idx + threads] = 1;
+        distance[snp_idx] = 5; distance[snp_idx + threads] = 1;
     } else if (!first_valid && !second_valid) {
-        distance[snp_idx] = 0;
-        distance[snp_idx + threads] = 0;
+        distance[snp_idx] = 0; distance[snp_idx + threads] = 0;
     }
     __syncthreads();    
-    
-    if (threadIdx.y == 0 && blockIdx.x == 2) {
-        printf("R1: %i\n", read_idx_one);
-        printf("R@: %i\n", read_idx_two);
-        printf("R@: %i\n", snp_idx);
-        for (size_t i = 0; i < 2 * threads; ++i) 
-            printf("%i ", distance[i]);
-        printf("\n");
-    } 
 }
 
 __device__
@@ -105,21 +93,15 @@ void reduce_distances(data_type& data, graph_type& graph, const size_t threads)
     // Set the weight of the edge
     if (distance[threads] > 0 && threadIdx.y == 0) {
         graph.edges[blockIdx.x].distance = static_cast<float>(distance[0] / 10.f) /
-                                           static_cast<float>(distance[threads])  ;
+                                           static_cast<float>(distance[threads])  + 0.5f;
     } else if (threadIdx.y == 0 && distance[threads] == 0) {
-        graph.edges[blockIdx.x].distance = 0.0f;
+        graph.edges[blockIdx.x].distance = 1.0f;
     }
     
     // Modify the value so that it's easier to sort 
     if (graph.edges[blockIdx.x].distance == 1.0f && threadIdx.y == 0) {
         graph.edges[blockIdx.x].distance = 0.0f;
     }
-    
-    if (threadIdx.y == 0 && blockIdx.x == 2) {
-        for (size_t i = 0; i < 2 * threads; ++i) 
-            printf("%.2f ", distance[i]);
-        printf("\n%i\n", distance[threads]);
-    } 
 }
  
 __device__
@@ -189,7 +171,8 @@ void print_edges(data_type data, graph_type graph)
         for (size_t i = 0; i < data.reads * (data.reads -1) / 2; ++i) {
             if (graph.edges[i].distance != 0.0f) {
                 printf("%.4f ", graph.edges[i].distance);
-                printf("%i\n", i);
+                printf("%i ", graph.edges[i].f1);
+                printf("%i\n", graph.edges[i].f2);
             }
         }
     } 
@@ -204,14 +187,195 @@ void search_graph(data_type data, graph_type graph, size_t threads)
     reduce_distances(data, graph, threads);
 }
 
-__global__ 
-void map_to_partitions(graph_type graph)
+// For now we assume the number of partitions is less than 6000
+// Add dynamic parallelism
+template <uint8_t Set> __device__ 
+uint8_t in_set(graph_type&  graph        , const uint32_t fragment, const size_t block_idx_start, 
+               const size_t block_idx_end, uint8_t*      shared_set)
+{ 
+    // Need to extend this to use multiple blocks 
+    const size_t frag_idx           = threadIdx.y;
+    size_t       reduction_threads  = Set == 1 ? graph.set_one_size : graph.set_two_size;
+
+    if (blockIdx.x == 0 && threadIdx.y == 0) {
+        for (size_t i = 0; i < reduction_threads; ++i) {
+            if (Set == 1 ? graph.set_one[i] == fragment : graph.set_two[i] == fragment) {
+                return true;
+            }
+        }
+        return false;
+    }
+/*
+    if (blockIdx.x >= block_idx_start && blockIdx.x < block_idx_end && frag_idx < reduction_threads) {    
+        shared_set[frag_idx] = Set == 1 ? graph.set_one[frag_idx] == fragment 
+                                        : graph.set_two[frag_idx] == fragment;
+        __syncthreads();
+        
+        // Perform the reduction  
+        while (reduction_threads > 1) {
+            if (frag_idx < (reduction_threads / 2)) {
+                // If the thread is part of the first half of the threads
+                shared_set[frag_idx] += shared_set[frag_idx + (reduction_threads / 2)];
+            } 
+            if (reduction_threads % 2 == 1) {
+                if (frag_idx == reduction_threads / 2) {
+                    // If there are an odd number of elements then move the last element
+                    shared_set[frag_idx] = shared_set[frag_idx + (reduction_threads / 2)];
+                }
+                reduction_threads /= 2; reduction_threads += 1;
+            } else reduction_threads /= 2;               
+            __syncthreads();
+        }
+    }
+    if (threadIdx.y == 0 && blockIdx.x == 0) result = shared_set[0];
+    if (frag_idx < Set == 1 ? graph.set_one_size : graph.set_two_size) shared_set[frag_idx] = 0;
+    __syncthreads();
+    
+    return result;
+*/
+}
+
+
+
+__device__
+void partition_next_largest_fragment(graph_type& graph, size_t& last_set_edge, const size_t last_valid_edge,
+                                     uint8_t* shared_set)
 {
-    const size_t last_valid_edge = find_last_valid_edge(graph);
+    const size_t initial_edge = last_set_edge;
+    bool   found              = false;
+   
+    if (blockIdx.x == 0 && threadIdx.y == 0) { 
+        while (last_set_edge < last_valid_edge - 1 && !found) {
+            uint8_t f1_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f1, 0, 1, shared_set); 
+            uint8_t f1_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f1, 0, 1, shared_set); 
+            uint8_t f2_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f2, 0, 1, shared_set); 
+            uint8_t f2_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f2, 0, 1, shared_set);  
+            
+            if (f1_in_set_1 && !f2_in_set_2 && !f2_in_set_1) {
+                // f1 in set one, add f2 to set two
+                graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f2;
+                ++graph.set_two_size;
+                found = true;
+            } else if (f2_in_set_1 && !f1_in_set_2 && !f1_in_set_1) {
+                // f2 in set one, add f1 to set two
+                graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f1;
+                ++graph.set_two_size;
+                found = true;
+            } else if (f1_in_set_2 && !f2_in_set_1 && !f2_in_set_2) {
+                // f1 in set 2, add f2 so set one
+                graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f2;
+                ++graph.set_one_size;
+                found = true;
+            } else if (f2_in_set_2 && !f1_in_set_1 && !f1_in_set_2) {
+                // f2 in set 2, add f1 to set one
+                graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f1;
+                ++graph.set_one_size;
+                found = true;
+            } else ++last_set_edge;
+        }
+        if (found) {
+            Edge temp                   = graph.edges[initial_edge];
+            graph.edges[initial_edge]   = graph.edges[last_set_edge];
+            graph.edges[last_set_edge]  = temp;
+            last_set_edge               = initial_edge + 1;
+        } else last_set_edge = initial_edge;
+    }
+}
+
+__device__
+void partition_next_smallest_fragment(graph_type& graph, size_t& last_set_edge, uint8_t* shared_set)
+{
+    const size_t initial_edge = last_set_edge;
+    bool   found = false;
+    
+    if (blockIdx.x == 0 && threadIdx.y == 0) { 
+        while (last_set_edge >= 1 && !found) {
+            uint8_t f1_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f1, 0, 1, shared_set); 
+            uint8_t f1_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f1, 0, 1, shared_set); 
+            uint8_t f2_in_set_1 = in_set<1>(graph, graph.edges[last_set_edge].f2, 0, 1, shared_set); 
+            uint8_t f2_in_set_2 = in_set<2>(graph, graph.edges[last_set_edge].f2, 0, 1, shared_set); 
+            
+            if (f1_in_set_1 && !f2_in_set_1 && !f2_in_set_2) {
+                // f1 in set one, add f2 to set one
+                graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f2;
+                ++graph.set_one_size;
+                found = true;
+            } else if (f2_in_set_1 && !f1_in_set_1 && !f1_in_set_2) {
+                // f2 in set one, add f1 to set one
+                graph.set_one[graph.set_one_size] = graph.edges[last_set_edge].f1;
+                ++graph.set_one_size;
+                found = true;
+            } else if (f1_in_set_2 && !f2_in_set_2 && !f2_in_set_1) {
+                // f1 in set 2, add f2 so set two
+                graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f2;
+                ++graph.set_two_size;
+                found = true;
+            } else if (f2_in_set_2 && !f1_in_set_2 && !f1_in_set_1) {
+                // f2 in set 2, add f1 to set one
+                graph.set_two[graph.set_two_size] = graph.edges[last_set_edge].f1;
+                ++graph.set_two_size;
+                found = true;
+            } else --last_set_edge;
+        }
+        if (found) {
+            Edge temp                   = graph.edges[initial_edge];
+            graph.edges[initial_edge]   = graph.edges[last_set_edge];
+            graph.edges[last_set_edge]  = temp;
+            last_set_edge               = initial_edge - 1; 
+        } else last_set_edge = initial_edge;
+    }
+}
+
+__device__ 
+void print_sets(graph_type& graph)
+{
+    if (threadIdx.y == 0 && blockIdx.x == 0) {
+        for (size_t i = 0; i < graph.set_one_size; ++i) 
+            printf("%i ", graph.set_one[i]);
+        printf("\n");
+        for (size_t i = 0; i < graph.set_two_size; ++i) 
+            printf("%i ", graph.set_two[i]);
+        printf("\n"); 
+    }
+}
+
+__global__ 
+void map_to_partitions(data_type data, graph_type graph)
+{
+    const size_t last_valid_edge        = find_last_valid_edge(graph);
+    size_t       last_set_edge_forward  = 1;
+    size_t       last_set_edge_backward = last_valid_edge - 1;
+    bool         keep_partitioning      = true;
+   
+    extern __shared__ uint8_t sets[];
     
 #ifdef DEBUG
-    printf("LVE : %i\n", last_valid_edge);
+    if (threadIdx.y == 0 && blockIdx.x == 0)
+        printf("LVE : %i\n", last_valid_edge);
 #endif
+    
+    // Add the first elements in the partitions
+    graph.set_one[0] = graph.edges[0].f1 + 1; graph.set_one_size = 1;
+    graph.set_two[0] = graph.edges[0].f2 + 1; graph.set_two_size = 1;
+    
+    // Partition the remaining fragments
+    if (threadIdx.y == 0 && blockIdx.x == 0) {
+        while (keep_partitioning) {
+            size_t last_edge_back_before = last_set_edge_backward;
+            size_t last_edge_fwd_before  = last_set_edge_forward;
+
+            partition_next_largest_fragment(graph, last_set_edge_forward, last_valid_edge, &sets[0]);
+            partition_next_smallest_fragment(graph, last_set_edge_backward, &sets[0]);   
+            
+            if (last_set_edge_forward == last_valid_edge || last_set_edge_backward == 1                           ||
+                (last_set_edge_forward == last_edge_fwd_before && last_set_edge_backward == last_edge_back_before) ||
+                (graph.set_one_size + graph.set_two_size == data.reads)                                           ) {
+                keep_partitioning = false;
+            }
+        }  
+    }
+    
+    print_sets(graph);
 }
 
 }               // End namespace haplo

@@ -11,9 +11,9 @@
 namespace haplo {
     
 struct ALIGN(16) Edge {
-    float   distance;       // Distance between the fragments
-    int32_t f1;             // The first fragment index
-    int32_t f2;             // The second fragment index
+    float    distance;       // Distance between the fragments
+    uint32_t f1;             // The first fragment index
+    uint32_t f2;             // The second fragment index
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to set the variables

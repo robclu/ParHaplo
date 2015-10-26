@@ -64,6 +64,8 @@ public:
         cudaFree(_data_gpu.read_info);
         cudaFree(_data_gpu.snp_info );
         cudaFree(_graph.edges       );
+        cudaFree(_graph.set_one     );
+        cudaFree(_graph.set_two     );
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -109,6 +111,10 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
     CudaSafeCall( cudaMalloc((void**)&_data_gpu.snp_info, sizeof(snp_info_type) * _snps)    );
     CudaSafeCall( cudaMemcpy(_data_gpu.snp_info, thrust::raw_pointer_cast(&_snp_info[0])    , 
                     sizeof(snp_info_type) * _snps, cudaMemcpyHostToDevice)                  );
+    
+    // Allocate space for the partitions
+    CudaSafeCall( cudaMalloc((void**)&_graph.set_one, sizeof(size_t) * _reads) );
+    CudaSafeCall( cudaMalloc((void**)&_graph.set_two, sizeof(size_t) * _reads) );
  
     // Check that there is enough space for the edges
     size_t free_memory, total_memory;
@@ -148,7 +154,7 @@ void Graph<SubBlockType, devices::gpu>::search()
     sort_edges(grid_size, block_size);
     
     // Create partitions
-    map_to_partitions<<<grid_size, block_size>>>(_graph);
+    map_to_partitions<<<grid_size, block_size, sizeof(uint8_t) * _data_gpu.reads * 2 >>>(_data_gpu, _graph);
 }
 
 template <typename SubBlockType>
