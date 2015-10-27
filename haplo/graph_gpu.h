@@ -13,6 +13,7 @@
 #include "thrust/sequence.h"
 
 #define EDGE_MEM_PERCENT 0.6f
+#define ITERS            2
 
 namespace haplo {
 
@@ -88,12 +89,18 @@ private:
     //-------------------------------------------------------------------------------------------------------
     CUDA_H
     void sort_edges(dim3 grid_size, dim3 block_size);
+
+    //-------------------------------------------------------------------------------------------------------
+    /// @brief      Sorts the fragments
+    //-------------------------------------------------------------------------------------------------------
+    CUDA_H
+    void sort_fragments(dim3 grid_size, dim3 block_size);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Refines the solution until the best score is reached
     // ------------------------------------------------------------------------------------------------------
     CUDA_H 
-    void refine_solution(const cudaStream_t* streams, const size_t mem_size);
+    size_t refine_solution(const cudaStream_t* streams, const size_t mem_size);
 };
 
 // ------------------------------------------------ IMPLEMENTATIONS -----------------------------------------
@@ -105,6 +112,7 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
   _haplotype(sub_block.snp_info().size())   , _alignments(sub_block.read_info().size()) , 
   _snps(sub_block.snp_info().size())        , _reads(sub_block.read_info().size())      ,
   _device(device)                           , _nih_cols(sub_block.nih_columns())        ,
+  _mec_score(INT_MAX)                       ,                   
   _data_gpu(sub_block.snp_info().size()     , sub_block.read_info().size())             
 {
     cudaError_t error;
@@ -225,7 +233,11 @@ void Graph<SubBlockType, devices::gpu>::search()
     CudaCheckError();
 
     // Refine the solution
-    refine_solution(&streams[0], mem_size);
+    size_t prev_mec_score, terminate = 0;
+    do {
+        prev_mec_score = refine_solution(&streams[0], mem_size);
+        if (prev_mec_score == _mec_score) ++terminate;
+    } while (prev_mec_score >= _mec_score && terminate < ITERS);
     
     // Print the haplotypes 
     print_haplotypes<<<1, 1>>>(_data_gpu, _graph);
@@ -258,16 +270,42 @@ void Graph<SubBlockType, devices::gpu>::sort_edges(dim3 grid_size, dim3 block_si
         out_in_block_size *= 2;
     }
     cudaThreadSynchronize();
-#ifdef DEBUG 
-    print_edges<<<1, 1>>>(_data_gpu, _graph);
-    CudaCheckError();
-#endif
 }
 
 template <typename SubBlockType>
-void Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* streams , 
-                                                        const size_t        mem_size)
+void Graph<SubBlockType, devices::gpu>::sort_fragments(dim3 grid_size, dim3 block_size)
 {
+    const size_t    fragments         = grid_size.x;
+    const size_t    passes            = static_cast<size_t>(std::ceil(std::log2(static_cast<double>(fragments)))); 
+    size_t          out_in_block_size = 2;
+    size_t          out_out_block_size;
+    
+    // Only need half the threads
+    grid_size.x /= 2;
+    
+    for (size_t pass = 0; pass < passes; ++pass) {
+        bitonic_out_in_sort_frag<<<grid_size, block_size>>>(_graph, out_in_block_size, fragments); 
+        CudaCheckError();
+        cudaThreadSynchronize();
+        
+        out_out_block_size = out_in_block_size / 2;
+        for (size_t i = 0; i < pass; ++i) {
+            bitonic_out_out_sort_frag<<<grid_size, block_size>>>(_graph, out_out_block_size, fragments);
+            CudaCheckError();
+            cudaThreadSynchronize();
+            out_out_block_size /= 2;
+        }
+        out_in_block_size *= 2;
+    }
+    cudaThreadSynchronize();
+}
+
+template <typename SubBlockType>
+size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* streams  , 
+                                                          const size_t        mem_size )
+{
+    size_t mec_score_before = _mec_score;
+    
     dim3 grid_size(_reads, _snps / BLOCK_SIZE + 1, 1);
     dim3 block_size(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, _snps / BLOCK_SIZE + 1, 1);
     
@@ -276,6 +314,16 @@ void Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* stre
     CudaCheckError();
     
     determine_switch_error<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph); 
+    CudaCheckError();
+    cudaDeviceSynchronize();
+
+    // Check if flipping NIH column bits will give a better solution
+    grid_size  = dim3(_snps, _reads / BLOCK_SIZE + 1, 1);
+    block_size = dim3(1, _reads > BLOCK_SIZE ? BLOCK_SIZE : _reads, 1);
+    
+    evaluate_nih_columns<1><<<grid_size, block_size, mem_size, streams[0]>>>(_data_gpu, _graph);
+    CudaCheckError();
+    evaluate_nih_columns<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph);
     CudaCheckError();
     cudaDeviceSynchronize();
 
@@ -295,6 +343,12 @@ void Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* stre
     // Copy the MEC score back 
     CudaSafeCall( cudaMemcpy(&_mec_score, _graph.mec_score, sizeof(size_t), cudaMemcpyDeviceToHost) );
     std::cout << "MEC SCORE : " << _mec_score << "\n";
+    
+    sort_fragments(dim3(_reads,1 ,1), dim3(1, 1, 1));
+    CudaCheckError();
+    swap_fragment_set<<<1, 1>>>(_graph);
+    
+    return mec_score_before;
 }
 
 }           // End namespace haplo

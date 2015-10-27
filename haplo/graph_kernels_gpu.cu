@@ -7,6 +7,10 @@
 #define BLOCK_SIZE 1024
 //#undef DEBUG
 
+#ifndef NIH
+    #define NIH 0x01
+#endif
+
 namespace haplo {
 
 using graph_type = internal::Graph;
@@ -145,6 +149,51 @@ void bitonic_out_out_sort(graph_type graph, const size_t block_size, const size_
         // or if the left one has a value of 0.5, since those must be removed
         if (graph.edges[idx_one].distance <= graph.edges[idx_two].distance) {
             swap_edges(graph, idx_one, idx_two);
+        }
+    }    
+}
+
+__device__
+void swap_fragments(graph_type& graph, const size_t frag_idx_one, const size_t frag_idx_two)
+{
+    Fragment temp = graph.fragments[frag_idx_one];
+    graph.fragments[frag_idx_one] = graph.fragments[frag_idx_two];
+    graph.fragments[frag_idx_two] = temp; 
+}
+
+// Out to in operation for bitonic sort
+__global__ 
+void bitonic_out_in_sort_frag(graph_type graph, const size_t block_size, const size_t total_elements)
+{
+    const size_t block_idx  = blockIdx.x / (block_size / 2);
+    const size_t idx_one    = blockIdx.x + (block_idx * (block_size / 2));
+    const size_t idx_two    = idx_one + (block_size - (blockIdx.x % (block_size / 2)) - 1) 
+                            - (idx_one % (block_size / 2));
+    
+    // If the dimensions are in range
+    if (idx_one < total_elements && idx_two < total_elements && threadIdx.y == 0) {
+        // The edges need to be swapped if the right one is larger than the left one
+        // or if the left one has a value of 0.5, since those must be removed
+        if (graph.fragments[idx_one].score < graph.fragments[idx_two].score) {
+            swap_fragments(graph, idx_one, idx_two);
+        } 
+    }
+}
+
+// Out to out operation fr bitonic sort
+__global__
+void bitonic_out_out_sort_frag(graph_type graph, const size_t block_size, const size_t total_elements)
+{
+    const size_t block_idx = blockIdx.x / (block_size / 2);
+    const size_t idx_one   = blockIdx.x + (block_idx * (block_size / 2));
+    const size_t idx_two   = idx_one + (block_size / 2);
+
+    // Check that the node index is in the first half of the block and the comp node is in range
+    if (idx_one < total_elements && idx_two < total_elements && threadIdx.y == 0) {
+        // The edges need to be swapped if the right one is larger than the left one
+        // or if the left one has a value of 0.5, since those must be removed
+        if (graph.fragments[idx_one].score < graph.fragments[idx_two].score) {
+            swap_fragments(graph, idx_one, idx_two);
         }
     }    
 }
@@ -302,6 +351,27 @@ void print_sets(graph_type& graph, const size_t elements)
     }
 }
 
+__global__
+void print_fragments(data_type data, graph_type graph)
+{
+    for (size_t i = 0; i < data.reads; ++i) {
+        printf("%i ", graph.fragments[i].score);
+    } printf("\n");
+}
+
+__global__
+void swap_fragment_set(graph_type graph)
+{
+    Fragment* frag = &graph.fragments[0];
+    if (frag->set == 1) {
+        graph.set_one[frag->index] = 0;
+        graph.set_two[frag->index] = frag->index;
+    } else if (frag->set == 2) {
+        graph.set_two[frag->index] = 0;
+        graph.set_one[frag->index] = frag->index; 
+    } 
+}
+
 template <uint8_t Set> __global__
 void determine_switch_error(data_type data, graph_type graph)
 {   
@@ -309,7 +379,8 @@ void determine_switch_error(data_type data, graph_type graph)
     const size_t read_idx = threadIdx.y;
     
     extern __shared__ size_t counts[];  // Number of 1's and zeros in the alignments
-    
+   
+    // Load data into shred memory 
     if (snp_idx < data.snps) {
         if (read_idx < data.reads && in_set<Set>(graph, read_idx)) {
             auto read_info = data.read_info[read_idx];
@@ -439,8 +510,7 @@ void map_mec_score(data_type data, graph_type graph)
         
         if (in_set<1>(graph, frag_idx)) frag->set = 1;
         else if (in_set<2>(graph, frag_idx)) frag->set = 2;
-        else printf("No in set%i\n", frag_idx);
-    
+        
         auto read_info = data.read_info[frag_idx];
         
         // SNP is valid -- is part of the fragment 
@@ -479,12 +549,8 @@ void map_mec_score(data_type data, graph_type graph)
             // Move the value to the fragment
             if (conflicts[0] < data.snps && conflicts[data.snps] < data.snps) {
                 frag->score = min(static_cast<unsigned int>(conflicts[0])         , 
-                                static_cast<unsigned int>(conflicts[data.snps]) );
-                printf("%i\n", frag->score);
-            } else {
-                // Invalid score 
-                printf("Invalid fragment score%i\n", frag_idx);
-            }
+                                  static_cast<unsigned int>(conflicts[data.snps]) );
+            } else  frag->score = 0;
         }
     }
     // Done, and now we go and sort the fragments
@@ -526,6 +592,73 @@ void reduce_mec_score(data_type data, graph_type graph)
     __syncthreads();
     if (*graph.mec_score == frag_scores[0]) set_haplotypes(graph, data.snps);
     __syncthreads();
+}
+
+// Given the current haplotypes and mec score, we look at each nih column 
+// and check if flipping either of the bits leads to a lower score
+template <uint8_t Set> __global__
+void evaluate_nih_columns(data_type data, graph_type graph)
+{
+    // Shared memory for the snp contributions 
+    extern __shared__ size_t contributions[];
+    
+    // Each block is a snp, each thread is a read element at the snp index
+    const size_t snp_idx  = blockIdx.x;
+    const size_t read_idx = threadIdx.y; 
+    const uint8_t haplo_value = Set == 1 ? graph.haplo_one_temp[snp_idx] : graph.haplo_two_temp[snp_idx];
+    
+    if (snp_idx < data.snps) {
+        // If this snps is NIH and can potentially be flipped
+        if (read_idx < data.reads && data.snp_info[snp_idx].type() == NIH) {
+            auto read_info = data.read_info[read_idx];
+            // Check that the snp is valid for the read
+            if (read_info.start_index() <= snp_idx && read_info.end_index()) {
+                uint8_t value = data.data[read_info.offset() + snp_idx - read_info.start_index()];
+                // Add the current contribution
+                if (haplo_value != value && value <= 1) 
+                    contributions[read_idx] = 1;
+                else contributions[read_idx] = 0;
+                // Add the contribution for a flip
+                if (!haplo_value != value && value <= 1)
+                    contributions[read_idx + data.reads] = 1;
+                else contributions[read_idx + data.reads] = 0;
+            } else {
+                contributions[read_idx] = 0;
+                contributions[read_idx + data.reads] = 0;
+            }
+            __syncthreads();
+            
+            // Now reduce the shared array to see which is better
+            size_t reduction_threads = data.reads;
+            while (reduction_threads > 1) {
+                if (read_idx < reduction_threads / 2) {
+                    contributions[read_idx]              += contributions[read_idx + reduction_threads / 2];
+                    contributions[read_idx + data.reads] += 
+                        contributions[read_idx + data.reads + reduction_threads / 2];       
+                }
+                // If there are an odd number of elements to reduce
+                if (reduction_threads % 2 == 1) {
+                    if (read_idx == reduction_threads / 2) {
+                        contributions[read_idx]              = contributions[read_idx + reduction_threads / 2];
+                        contributions[read_idx + data.reads] = 
+                            contributions[read_idx + data.reads + reduction_threads / 2];                        
+                    }
+                    reduction_threads /= 2; reduction_threads += 1;
+                } else reduction_threads /= 2;
+                __syncthreads();
+            }   
+            // Check which solution was better
+            if (threadIdx.y == 0) {
+                // If we can flip a bit
+                if (contributions[data.reads] < contributions[0]) {
+                    Set == 1 
+                        ? graph.haplo_one_temp[snp_idx] ^= 0x01
+                        : graph.haplo_two_temp[snp_idx] ^= 0x01;
+                }
+            }
+            __syncthreads();
+        }   
+    }   
 }
 
 __global__
@@ -575,7 +708,6 @@ void map_to_partitions(data_type data, graph_type graph)
                 keep_partitioning = false;
         }
     }  
-    print_sets(graph, data.reads);
 }
 
 }               // End namespace haplo

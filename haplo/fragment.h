@@ -15,6 +15,17 @@ struct ALIGN(16) Fragment {
     
     CUDA_HD 
     Fragment() noexcept : score{0}, set{0}, index{0} {}
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief  Assignment operator
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_HD
+    void operator=(const Fragment& other) 
+    {
+        score = other.score;
+        set   = other.set;
+        index = other.index;
+    }
 };
 
 #endif          // PARAHAPLO_FRAGMENT_H
