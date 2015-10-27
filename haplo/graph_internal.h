@@ -6,6 +6,7 @@
 #define PARHAPLO_GRAPH_INTERNAL_H
 
 #include "edge.h"
+#include "fragment.h"
 
 namespace haplo     {
 namespace internal  {
@@ -19,6 +20,7 @@ public:
     size_t*         set_two_counts;         // number of 0's and 1's for set 2 
     uint8_t*        haplo_one;              // The first haplotype -- for set 1
     uint8_t*        haplo_two;              // The second haplotype -- for set 2
+    Fragment*       fragments;              // The fragments for the partitions
     size_t          set_one_size;           // Number of fragments in p1
     size_t          set_two_size;           // Number of fragments in p2 
     

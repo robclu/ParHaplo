@@ -419,7 +419,67 @@ void add_unpartitioned(data_type data, graph_type graph)
     }
     __syncthreads();
 }
+   
+__global__
+void find_initial_mec_score(data_type data, graph_type graph)
+{
+    extern __shared__ size_t conflicts[];
     
+    const size_t frag_idx = blockIdx.x;
+    const size_t snp_idx  = threadIdx.y;
+    
+    if (frag_idx < data.reads) {
+        Fragment* frag = &graph.fragments[frag_idx];
+        frag->index = frag_idx;
+        
+        if (in_set<1>(graph, frag_idx)) frag->set = 1;
+        else if (in_set<2>(graph, frag_idx)) frag->set = 2;
+    
+        auto read_info = data.read_info[frag_idx];
+        
+        // SNP is valid -- is part of the fragment 
+        if (read_info.start_index() <= snp_idx && read_info.end_index() >= snp_idx) {
+            uint8_t value = data.data[read_info.offset() + snp_idx - read_info.start_index()];
+            if (value == graph.haplo_one[snp_idx]) 
+                conflicts[snp_idx] = 0;
+            else if (value != graph.haplo_one[snp_idx] && value <= 1)
+                conflicts[snp_idx] = 1;
+            if (value == graph.haplo_two[snp_idx]) 
+                conflicts[snp_idx + data.snps] = 0;
+            else if (value != graph.haplo_two[snp_idx] && value <= 1)
+                conflicts[snp_idx + data.snps] = 1;
+        } else {
+            conflicts[snp_idx] = 0;
+            conflicts[snp_idx + data.snps] = 0;
+        }
+        __syncthreads();
+        
+        // Reduce the array to find the fragment value
+        size_t reduction_threads = data.snps;
+        while (reduction_threads > 1) {
+            if (snp_idx < reduction_threads / 2) {
+                conflicts[snp_idx]              += conflicts[snp_idx + reduction_threads / 2];
+                conflicts[snp_idx + data.snps]  += conflicts[snp_idx + data.snps + reduction_threads / 2];
+            } 
+            if (reduction_threads % 2 == 1) {
+                if (snp_idx == reduction_threads / 2) {
+                    conflicts[snp_idx] = conflicts[snp_idx + reduction_threads / 2];
+                    conflicts[snp_idx + data.snps] = conflicts[snp_idx + data.snps + reduction_threads / 2];
+                }
+                reduction_threads /= 2; reduction_threads += 1;
+            } else reduction_threads /= 2;
+            __syncthreads();
+        }
+        if (threadIdx.y == 0) {
+            // Move the value to the fragment
+            frag->score = min(static_cast<unsigned int>(conflicts[0])         , 
+                              static_cast<unsigned int>(conflicts[data.snps]) );
+            printf("%i\n", frag->score);
+        }
+    }
+    // Done, and now we go and sort the fragments
+}
+
 __global__
 void print_haplotypes(data_type data, graph_type graph)
 {

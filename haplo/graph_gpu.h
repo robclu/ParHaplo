@@ -70,6 +70,7 @@ public:
         cudaFree(_graph.set_two       );
         cudaFree(_graph.haplo_one     );
         cudaFree(_graph.haplo_two     );
+        cudaFree(_graph.fragments     );
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -129,6 +130,7 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
     // Allocate space for each of the values which contribute to the switch error rate (MEC score)
     CudaSafeCall( cudaMalloc((void**)&_graph.set_one_counts, sizeof(size_t) * _snps * 2) );
     CudaSafeCall( cudaMalloc((void**)&_graph.set_two_counts, sizeof(size_t) * _snps * 2) );
+    CudaSafeCall( cudaMalloc((void**)&_graph.fragments, sizeof(Fragment) * _reads)       );
  
     // Check that there is enough space for the edges
     size_t free_memory, total_memory;
@@ -194,6 +196,10 @@ void Graph<SubBlockType, devices::gpu>::search()
     block_size = dim3(1, _snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1);
     
     add_unpartitioned<<<grid_size, block_size, sizeof(size_t) * 2 * _snps>>>(_data_gpu, _graph);
+    CudaCheckError();
+   
+    // Find the initial MEC score )starting point for iterations)
+    find_initial_mec_score<<<grid_size, block_size, sizeof(size_t) * 2 * _snps>>>(_data_gpu, _graph);
     CudaCheckError();
     
     // Print the haplotypes 
