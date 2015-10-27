@@ -204,7 +204,7 @@ void Graph<SubBlockType, devices::gpu>::search()
     
     // Reduces the fragment MEC scores to get the overall MEC score
     block_size = dim3(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, _snps / BLOCK_SIZE + 1, 1);
-    reduce_mec_score<<<1, block_size>>>(_data_gpu, _graph);
+    reduce_mec_score<<<1, block_size, sizeof(size_t) * _reads>>>(_data_gpu, _graph);
     CudaCheckError();
     
     // Print the haplotypes 

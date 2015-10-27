@@ -21,7 +21,7 @@ UNINSTALL_DIR   := $(addsuffix /nano, $(INSTALL_DIR))
 #	NXX     : The compiler for the nvidia cuda gpu implementation                      #
 ########################################################################################
 
-CXX 			:= g++-4.8
+CXX 			:= g++
 NXX             := nvcc -ccbin $(CXX)
 
 ########################################################################################
