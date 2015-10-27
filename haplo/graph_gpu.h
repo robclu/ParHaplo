@@ -13,7 +13,7 @@
 #include "thrust/sequence.h"
 
 #define EDGE_MEM_PERCENT 0.6f
-#define ITERS            2
+#define ITERS            10000
 
 namespace haplo {
 
@@ -346,7 +346,8 @@ size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* st
     
     sort_fragments(dim3(_reads,1 ,1), dim3(1, 1, 1));
     CudaCheckError();
-    swap_fragment_set<<<1, 1>>>(_graph);
+    swap_fragment_set<<<1, 1>>>(_data_gpu, _graph);
+    CudaCheckError();
     
     return mec_score_before;
 }

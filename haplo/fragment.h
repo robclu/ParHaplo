@@ -9,12 +9,13 @@
 #include "cuda_defs.h"
 
 struct ALIGN(16) Fragment {
-    uint64_t score : 62;
-    uint64_t set   : 2 ;
+    uint64_t score   : 58;
+    uint64_t swapped : 4 ;
+    uint64_t set     : 2 ;
     size_t   index ;
     
     CUDA_HD 
-    Fragment() noexcept : score{0}, set{0}, index{0} {}
+    Fragment() noexcept : score{0}, swapped{0}, set{0}, index{0} {}
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief  Assignment operator
@@ -22,9 +23,10 @@ struct ALIGN(16) Fragment {
     CUDA_HD
     void operator=(const Fragment& other) 
     {
-        score = other.score;
-        set   = other.set;
-        index = other.index;
+        score   = other.score;
+        swapped = other.swapped;
+        set     = other.set;
+        index   = other.index;
     }
 };
 

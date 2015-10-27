@@ -20,6 +20,18 @@ extern __shared__ size_t distance[];
 extern __shared__ size_t counts[];
 
 __device__
+void print_temp_haplotypes(data_type& data, graph_type& graph)
+{
+    // Haplotype from set 1
+    for (size_t i = 0; i < data.snps; ++i) {
+        printf("%i", graph.haplo_one_temp[i]);
+    } printf("\n");
+    for (size_t i = 0; i < data.snps; ++i) {
+        printf("%i", graph.haplo_two_temp[i]);
+    } printf("\n"); 
+}
+
+__device__
 void map_distances(data_type& data, graph_type& graph, const size_t threads)
 {
     const size_t total_elems  = data.reads * (data.reads - 1) / 2;
@@ -339,7 +351,7 @@ void partition_next_smallest_fragment(graph_type& graph, size_t& last_set_edge, 
 __device__ 
 void print_sets(graph_type& graph, const size_t elements)
 {
-    if (threadIdx.y == 0 && blockIdx.x == 8) {
+    if (threadIdx.y == 0 && blockIdx.x == 0) {
         for (size_t i = 0; i < elements; ++i) 
             if (graph.set_one[i] == i) 
                 printf("%i ", graph.set_one[i]);
@@ -360,16 +372,25 @@ void print_fragments(data_type data, graph_type graph)
 }
 
 __global__
-void swap_fragment_set(graph_type graph)
+void swap_fragment_set(data_type data, graph_type graph)
 {
+    bool set = false;
     Fragment* frag = &graph.fragments[0];
-    if (frag->set == 1) {
-        graph.set_one[frag->index] = 0;
-        graph.set_two[frag->index] = frag->index;
-    } else if (frag->set == 2) {
-        graph.set_two[frag->index] = 0;
-        graph.set_one[frag->index] = frag->index; 
-    } 
+    while (!set) {
+        if (frag->swapped < 2) {
+            if (frag->set == 1) {
+                graph.set_one[frag->index] = 0;
+                graph.set_two[frag->index] = frag->index;
+                graph.fragments[frag->index].swapped = frag->swapped + 1;
+                set = true;
+            } else if (frag->set == 2) {
+                graph.set_two[frag->index] = 0;
+                graph.set_one[frag->index] = frag->index; 
+                graph.fragments[frag->index].swapped = frag->swapped + 1;
+                set = true;
+            }
+        } else ++frag;
+    }
 }
 
 template <uint8_t Set> __global__
@@ -447,12 +468,12 @@ void add_unpartitioned(data_type data, graph_type graph)
            if (read_info.start_index() <= snp_idx && read_info.end_index() >= snp_idx) {
                // Check to see if the value against set 1 conflicts 
                uint8_t value = data.data[read_info.offset() + snp_idx - read_info.start_index()];
-               if (value == graph.haplo_one_temp[snp_idx]) 
-                   scores[snp_idx] = 0;
-               else scores[snp_idx] = 1;
-               if (value == graph.haplo_two_temp[snp_idx])
-                   scores[snp_idx + data.snps] = 0;
-               else scores[snp_idx + data.snps] = 1;
+               if (value != graph.haplo_one_temp[snp_idx] && value <= 1) 
+                   scores[snp_idx] = 1;
+               else scores[snp_idx] = 0;
+               if (value != graph.haplo_two_temp[snp_idx] && value <= 1)
+                   scores[snp_idx + data.snps] = 1;
+               else scores[snp_idx + data.snps] = 0;
            }
        } else {
            scores[snp_idx] = 0; 
@@ -493,6 +514,7 @@ void set_haplotypes(graph_type& graph, const size_t snps)
     const size_t snp_idx = threadIdx.y * BLOCK_SIZE + threadIdx.x;
     if (snp_idx < snps) {
         graph.haplo_one[snp_idx] = graph.haplo_one_temp[snp_idx];
+        graph.haplo_two[snp_idx] = graph.haplo_two_temp[snp_idx];
     }
 }
 
@@ -512,7 +534,7 @@ void map_mec_score(data_type data, graph_type graph)
         else if (in_set<2>(graph, frag_idx)) frag->set = 2;
         
         auto read_info = data.read_info[frag_idx];
-        
+  
         // SNP is valid -- is part of the fragment 
         if (read_info.start_index() <= snp_idx && read_info.end_index() >= snp_idx) {
             uint8_t value = data.data[read_info.offset() + snp_idx - read_info.start_index()];
@@ -550,10 +572,9 @@ void map_mec_score(data_type data, graph_type graph)
             if (conflicts[0] < data.snps && conflicts[data.snps] < data.snps) {
                 frag->score = min(static_cast<unsigned int>(conflicts[0])         , 
                                   static_cast<unsigned int>(conflicts[data.snps]) );
-            } else  frag->score = 0;
+            } else frag->score = 0;
         }
     }
-    // Done, and now we go and sort the fragments
 }
 
 __global__ 
@@ -609,7 +630,7 @@ void evaluate_nih_columns(data_type data, graph_type graph)
     
     if (snp_idx < data.snps) {
         // If this snps is NIH and can potentially be flipped
-        if (read_idx < data.reads && data.snp_info[snp_idx].type() == NIH) {
+        if (read_idx < data.reads /*&& data.snp_info[snp_idx].type() == NIH*/) {
             auto read_info = data.read_info[read_idx];
             // Check that the snp is valid for the read
             if (read_info.start_index() <= snp_idx && read_info.end_index()) {
@@ -652,8 +673,8 @@ void evaluate_nih_columns(data_type data, graph_type graph)
                 // If we can flip a bit
                 if (contributions[data.reads] < contributions[0]) {
                     Set == 1 
-                        ? graph.haplo_one_temp[snp_idx] ^= 0x01
-                        : graph.haplo_two_temp[snp_idx] ^= 0x01;
+                        ? graph.haplo_one_temp[snp_idx] = !graph.haplo_one_temp[snp_idx]
+                        : graph.haplo_two_temp[snp_idx] = !graph.haplo_two_temp[snp_idx];
                 }
             }
             __syncthreads();
@@ -666,16 +687,10 @@ void print_haplotypes(data_type data, graph_type graph)
 {
     // Haplotype from set 1
     for (size_t i = 0; i < data.snps; ++i) {
-        if (graph.set_one_counts[i] >= graph.set_one_counts[i + data.snps]) 
-            printf("0");
-        else 
-            printf("1");
+        printf("%i", graph.haplo_one[i]);
     } printf("\n");
     for (size_t i = 0; i < data.snps; ++i) {
-        if (graph.set_two_counts[i] >= graph.set_two_counts[i + data.snps]) 
-            printf("0");
-        else 
-            printf("1");
+        printf("%i", graph.haplo_two[i]);
     } printf("\n"); 
 }
 
