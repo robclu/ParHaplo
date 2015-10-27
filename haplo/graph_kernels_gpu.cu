@@ -421,7 +421,7 @@ void add_unpartitioned(data_type data, graph_type graph)
 }
    
 __global__
-void find_initial_mec_score(data_type data, graph_type graph)
+void map_mec_score(data_type data, graph_type graph)
 {
     extern __shared__ size_t conflicts[];
     
@@ -478,6 +478,40 @@ void find_initial_mec_score(data_type data, graph_type graph)
         }
     }
     // Done, and now we go and sort the fragments
+}
+
+__global__ 
+void reduce_mec_score(data_type data, graph_type graph) 
+{
+    // The scores for each of the fragments
+    extern __shared__ size_t frag_scores[];
+    
+    // We are only using a single block for this
+    const size_t frag_idx = threadIdx.y * BLOCK_SIZE + threadIdx.x;
+    
+    if (frag_idx < data.reads) {
+        frag_scores[frag_idx] = graph.fragments[frag_idx].score;
+    }
+    __syncthreads();
+    
+    size_t reduction_threads = data.reads;
+    while (reduction_threads > 1) {
+        if (frag_idx < reduction_threads / 2) {
+            frag_scores[frag_idx] += frag_scores[frag_idx + reduction_threads / 2];
+        }
+        // When there are an odd number of elements to reduce
+        if (reduction_threads % 2 == 1) {
+            if (frag_idx == reduction_threads / 2) {
+                frag_scores[frag_idx] = frag_scores[frag_idx + reduction_threads / 2];
+            }
+            reduction_threads /= 2; reduction_threads += 1; 
+        } else reduction_threads /= 2;
+        __syncthreads();
+    }
+    if (threadIdx.x == 0) {
+        // store the mec score
+        printf("MEC SCORE : %i\n", frag_scores[0]);
+    }
 }
 
 __global__

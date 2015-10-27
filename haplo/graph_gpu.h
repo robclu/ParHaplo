@@ -198,8 +198,13 @@ void Graph<SubBlockType, devices::gpu>::search()
     add_unpartitioned<<<grid_size, block_size, sizeof(size_t) * 2 * _snps>>>(_data_gpu, _graph);
     CudaCheckError();
    
-    // Find the initial MEC score )starting point for iterations)
-    find_initial_mec_score<<<grid_size, block_size, sizeof(size_t) * 2 * _snps>>>(_data_gpu, _graph);
+    // Maps the score of each of the fragments based on the current haplotypes
+    map_mec_score<<<grid_size, block_size, sizeof(size_t) * 2 * _snps>>>(_data_gpu, _graph);
+    CudaCheckError();
+    
+    // Reduces the fragment MEC scores to get the overall MEC score
+    block_size = dim3(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, _snps / BLOCK_SIZE + 1, 1);
+    reduce_mec_score<<<1, block_size>>>(_data_gpu, _graph);
     CudaCheckError();
     
     // Print the haplotypes 
