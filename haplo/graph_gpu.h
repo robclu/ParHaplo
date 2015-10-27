@@ -13,7 +13,7 @@
 #include "thrust/sequence.h"
 
 #define EDGE_MEM_PERCENT 0.6f
-#define ITERS            10000
+#define ITERS            10
 
 namespace haplo {
 
@@ -101,6 +101,13 @@ private:
     // ------------------------------------------------------------------------------------------------------
     CUDA_H 
     size_t refine_solution(const cudaStream_t* streams, const size_t mem_size);
+    
+    CUDA_H 
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Moves the result of the haplotype to the sub block 
+    // ------------------------------------------------------------------------------------------------------
+    void set_sub_block_haplotypes();
+
 };
 
 // ------------------------------------------------ IMPLEMENTATIONS -----------------------------------------
@@ -242,6 +249,9 @@ void Graph<SubBlockType, devices::gpu>::search()
     // Print the haplotypes 
     print_haplotypes<<<1, 1>>>(_data_gpu, _graph);
     CudaCheckError();
+    
+    // Put the haplotypes back into the sub_block 
+    set_sub_block_haplotypes();
 }
 
 template <typename SubBlockType>
@@ -316,7 +326,7 @@ size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* st
     determine_switch_error<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph); 
     CudaCheckError();
     cudaDeviceSynchronize();
-
+/*
     // Check if flipping NIH column bits will give a better solution
     grid_size  = dim3(_snps, _reads / BLOCK_SIZE + 1, 1);
     block_size = dim3(1, _reads > BLOCK_SIZE ? BLOCK_SIZE : _reads, 1);
@@ -326,7 +336,7 @@ size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* st
     evaluate_nih_columns<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph);
     CudaCheckError();
     cudaDeviceSynchronize();
-
+*/
     grid_size = dim3(_reads, _snps / BLOCK_SIZE + 1, 1);
     block_size = dim3(1, _snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1);
     
@@ -350,6 +360,24 @@ size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* st
     CudaCheckError();
     
     return mec_score_before;
+}
+
+template <typename SubBlockType>
+void Graph<SubBlockType, devices::gpu>::set_sub_block_haplotypes()
+{
+    // Create the host vectors 
+    thrust::host_vector<uint8_t> haplo_one(_snps), haplo_two(_snps);
+    
+    // Get the results from the GPU
+    CudaSafeCall( cudaMemcpy(thrust::raw_pointer_cast(&haplo_one[0]), _graph.haplo_one, 
+                    sizeof(uint8_t) * _snps, cudaMemcpyDeviceToHost                   ) );
+    CudaSafeCall( cudaMemcpy(thrust::raw_pointer_cast(&haplo_two[0]), _graph.haplo_two, 
+                    sizeof(uint8_t) * _snps, cudaMemcpyDeviceToHost                   ) );
+    
+    for (size_t i = 0; i < _snps; ++i) {
+        _sub_block._haplo_one.set(i, haplo_one[i]);
+        _sub_block._haplo_two.set(i, haplo_two[i]);
+    }
 }
 
 }           // End namespace haplo

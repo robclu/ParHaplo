@@ -16,7 +16,7 @@
 using namespace std::chrono;
 
 static constexpr const char* test_input    = "output_files/output_simulated_265.txt";
-static constexpr const char* test_input1   = "new_outputs/geraci/350_3_0.1_0.4/output_14205.txt";
+static constexpr const char* test_input1   = "new_outputs/geraci/350_5_0.1_0.4/output_25140.txt";
 
 BOOST_AUTO_TEST_SUITE( GraphGpuSuite )
 
@@ -27,12 +27,9 @@ BOOST_AUTO_TEST_CASE( canCreateGraph )
     using graph_type    = haplo::Graph<subblock_type, haplo::devices::gpu>;
    
     block_type block(test_input1);
-    
-    std::cout << "NUM_SUB_BLOCKS " <<  block.num_subblocks() << "\n";
-
     subblock_type sub_block(block, 1);
     sub_block.print();
-
+    
     // For now just use the first device 
     // Later use device manager
     size_t device_index = 0;
@@ -41,6 +38,11 @@ BOOST_AUTO_TEST_CASE( canCreateGraph )
     
     // Search the tree for the haplotype 
     graph.search();
+    
+    // Put the haplotypes back into the block
+    block.merge_haplotype(sub_block);
+    block.determine_mec_score();
+    block.print_haplotypes();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

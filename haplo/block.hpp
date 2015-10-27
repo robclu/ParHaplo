@@ -190,7 +190,6 @@ public:
         std::cout << "\n";
         for (auto i = 0; i < _haplo_two.size() + 6; ++i) std::cout << "-";
         std::cout << "\n";
-        for (auto i = 0; i < _alignments.size(); ++i) std::cout << static_cast<unsigned>(_alignments.get(i)) << "\n";
     }
 private:
     // ------------------------------------------------------------------------------------------------------
@@ -506,8 +505,8 @@ void Block<Elements, ThreadsX, ThreadsY>::process_snps()
                     }
                     
                     // If there atre more 1's than 0's flip all the bits
-                    if (col_info.ones() > col_info.zeros() && !col_info.is_monotone()) 
-                        flip_column_bits(col_idx, col_info.start_index(), col_info.end_index());
+                    //if (col_info.ones() > col_info.zeros() && !col_info.is_monotone()) 
+                    //    flip_column_bits(col_idx, col_info.start_index(), col_info.end_index());
                     
                     // If the column is splittable, add it to the splittable info 
                     if (splittable && !col_info.is_monotone()) _splittable_cols.push_back(col_idx);

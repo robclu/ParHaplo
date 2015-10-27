@@ -630,7 +630,7 @@ void evaluate_nih_columns(data_type data, graph_type graph)
     
     if (snp_idx < data.snps) {
         // If this snps is NIH and can potentially be flipped
-        if (read_idx < data.reads /*&& data.snp_info[snp_idx].type() == NIH*/) {
+        if (read_idx < data.reads && data.snp_info[snp_idx].type() == NIH) {
             auto read_info = data.read_info[read_idx];
             // Check that the snp is valid for the read
             if (read_info.start_index() <= snp_idx && read_info.end_index()) {

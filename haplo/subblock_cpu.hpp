@@ -6,6 +6,7 @@
 #define PARAHAPLO_SUB_BLOCK_CPU_HPP
 
 #include "devices.hpp"
+#include "graph.h"
 #include "processor_cpu.hpp"
 #include "tree_cpu.hpp"
 #include "subblock.hpp"
@@ -61,6 +62,11 @@ private:
     // Tree is s friend class so that it can access the data 
     template <typename SubBlockType, byte DeviceType>
     friend class Tree;
+    
+    // Graph is s friend class so that it can access the data 
+    template <typename SubBlockType, byte DeviceType>
+    friend class Graph;
+
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor for when the size (number of elements) is not given (this is the preferred way
