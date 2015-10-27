@@ -18,8 +18,11 @@ public:
     size_t*         set_two;                // The second partition
     size_t*         set_one_counts;         // Number of 0's and 1s for set 1
     size_t*         set_two_counts;         // number of 0's and 1's for set 2 
+    size_t*         mec_score;              // The mec score for the solution
     uint8_t*        haplo_one;              // The first haplotype -- for set 1
     uint8_t*        haplo_two;              // The second haplotype -- for set 2
+    uint8_t*        haplo_one_temp;        // A temporary haplotype
+    uint8_t*        haplo_two_temp;        // A temporary haplotype
     Fragment*       fragments;              // The fragments for the partitions
     size_t          set_one_size;           // Number of fragments in p1
     size_t          set_two_size;           // Number of fragments in p2 

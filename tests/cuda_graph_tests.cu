@@ -16,13 +16,13 @@
 using namespace std::chrono;
 
 static constexpr const char* test_input    = "output_files/output_simulated_265.txt";
-static constexpr const char* test_input1   = "new_outputs/geraci/100_8_0.1_0.4/output_4534.txt";
+static constexpr const char* test_input1   = "new_outputs/geraci/100_10_0.1_0.4/output_5298.txt";
 
 BOOST_AUTO_TEST_SUITE( GraphGpuSuite )
 
 BOOST_AUTO_TEST_CASE( canCreateGraph )
 {
-    using block_type    = haplo::Block<4534, 4, 4>;
+    using block_type    = haplo::Block<5298, 4, 4>;
     using subblock_type = haplo::SubBlock<block_type, 4, 4, haplo::devices::cpu>;
     using graph_type    = haplo::Graph<subblock_type, haplo::devices::gpu>;
    

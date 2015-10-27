@@ -43,6 +43,7 @@ private:
     size_t                      _reads;
     size_t                      _device;
     size_t                      _nih_cols;
+    size_t                      _mec_score;
     
     // ------------------------------------------ DEVICE ----------------------------------------------------
     data_type                   _data_gpu; 
@@ -70,7 +71,10 @@ public:
         cudaFree(_graph.set_two       );
         cudaFree(_graph.haplo_one     );
         cudaFree(_graph.haplo_two     );
+        cudaFree(_graph.haplo_one_temp);
+        cudaFree(_graph.haplo_two_temp);
         cudaFree(_graph.fragments     );
+        cudaFree(_graph.mec_score     );
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -78,12 +82,18 @@ public:
     //-------------------------------------------------------------------------------------------------------
     CUDA_H
     void search();
-    
+private:
     //-------------------------------------------------------------------------------------------------------
     /// @brief      Sorts the edges
     //-------------------------------------------------------------------------------------------------------
     CUDA_H
     void sort_edges(dim3 grid_size, dim3 block_size);
+    
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Refines the solution until the best score is reached
+    // ------------------------------------------------------------------------------------------------------
+    CUDA_H 
+    void refine_solution(const cudaStream_t* streams, const size_t mem_size);
 };
 
 // ------------------------------------------------ IMPLEMENTATIONS -----------------------------------------
@@ -124,13 +134,19 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
     CudaSafeCall( cudaMemset(_graph.set_two, INT_MAX, sizeof(size_t) * _reads) );
     
     // Allocate space for the haplotypes
-    CudaSafeCall( cudaMalloc((void**)&_graph.haplo_one, sizeof(size_t) * _snps) );
-    CudaSafeCall( cudaMalloc((void**)&_graph.haplo_two, sizeof(size_t) * _snps) );
+    CudaSafeCall( cudaMalloc((void**)&_graph.haplo_one, sizeof(size_t) * _snps)      );
+    CudaSafeCall( cudaMalloc((void**)&_graph.haplo_two, sizeof(size_t) * _snps)      );
+    CudaSafeCall( cudaMalloc((void**)&_graph.haplo_one_temp, sizeof(size_t) * _snps) );
+    CudaSafeCall( cudaMalloc((void**)&_graph.haplo_two_temp, sizeof(size_t) * _snps) );
     
     // Allocate space for each of the values which contribute to the switch error rate (MEC score)
     CudaSafeCall( cudaMalloc((void**)&_graph.set_one_counts, sizeof(size_t) * _snps * 2) );
     CudaSafeCall( cudaMalloc((void**)&_graph.set_two_counts, sizeof(size_t) * _snps * 2) );
     CudaSafeCall( cudaMalloc((void**)&_graph.fragments, sizeof(Fragment) * _reads)       );
+    
+    // Allocate device memory for the mec score
+    CudaSafeCall( cudaMalloc((void**)&_graph.mec_score, sizeof(size_t)) );
+    CudaSafeCall( cudaMemset(_graph.mec_score, INT_MAX, sizeof(size_t)) );
  
     // Check that there is enough space for the edges
     size_t free_memory, total_memory;
@@ -181,13 +197,14 @@ void Graph<SubBlockType, devices::gpu>::search()
     // Resize the grid 
     grid_size = dim3(_snps, _reads / BLOCK_SIZE + 1, 1);
     block_size = dim3(1, _reads > BLOCK_SIZE ? BLOCK_SIZE : _reads, 1);
+
+    const size_t mem_size = sizeof(size_t) * _reads * 2;    
     
     // Determine the starting score for the haplotype
-    determine_base_switch_error<1><<<grid_size, block_size, sizeof(size_t) * _reads * 2, streams[0]>>>(
-                                                                                        _data_gpu, _graph);
+    determine_switch_error<1><<<grid_size, block_size, mem_size, streams[0]>>>(_data_gpu, _graph);
     CudaCheckError();
-    determine_base_switch_error<2><<<grid_size, block_size, sizeof(size_t) * _reads * 2, streams[1]>>>(
-                                                                                        _data_gpu, _graph); 
+    
+    determine_switch_error<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph); 
     CudaCheckError();
     cudaDeviceSynchronize();
    
@@ -206,6 +223,9 @@ void Graph<SubBlockType, devices::gpu>::search()
     block_size = dim3(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, _snps / BLOCK_SIZE + 1, 1);
     reduce_mec_score<<<1, block_size, sizeof(size_t) * _reads>>>(_data_gpu, _graph);
     CudaCheckError();
+
+    // Refine the solution
+    refine_solution(&streams[0], mem_size);
     
     // Print the haplotypes 
     print_haplotypes<<<1, 1>>>(_data_gpu, _graph);
@@ -242,6 +262,39 @@ void Graph<SubBlockType, devices::gpu>::sort_edges(dim3 grid_size, dim3 block_si
     print_edges<<<1, 1>>>(_data_gpu, _graph);
     CudaCheckError();
 #endif
+}
+
+template <typename SubBlockType>
+void Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* streams , 
+                                                        const size_t        mem_size)
+{
+    dim3 grid_size(_reads, _snps / BLOCK_SIZE + 1, 1);
+    dim3 block_size(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, _snps / BLOCK_SIZE + 1, 1);
+    
+    // Determine switch error rate of the current solution -- make a loop
+    determine_switch_error<1><<<grid_size, block_size, mem_size, streams[0]>>>(_data_gpu, _graph);
+    CudaCheckError();
+    
+    determine_switch_error<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph); 
+    CudaCheckError();
+    cudaDeviceSynchronize();
+
+    grid_size = dim3(_reads, _snps / BLOCK_SIZE + 1, 1);
+    block_size = dim3(1, _snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1);
+    
+    // Maps the score of each of the fragments based on the current haplotypes
+    map_mec_score<<<grid_size, block_size, sizeof(size_t) * 2 * _snps>>>(_data_gpu, _graph);
+    CudaCheckError();
+    
+    // Reduces the fragment MEC scores to get the overall MEC score
+    block_size = dim3(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, _snps / BLOCK_SIZE + 1, 1);
+    reduce_mec_score<<<1, block_size, sizeof(size_t) * _reads>>>(_data_gpu, _graph);
+    CudaCheckError(); 
+    cudaDeviceSynchronize();
+    
+    // Copy the MEC score back 
+    CudaSafeCall( cudaMemcpy(&_mec_score, _graph.mec_score, sizeof(size_t), cudaMemcpyDeviceToHost) );
+    std::cout << "MEC SCORE : " << _mec_score << "\n";
 }
 
 }           // End namespace haplo

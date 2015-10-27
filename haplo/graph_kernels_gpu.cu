@@ -303,14 +303,12 @@ void print_sets(graph_type& graph, const size_t elements)
 }
 
 template <uint8_t Set> __global__
-void determine_base_switch_error(data_type data, graph_type graph)
+void determine_switch_error(data_type data, graph_type graph)
 {   
     const size_t snp_idx  = blockIdx.x / Set;   // Second half of the block are for set 2
     const size_t read_idx = threadIdx.y;
     
     extern __shared__ size_t counts[];  // Number of 1's and zeros in the alignments
-    
-    print_sets(graph, data.reads);
     
     if (snp_idx < data.snps) {
         if (read_idx < data.reads && in_set<Set>(graph, read_idx)) {
@@ -351,15 +349,13 @@ void determine_base_switch_error(data_type data, graph_type graph)
     // The first thread then moves the values into the arary for the graph
     if (threadIdx.y == 0) {
         if (Set == 1) {
-            graph.set_one_counts[snp_idx] = counts[0];
+            graph.set_one_counts[snp_idx]             = counts[0];
             graph.set_one_counts[snp_idx + data.snps] = counts[data.reads];
-            graph.haplo_one[snp_idx] = counts[0] >= counts[data.reads] 
-                                     ? 0 : 1;
+            graph.haplo_one_temp[snp_idx] = counts[0] >= counts[data.reads] ? 0 : 1;
         } else if (Set == 2) {
-            graph.set_two_counts[snp_idx] = counts[0];
+            graph.set_two_counts[snp_idx]             = counts[0];
             graph.set_two_counts[snp_idx + data.snps] = counts[data.reads];
-            graph.haplo_two[snp_idx] = counts[0] >= counts[data.reads] 
-                                     ? 0 : 1;
+            graph.haplo_two_temp[snp_idx] = counts[0] >= counts[data.reads] ? 0 : 1;
         }
     }
     __syncthreads();
@@ -380,10 +376,10 @@ void add_unpartitioned(data_type data, graph_type graph)
            if (read_info.start_index() <= snp_idx && read_info.end_index() >= snp_idx) {
                // Check to see if the value against set 1 conflicts 
                uint8_t value = data.data[read_info.offset() + snp_idx - read_info.start_index()];
-               if (value == graph.haplo_one[snp_idx]) 
+               if (value == graph.haplo_one_temp[snp_idx]) 
                    scores[snp_idx] = 0;
                else scores[snp_idx] = 1;
-               if (value == graph.haplo_two[snp_idx])
+               if (value == graph.haplo_two_temp[snp_idx])
                    scores[snp_idx + data.snps] = 0;
                else scores[snp_idx + data.snps] = 1;
            }
@@ -411,7 +407,7 @@ void add_unpartitioned(data_type data, graph_type graph)
             __syncthreads();
         }
         // Add the result to the set in the graph
-        if (threadIdx.y == 0 ) {
+        if (threadIdx.y == 0) {
             scores[0] <= scores[data.snps]
                 ? graph.set_one[read_idx] = read_idx
                 : graph.set_two[read_idx] = read_idx;
@@ -419,7 +415,16 @@ void add_unpartitioned(data_type data, graph_type graph)
     }
     __syncthreads();
 }
-   
+
+__device__
+void set_haplotypes(graph_type& graph, const size_t snps)
+{
+    const size_t snp_idx = threadIdx.y * BLOCK_SIZE + threadIdx.x;
+    if (snp_idx < snps) {
+        graph.haplo_one[snp_idx] = graph.haplo_one_temp[snp_idx];
+    }
+}
+
 __global__
 void map_mec_score(data_type data, graph_type graph)
 {
@@ -434,20 +439,20 @@ void map_mec_score(data_type data, graph_type graph)
         
         if (in_set<1>(graph, frag_idx)) frag->set = 1;
         else if (in_set<2>(graph, frag_idx)) frag->set = 2;
+        else printf("No in set%i\n", frag_idx);
     
         auto read_info = data.read_info[frag_idx];
         
         // SNP is valid -- is part of the fragment 
         if (read_info.start_index() <= snp_idx && read_info.end_index() >= snp_idx) {
             uint8_t value = data.data[read_info.offset() + snp_idx - read_info.start_index()];
-            if (value == graph.haplo_one[snp_idx]) 
-                conflicts[snp_idx] = 0;
-            else if (value != graph.haplo_one[snp_idx] && value <= 1)
+            if (value != graph.haplo_one_temp[snp_idx] && value <= 1)
                 conflicts[snp_idx] = 1;
-            if (value == graph.haplo_two[snp_idx]) 
-                conflicts[snp_idx + data.snps] = 0;
-            else if (value != graph.haplo_two[snp_idx] && value <= 1)
+            else conflicts[snp_idx] = 0;
+            // Other haplotype
+            if (value != graph.haplo_two_temp[snp_idx] && value <= 1)
                 conflicts[snp_idx + data.snps] = 1;
+            else conflicts[snp_idx + data.snps] = 0;
         } else {
             conflicts[snp_idx] = 0;
             conflicts[snp_idx + data.snps] = 0;
@@ -472,9 +477,14 @@ void map_mec_score(data_type data, graph_type graph)
         }
         if (threadIdx.y == 0) {
             // Move the value to the fragment
-            frag->score = min(static_cast<unsigned int>(conflicts[0])         , 
-                              static_cast<unsigned int>(conflicts[data.snps]) );
-            printf("%i\n", frag->score);
+            if (conflicts[0] < data.snps && conflicts[data.snps] < data.snps) {
+                frag->score = min(static_cast<unsigned int>(conflicts[0])         , 
+                                static_cast<unsigned int>(conflicts[data.snps]) );
+                printf("%i\n", frag->score);
+            } else {
+                // Invalid score 
+                printf("Invalid fragment score%i\n", frag_idx);
+            }
         }
     }
     // Done, and now we go and sort the fragments
@@ -508,10 +518,14 @@ void reduce_mec_score(data_type data, graph_type graph)
         } else reduction_threads /= 2;
         __syncthreads();
     }
-    if (threadIdx.x == 0) {
-        // store the mec score
-        printf("MEC SCORE : %i\n", frag_scores[0]);
+    // Save the mec score
+    if (threadIdx.x == 0 && frag_scores[0] < *graph.mec_score) {
+        *graph.mec_score = frag_scores[0]; 
+        // Set the new haplotype
     }
+    __syncthreads();
+    if (*graph.mec_score == frag_scores[0]) set_haplotypes(graph, data.snps);
+    __syncthreads();
 }
 
 __global__
