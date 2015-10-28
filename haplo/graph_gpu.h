@@ -83,6 +83,11 @@ public:
     //-------------------------------------------------------------------------------------------------------
     CUDA_H
     void search();
+   
+    // ------------------------------------------------------------------------------------------------------
+    /// @brief      Prints the MEC score
+    // ------------------------------------------------------------------------------------------------------
+    void print_mec() const { std::cout << "MEC SCORE : " << _mec_score << "\n"; }
 private:
     //-------------------------------------------------------------------------------------------------------
     /// @brief      Sorts the edges
@@ -107,7 +112,6 @@ private:
     /// @brief      Moves the result of the haplotype to the sub block 
     // ------------------------------------------------------------------------------------------------------
     void set_sub_block_haplotypes();
-
 };
 
 // ------------------------------------------------ IMPLEMENTATIONS -----------------------------------------
@@ -124,8 +128,6 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
 {
     cudaError_t error;
    
-    std::cout << _data_gpu.reads << " " << _data_gpu.snps << "\n";
-    
     // Copy the actual data to the device
     thrust::host_vector<small_type> data_gpu_format = _data_cpu.to_binary_vector();
     CudaSafeCall( cudaMalloc((void**)&_data_gpu.data, sizeof(small_type) * _data_cpu.size()) );
@@ -246,10 +248,6 @@ void Graph<SubBlockType, devices::gpu>::search()
         if (prev_mec_score == _mec_score) ++terminate;
     } while (prev_mec_score >= _mec_score && terminate < ITERS);
     
-    // Print the haplotypes 
-    print_haplotypes<<<1, 1>>>(_data_gpu, _graph);
-    CudaCheckError();
-    
     // Put the haplotypes back into the sub_block 
     set_sub_block_haplotypes();
 }
@@ -326,17 +324,7 @@ size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* st
     determine_switch_error<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph); 
     CudaCheckError();
     cudaDeviceSynchronize();
-/*
-    // Check if flipping NIH column bits will give a better solution
-    grid_size  = dim3(_snps, _reads / BLOCK_SIZE + 1, 1);
-    block_size = dim3(1, _reads > BLOCK_SIZE ? BLOCK_SIZE : _reads, 1);
     
-    evaluate_nih_columns<1><<<grid_size, block_size, mem_size, streams[0]>>>(_data_gpu, _graph);
-    CudaCheckError();
-    evaluate_nih_columns<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph);
-    CudaCheckError();
-    cudaDeviceSynchronize();
-*/
     grid_size = dim3(_reads, _snps / BLOCK_SIZE + 1, 1);
     block_size = dim3(1, _snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1);
     
@@ -352,7 +340,6 @@ size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* st
     
     // Copy the MEC score back 
     CudaSafeCall( cudaMemcpy(&_mec_score, _graph.mec_score, sizeof(size_t), cudaMemcpyDeviceToHost) );
-    std::cout << "MEC SCORE : " << _mec_score << "\n";
     
     sort_fragments(dim3(_reads,1 ,1), dim3(1, 1, 1));
     CudaCheckError();

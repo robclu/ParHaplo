@@ -299,8 +299,6 @@ void Block<Elements, ThreadsX, ThreadsY>::merge_haplotype(const SubBlockType& su
     
     // Go over all the rows and set the alignments
     const size_t start_row = _last_aligned;
-    std::cout << "SR: " << start_row << " ER: " << start_row + sub_block.reads() << "\n";
-    
     for (size_t row_idx = start_row; row_idx < start_row + sub_block.reads(); ++row_idx, ++_last_aligned) {
         // If we don't need to flip the bits
         if (!flip_all) 

@@ -451,6 +451,12 @@ void determine_switch_error(data_type data, graph_type graph)
         }
     }
     __syncthreads();
+#ifdef DEBUG
+    if (graph.haplo_one_temp[snp_idx] > 1 || graph.haplo_two_temp[snp_idx] > 1) {
+        printf("Error %i\n", blockIdx.x);
+    }
+    __syncthreads();
+#endif
 }
 
 __global__
@@ -530,8 +536,11 @@ void map_mec_score(data_type data, graph_type graph)
         Fragment* frag = &graph.fragments[frag_idx];
         frag->index = frag_idx;
         
-        if (in_set<1>(graph, frag_idx)) frag->set = 1;
-        else if (in_set<2>(graph, frag_idx)) frag->set = 2;
+        if (in_set<1>(graph, frag_idx))      { frag->set = 1; }
+        else if (in_set<2>(graph, frag_idx)) { frag->set = 2; }
+#ifdef DEBUG
+        else                                 { printf("Error!\n"); }
+#endif
         
         auto read_info = data.read_info[frag_idx];
   
