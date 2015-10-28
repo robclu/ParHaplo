@@ -151,35 +151,6 @@ public:
     // ------------------------------------------------------------------------------------------------------
     void determine_mec_score() const;
     
-    // ------------------------------------------------------------------------------------------------------
-    /// @breif      Prints which columns are monotone and which are not
-    // ------------------------------------------------------------------------------------------------------
-    void print_col_types() const 
-    {
-        for (size_t c = 0; c < _cols; ++c) std::cout << is_monotone(c);
-        std::cout << "\n";
-    }
-    
-    void print()
-    {
-        for (size_t r = 0; r < _rows; ++r) {
-            for (size_t c = 0; c < _cols; ++c) 
-                std::cout << static_cast<unsigned>(operator()(r, c)) << " ";
-            std::cout << "\n";
-        }
-       
-        std::cout << "\n\n";
-        
-        for (size_t c = 0; c < _cols; ++c) 
-            std::cout << static_cast<unsigned>(_snp_info[c].type()) << " ";
-        std::cout << "\n\n";
-     
-        for (auto e : _splittable_cols)
-            std::cout << e << " ";
-        std::cout << "\n";
-        std::cout << _first_splittable << "FS\n";
-    }
-    
     void print_haplotypes() const 
     {
         for (auto i = 0; i < _haplo_one.size() + 6; ++i) std::cout << "-";
@@ -311,56 +282,24 @@ void Block<Elements, ThreadsX, ThreadsY>::merge_haplotype(const SubBlockType& su
 template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
 void Block<Elements, ThreadsX, ThreadsY>::determine_mec_score() const 
 {
-    // We can use all the available cores for the column comparison
-    const size_t threads = (ThreadsX + ThreadsY) < _cols ? (ThreadsX + ThreadsY) : _cols;
+    size_t mec_score = 0;
     
-    atomic_type mec_score{0};
-    
-    // Over each column in the row
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, threads),
-        [&](const tbb::blocked_range<size_t>& thread_ids)
-        {
-            for (size_t thread_id = thread_ids.begin(); thread_id != thread_ids.end(); ++thread_id) {
-                size_t thread_iters = ops::get_thread_iterations(thread_id, _cols, threads);
-                
-                for (size_t it =0; it < thread_iters; ++it) {
-                    size_t haplo_idx  = it * threads + thread_id;
-                    size_t read_start = _snp_info.at(haplo_idx).start_index();
-                    size_t read_end   = _snp_info.at(haplo_idx).end_index();
-                    
-                    // Now go down the column and determine the score
-                    for (size_t read_idx = read_start; read_idx < read_end; ++read_idx) {
-                        // For the first haplotype
-                        if (_alignments.get(read_idx) == ONE) {
-                                if ((operator()(read_idx, haplo_idx) != _haplo_one.get(haplo_idx)) &&
-                                     operator()(read_idx, haplo_idx) <= ONE                        &&
-                                     _flipped_cols.find(haplo_idx) == _flipped_cols.end()         ) {
-                                        mec_score.fetch_and_add(1);
-                                 } 
-                                else if (operator()(read_idx, haplo_idx) == _haplo_one.get(haplo_idx) &&
-                                        operator()(read_idx, haplo_idx) <= ONE                        &&
-                                        _flipped_cols.find(haplo_idx) != _flipped_cols.end()            ) {
-                                        mec_score.fetch_and_add(1);
-                                }
-                        }
-                        else if (_alignments.get(read_idx) == ZERO) {
-                                if (operator()(read_idx, haplo_idx) != _haplo_two.get(haplo_idx) &&
-                                    operator()(read_idx, haplo_idx) <= ONE                       &&
-                                    _flipped_cols.find(haplo_idx) == _flipped_cols.end()         ) {
-                                        mec_score.fetch_and_add(1);
-                                }
-                                else if (operator()(read_idx, haplo_idx) == _haplo_two.get(haplo_idx) &&
-                                        operator()(read_idx, haplo_idx) <= ONE                        &&
-                                        _flipped_cols.find(haplo_idx) != _flipped_cols.end()            ) {
-                                        mec_score.fetch_and_add(1);
-                                }
-                        }
-                    }
-                }
+    for (size_t read_idx = 0; read_idx < _rows; ++read_idx) {
+        size_t contrib_one = 0, contrib_two = 0;
+        for (size_t haplo_idx = 0; haplo_idx < _cols; ++haplo_idx) {
+            // For the first haplotype
+            if (_haplo_one.get(haplo_idx) != operator()(read_idx, haplo_idx) &&
+                operator()(read_idx, haplo_idx) <= 1                        ) {
+                    ++contrib_one;
+            }
+            if (_haplo_two.get(haplo_idx) != operator()(read_idx, haplo_idx) &&
+                operator()(read_idx, haplo_idx) <= 1                        ) {
+                    ++contrib_two;
             }
         }
-    );
+        // Add the minimum contribution 
+        mec_score += std::min(contrib_one, contrib_two);
+    }
     std::cout << "MEC SCORE : " << mec_score << "\n";
 }
 

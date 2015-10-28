@@ -13,7 +13,7 @@
 #include "thrust/sequence.h"
 
 #define EDGE_MEM_PERCENT 0.6f
-#define ITERS            10
+#define ITERS            1000
 
 namespace haplo {
 
@@ -68,14 +68,14 @@ public:
         cudaFree(_graph.edges         );
         cudaFree(_graph.set_one       );
         cudaFree(_graph.set_two       );
-        cudaFree(_graph.set_one       );
-        cudaFree(_graph.set_two       );
         cudaFree(_graph.haplo_one     );
         cudaFree(_graph.haplo_two     );
         cudaFree(_graph.haplo_one_temp);
         cudaFree(_graph.haplo_two_temp);
         cudaFree(_graph.fragments     );
         cudaFree(_graph.mec_score     );
+        cudaFree(_graph.snp_scores_one);
+        cudaFree(_graph.snp_scores_two);
     }
     
     //-------------------------------------------------------------------------------------------------------
@@ -157,13 +157,15 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
     CudaSafeCall( cudaMalloc((void**)&_graph.haplo_two_temp, sizeof(size_t) * _snps) );
     
     // Allocate space for each of the values which contribute to the switch error rate (MEC score)
-    CudaSafeCall( cudaMalloc((void**)&_graph.set_one_counts, sizeof(size_t) * _snps * 2) );
-    CudaSafeCall( cudaMalloc((void**)&_graph.set_two_counts, sizeof(size_t) * _snps * 2) );
     CudaSafeCall( cudaMalloc((void**)&_graph.fragments, sizeof(Fragment) * _reads)       );
     
     // Allocate device memory for the mec score
     CudaSafeCall( cudaMalloc((void**)&_graph.mec_score, sizeof(size_t)) );
     CudaSafeCall( cudaMemset(_graph.mec_score, INT_MAX, sizeof(size_t)) );
+    CudaSafeCall( cudaMalloc((void**)&_graph.snp_scores_one, sizeof(size_t) * 2 * _snps) );
+    CudaSafeCall( cudaMemset(_graph.snp_scores_one, INT_MAX, sizeof(size_t) * 2 * _snps) );
+    CudaSafeCall( cudaMalloc((void**)&_graph.snp_scores_two, sizeof(size_t) * 2 * _snps) );
+    CudaSafeCall( cudaMemset(_graph.snp_scores_two, INT_MAX, sizeof(size_t) * 2 * _snps) );
  
     // Check that there is enough space for the edges
     size_t free_memory, total_memory;
@@ -224,7 +226,13 @@ void Graph<SubBlockType, devices::gpu>::search()
     determine_switch_error<2><<<grid_size, block_size, mem_size, streams[1]>>>(_data_gpu, _graph); 
     CudaCheckError();
     cudaDeviceSynchronize();
-   
+    
+    // Check that all the haplotypes are valid (IH columns have different values
+    grid_size  = dim3(_snps / BLOCK_SIZE + 1, 1, 1);
+    block_size = dim3(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1 , 1);
+    check_haplotypes<<<grid_size, block_size>>>(_data_gpu, _graph);
+    CudaCheckError();
+
     // Partition the unpartitioned reads
     grid_size = dim3(_reads, _snps / BLOCK_SIZE + 1, 1);
     block_size = dim3(1, _snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1);
@@ -314,8 +322,8 @@ size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* st
 {
     size_t mec_score_before = _mec_score;
     
-    dim3 grid_size(_reads, _snps / BLOCK_SIZE + 1, 1);
-    dim3 block_size(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, _snps / BLOCK_SIZE + 1, 1);
+    dim3 grid_size(_snps, _reads / BLOCK_SIZE + 1, 1);
+    dim3 block_size(1, _reads > BLOCK_SIZE ? BLOCK_SIZE : _reads, 1);
     
     // Determine switch error rate of the current solution -- make a loop
     determine_switch_error<1><<<grid_size, block_size, mem_size, streams[0]>>>(_data_gpu, _graph);
@@ -325,6 +333,12 @@ size_t Graph<SubBlockType, devices::gpu>::refine_solution(const cudaStream_t* st
     CudaCheckError();
     cudaDeviceSynchronize();
     
+    // Check that all the haplotypes are valid (IH columns have different values
+    grid_size  = dim3(_snps / BLOCK_SIZE + 1, 1, 1);
+    block_size = dim3(_snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1 , 1);
+    check_haplotypes<<<grid_size, block_size>>>(_data_gpu, _graph);
+    CudaCheckError();
+ 
     grid_size = dim3(_reads, _snps / BLOCK_SIZE + 1, 1);
     block_size = dim3(1, _snps > BLOCK_SIZE ? BLOCK_SIZE : _snps, 1);
     

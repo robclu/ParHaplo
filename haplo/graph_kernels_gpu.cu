@@ -5,9 +5,10 @@
 #include "math.h"
 
 #define BLOCK_SIZE 1024
-//#undef DEBUG
+#undef DEBUG
 
 #ifndef NIH
+    #define IH  0x00
     #define NIH 0x01
 #endif
 
@@ -393,10 +394,35 @@ void swap_fragment_set(data_type data, graph_type graph)
     }
 }
 
+__global__
+void check_haplotypes(data_type data, graph_type graph)
+{
+   const size_t snp_idx = blockIdx.x * blockDim.x + threadIdx.x;
+   
+   // Check if the haplotypes are IH and have the same values 
+   if (snp_idx < data.snps) {
+       if (data.snp_info[snp_idx].type() == IH && 
+           graph.haplo_one_temp[snp_idx] == graph.haplo_two_temp[snp_idx]) {
+                // MEC score addition if haplo one is flipped 
+                unsigned int mec_flip_one = min(static_cast<unsigned int>(graph.snp_scores_one[snp_idx + data.snps]),
+                                                static_cast<unsigned int>(graph.snp_scores_two[snp_idx]));
+          
+                // MEC score addition if haplo two is flipped 
+                unsigned int mec_flip_two = min(static_cast<unsigned int>(graph.snp_scores_two[snp_idx + data.snps]),
+                                                static_cast<unsigned int>(graph.snp_scores_one[snp_idx]));
+
+                // We need to flip the one which will make the least change to the MEC score
+                if (mec_flip_one >= mec_flip_two) graph.haplo_one_temp[snp_idx] = !graph.haplo_two_temp[snp_idx];
+                else                              graph.haplo_two_temp[snp_idx] = !graph.haplo_one_temp[snp_idx];
+        }
+   }
+   __syncthreads();
+}
+
 template <uint8_t Set> __global__
 void determine_switch_error(data_type data, graph_type graph)
 {   
-    const size_t snp_idx  = blockIdx.x / Set;   // Second half of the block are for set 2
+    const size_t snp_idx  = blockIdx.x;   
     const size_t read_idx = threadIdx.y;
     
     extern __shared__ size_t counts[];  // Number of 1's and zeros in the alignments
@@ -415,48 +441,55 @@ void determine_switch_error(data_type data, graph_type graph)
                 else {
                     counts[read_idx] = 0; counts[read_idx + data.reads] = 0;
                 }
-            }
+            } else {
+                counts[read_idx] = 0; counts[read_idx + data.reads] = 0;
+            }   
+        } else if (read_idx < data.reads) {
+            counts[read_idx] = 0; counts[read_idx + data.reads] = 0;
         }
-    }
-    __syncthreads();
-    
-    // Now reduce the arrays
-    size_t reduction_threads = data.reads;
-    while (reduction_threads > 1) {
-        if (read_idx < reduction_threads / 2) {
-            counts[read_idx]              += counts[read_idx + reduction_threads / 2];
-            counts[read_idx + data.reads] += counts[read_idx + data.reads + reduction_threads / 2];
-        }
-        // If there are an odd number of elements in the array
-        if (reduction_threads % 2 == 1) {
-            if (read_idx == reduction_threads / 2) {
-                counts[read_idx]                = counts[read_idx + reduction_threads / 2];
-                counts[read_idx + data.reads]   = counts[read_idx + data.reads + reduction_threads / 2];            
-            }
-            reduction_threads /= 2; reduction_threads += 1;
-        } else reduction_threads /= 2;
         __syncthreads();
-    }
-    
-    // The first thread then moves the values into the arary for the graph
-    if (threadIdx.y == 0) {
-        if (Set == 1) {
-            graph.set_one_counts[snp_idx]             = counts[0];
-            graph.set_one_counts[snp_idx + data.snps] = counts[data.reads];
-            graph.haplo_one_temp[snp_idx] = counts[0] >= counts[data.reads] ? 0 : 1;
-        } else if (Set == 2) {
-            graph.set_two_counts[snp_idx]             = counts[0];
-            graph.set_two_counts[snp_idx + data.snps] = counts[data.reads];
-            graph.haplo_two_temp[snp_idx] = counts[0] >= counts[data.reads] ? 0 : 1;
+        
+        // Now reduce the arrays
+        size_t reduction_threads = data.reads;
+        while (reduction_threads > 1) {
+            if (read_idx < reduction_threads / 2) {
+                counts[read_idx]              += counts[read_idx + reduction_threads / 2];
+                counts[read_idx + data.reads] += counts[read_idx + data.reads + reduction_threads / 2];
+            }
+            // If there are an odd number of elements in the array
+            if (reduction_threads % 2 == 1) {
+                if (read_idx == reduction_threads / 2) {
+                    counts[read_idx]                = counts[read_idx + reduction_threads / 2];
+                    counts[read_idx + data.reads]   = counts[read_idx + data.reads + reduction_threads / 2];            
+                }
+                reduction_threads /= 2; reduction_threads += 1;
+            } else reduction_threads /= 2;
+            __syncthreads();
         }
-    }
-    __syncthreads();
+        
+        // The first thread then moves the values into the arary for the graph
+        // This code is hideous =/ -- time pressure
+        if (threadIdx.y == 0) {
+            if (Set == 1) {
+                graph.haplo_one_temp[snp_idx] = counts[0] >= counts[data.reads] ? 0 : 1;
+                graph.snp_scores_one[snp_idx] = counts[0] >= counts[data.reads] ? counts[data.reads] : counts[0];
+                graph.snp_scores_one[snp_idx + data.snps] = counts[0] >= counts[data.reads] 
+                                                      ? counts[0] : counts[data.reads];
+            } else if (Set == 2) {
+                graph.haplo_two_temp[snp_idx] = counts[0] >= counts[data.reads] ? 0 : 1;
+                graph.snp_scores_two[snp_idx] = counts[0] >= counts[data.reads] ? counts[data.reads] : counts[0];
+                graph.snp_scores_two[snp_idx + data.snps] = counts[0] >= counts[data.reads] 
+                                                      ? counts[0] : counts[data.reads];
+            }
+        }
+        __syncthreads();
 #ifdef DEBUG
-    if (graph.haplo_one_temp[snp_idx] > 1 || graph.haplo_two_temp[snp_idx] > 1) {
-        printf("Error %i\n", blockIdx.x);
-    }
-    __syncthreads();
+        if ((graph.haplo_one_temp[snp_idx] > 1 || graph.haplo_two_temp[snp_idx] > 1) && snp_idx < data.snps) {
+            printf("Error %i\n", blockIdx.x);
+        }
+        __syncthreads();
 #endif
+    }
 }
 
 __global__
