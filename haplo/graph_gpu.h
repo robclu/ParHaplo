@@ -13,7 +13,7 @@
 #include "thrust/sequence.h"
 
 #define EDGE_MEM_PERCENT 0.6f
-#define ITERS            1000
+#define ITERS            10
 
 namespace haplo {
 
