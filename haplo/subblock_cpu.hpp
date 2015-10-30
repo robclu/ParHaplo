@@ -8,7 +8,6 @@
 #include "devices.hpp"
 #include "graph.h"
 #include "processor_cpu.hpp"
-#include "tree_cpu.hpp"
 #include "subblock.hpp"
 #include "snp_info_gpu.h"
 
@@ -23,10 +22,8 @@ public:
     // ------------------------------------------- ALIAS'S --------------------------------------------------`
     using sub_block_type        = SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>;
     using atomic_type           = tbb::atomic<size_t>;
-    using tree_type             = Tree<sub_block_type, devices::cpu>;
     using binary_vector         = BinaryVector<2>;              
     using atomic_vector         = tbb::concurrent_vector<size_t>;
-    using node_container        = NodeContainer<devices::cpu>;
     using concurrent_umap       = typename BaseBlock::concurrent_umap;
     using read_info_container   = typename BaseBlock::read_info_container;
     using snp_info_container    = typename BaseBlock::snp_info_container;
@@ -44,8 +41,6 @@ private:
     binary_vector       _data;              //!< The data for the block
     binary_vector       _haplo_one;         //!< The first haplotype
     binary_vector       _haplo_two;         //!< The second haplotype 
-    binary_vector       _alignments;        //!< The alignments of the haplotypes         
-    tree_type           _tree;              //!< The tree to be solved for the block
         
     read_info_container _read_info;         //!< The information for each of the reads (rows)
     snp_info_container  _snp_info;          //!< The information for each of the snps (columns)
@@ -58,10 +53,6 @@ private:
     // Friend class that can process rows and columns    
     template <typename FriendType, byte ProcessType, byte DeviceType>
     friend class Processor;
-    
-    // Tree is s friend class so that it can access the data 
-    template <typename SubBlockType, byte DeviceType>
-    friend class Tree;
     
     // Graph is s friend class so that it can access the data 
     template <typename SubBlockType, byte DeviceType>
@@ -96,18 +87,7 @@ public:
     /// @brief      Gets the number of reads that make up the sub block
     // ------------------------------------------------------------------------------------------------------
     inline size_t reads() const { return _rows; }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Gets a constant reference to the tree for the block
-    /// @return     A constant ference to the tree for the block
-    // ------------------------------------------------------------------------------------------------------
-    inline const tree_type& tree() const { return _tree; }
    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Searches the tree to find the haplotypes
-    // ------------------------------------------------------------------------------------------------------
-    inline void find_haplotypes() { _tree.template explore<ThreadsX, ThreadsY>(); }
-
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Returns the number of elements in the subblock
     // ------------------------------------------------------------------------------------------------------
@@ -132,11 +112,6 @@ public:
     /// @brief      A reference to the second haplotype 
     // ------------------------------------------------------------------------------------------------------
     inline const binary_vector& haplo_two() const { return _haplo_two; }
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      A reference to the alignments
-    // ------------------------------------------------------------------------------------------------------
-    inline const binary_vector& alignments() const { return _alignments; }
  
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Gets the start row of the sub block in the base block 
@@ -204,9 +179,9 @@ private:
     inline size_t base_end_index() const { return base_block()->subblock(_index + 1); }
 
     // ------------------------------------------------------------------------------------------------------
-    /// @brief      Determines the links between the nodes representing the haplotype solution
+    /// @brief      Determines processes the snps
     // ------------------------------------------------------------------------------------------------------
-    void determine_haplo_links();
+    void process_snps();
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Fills the data for the unsplittable block with the releavant data from the base block
@@ -252,7 +227,6 @@ SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock&
   _elements(0)                                                          ,
   _base_start_row(0)                                                    ,
   _data(0)                                                              ,
-  _tree(*this, 0)                                                       ,
   _read_info(0)                                                 
 {
     std::ostringstream error_message;
@@ -269,12 +243,10 @@ SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::SubBlock(const BaseBlock&
     }
     
     fill();                                             // Fill the block with data
-    _tree.resize(_cols);                                // Resize the tree incase there were monotones
     find_duplicate_rows();                              // Find the duplicate rows and the row mltiplicities
-    determine_haplo_links();                            // Find the links between haplotype positions
+    process_snps();                                     // Process the snps
     _haplo_one.resize(_cols);                           // Allocate memory for haplo one
     _haplo_two.resize(_cols);                           // Allocate memory for haplo two
-    _alignments.resize(_rows);                          // Resize the aligments vector
 }
 
 template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY> 
@@ -431,23 +403,16 @@ void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::find_duplicate_rows(
 }
 
 template <typename BaseBlock, size_t ThreadsX, size_t ThreadsY> 
-void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::determine_haplo_links()
+void SubBlock<BaseBlock, ThreadsX, ThreadsY, devices::cpu>::process_snps()
 {
     // Create a column processor to operate on the columns of the sub-block,
     // finding duplicate columns and determining the haplotype links
-    Processor<sub_block_type, proc::col_dups_links, devices::cpu> col_processor(*this, _tree);
-   
+    Processor<sub_block_type, proc::col_dups, devices::cpu> col_processor(*this); 
+    
     // Start from the last column and go backwards 
     for (size_t col_idx = _cols; col_idx > 0; --col_idx) {
-        // Set the number of elements for the nodes and their positions
-        _tree.node(col_idx - 1).position() = col_idx - 1;
-        _tree.node(col_idx - 1).elements() = _snp_info[col_idx - 1].length();
-        
         // Check if the column is NIH, and set it if necessary
-        if (_snp_info[col_idx - 1].type() == NIH) {
-            _tree.node(col_idx - 1).type() = NIH;
-            ++_num_nih;
-        }
+        if (_snp_info[col_idx - 1].type() == NIH) ++_num_nih;
         
         // Process the column with the column processor to determine
         // duplicate columns and initialize the tree links and weights

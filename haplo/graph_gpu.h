@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------------------------------------
-/// @file   Header file for parahaplo tree class -- gpu implementattion
+/// @file   Header file for parahaplo graph class -- gpu implementattion
 // ----------------------------------------------------------------------------------------------------------
 
 #ifndef PARHAPLO_GRAPH_GPU_H
@@ -10,10 +10,10 @@
 #include "devices.hpp"
 #include "graph.h"
 #include "graph_kernels_gpu.cu"
-#include "thrust/sequence.h"
+#include <thrust/sequence.h>
 
-#define EDGE_MEM_PERCENT 0.6f
-#define ITERS            6000
+#define EDGE_MEM_PERCENT 0.6f       // Amount of total memory allowed for edges
+#define ITERS            6000       // Number of iterations before ensuring termination
 
 namespace haplo {
 
@@ -126,8 +126,6 @@ Graph<SubBlockType, devices::gpu>::Graph(SubBlockType& sub_block, const size_t d
   _mec_score(INT_MAX)                       ,                   
   _data_gpu(sub_block.snp_info().size()     , sub_block.read_info().size())             
 {
-    cudaError_t error;
-   
     // Copy the actual data to the device
     thrust::host_vector<small_type> data_gpu_format = _data_cpu.to_binary_vector();
     CudaSafeCall( cudaMalloc((void**)&_data_gpu.data, sizeof(small_type) * _data_cpu.size()) );

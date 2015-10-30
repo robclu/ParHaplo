@@ -6,9 +6,9 @@
 #define PARHAPLO_DATA_H
 
 #include "cuda_defs.h"
-#include "read_info_gpu.cuh"
+#include "read_info.h"
 #include "snp_info_gpu.h"
-#include "thrust/host_vector.h"
+#include <thrust/host_vector.h>
 
 namespace haplo {
  

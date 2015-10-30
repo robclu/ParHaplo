@@ -49,7 +49,7 @@ void Evaluator::get_haplotypes(const char* input_file, haplo_container& haplotyp
     for (auto& line : lines) {
         // For each of the elements
         haplotypes[counter].resize(line.size());        
-        for (auto i = 0; i < line.size(); ++i) {
+        for (size_t i = 0; i < line.size(); ++i) {
             switch (line[i]) {
                 case '0':
                     haplotypes[counter].set(i, 0);
@@ -70,7 +70,6 @@ void Evaluator::get_haplotypes(const char* input_file, haplo_container& haplotyp
 
 double Evaluator::recon_rate(const haplo_container& ref_haplos, const haplo_container& sol_haplos) const 
 {
-    size_t count = 0;
     size_t counts[4] = {0,0,0,0};
     for (size_t i = 0; i < ref_haplos[0].size(); ++i) {
         counts[0] += ref_haplos[0].get(i) != sol_haplos[0].get(i);

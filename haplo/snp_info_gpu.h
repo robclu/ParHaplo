@@ -1,24 +1,11 @@
 // ----------------------------------------------------------------------------------------------------------
-/// @file   Header file for parahaplo snp info class
+/// @file   Header file for parahaplo snp info class for the GPU -- smaller than CPU class
 // ----------------------------------------------------------------------------------------------------------
 
 #ifndef PARHAPLO_SNP_INFO_GPU_H
 #define PARHAPLO_SNP_INFO_GPU_H
 
-#ifdef __CUDACC__
-    #define CUDA_HD __host__ __device__
-    #define CUDA_H  __host__
-    #define CUDA_D  __device__
-    #define SHARED  __shared__
-    #define ALIGN(x) __align__(x)
-#else
-    #define CUDA_HD
-    #define CUDA_H
-    #define CUDA_D
-    #define SHARED
-    #define ALIGN(x) 
-#endif
-
+#include "cuda_defs.h"
 #include "snp_info.hpp"
 #include <stdint.h>
 

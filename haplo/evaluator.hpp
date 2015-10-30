@@ -6,7 +6,7 @@
 #ifndef PARAHAPLO_EVALUATOR_HPP
 #define PARAHAPLO_EVALUATOR_HPP
 
-#include "small_containers.hpp"
+#include "small_containers.h"
 #include <array>
 
 namespace haplo {

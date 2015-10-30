@@ -12,7 +12,7 @@ struct ALIGN(16) Fragment {
     uint64_t score   : 58;
     uint64_t swapped : 4 ;
     uint64_t set     : 2 ;
-    size_t   index ;
+    size_t   index       ;
     
     CUDA_HD 
     Fragment() noexcept : score{0}, swapped{0}, set{0}, index{0} {}

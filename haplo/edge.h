@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------------------------------------
-/// @file   Header file for parahaplo snp info class
+/// @file   Header file for parahaplo edge class for a graph
 // ----------------------------------------------------------------------------------------------------------
 
 #ifndef PARHAPLO_EDGE_H
@@ -31,7 +31,6 @@ struct ALIGN(16) Edge {
         f1       = rhs.f1;
         f2       = rhs.f2;
     }
-
 };
 
 }               // End namespace haplo

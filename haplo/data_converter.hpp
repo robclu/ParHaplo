@@ -6,12 +6,13 @@
 #ifndef PARAHAPLO_DATA_CONVERTER_HPP
 #define PARAHAPLO_DATA_CONVERTER_HPP
 
-#include "small_containers.hpp"
+//#include "small_containers.hpp"
 
 #include <array>
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <iostream>
 
 #ifndef ONE
     #define     ZERO    0x00
@@ -96,6 +97,7 @@ private:
     size_t                  _rows;                      //!< Number of rows in the input file
     size_t                  _columns;                   //!< Number of columns in the input file
     size_t                  _chromosome;                //!< Chromosome number identifier
+    bool                    _start_reading;
     std::vector<char>       _ref_seq;                   //!< Reference sequence for smaller input files
     std::vector<char>       _alt_seq;                   //!< Alternate sequence for smaller input files
     std::vector<size_t>     _base_a;                    //!< Counter for occurrences of base a, indexed by columns for smaller input files
@@ -107,6 +109,7 @@ private:
     chromo_array_reads      _simulated_chromosomes;     //!< Array of maps to store all the reads for a specific dataset file, indexed by chromosome number
 
     std::vector<size_t>     _start_of_chromosome_reads; //!< Vector of starting positions for each chromosome, indexed by chromosome number
+    size_t                  _total_num_elements = 0;    //!< Total number of elements for the converted file
 
 
 public:
@@ -138,6 +141,12 @@ public:
     void write_simulated_data_to_file(const char* data_file);
     
     // ------------------------------------------------------------------------------------------------------
+    /// @brief      Returns the total number of elements for a simulated file
+    /// @return     Total number of elements
+    // ------------------------------------------------------------------------------------------------------
+    size_t getTotalNumElements();
+    
+    // ------------------------------------------------------------------------------------------------------
     /// @brief      Writes the converted simulated data to a file for bigger input files
     /// @param[in]  data_file       Stores the processed output data
     // ------------------------------------------------------------------------------------------------------
@@ -155,8 +164,8 @@ public:
     /// @param[in]  input       Stores the binary elements
     /// @return     A vector of characters (ACTG)
     // ------------------------------------------------------------------------------------------------------
-    template <size_t length>
-    std::vector<char> convert_data_from_binary(BinaryArray<length, 2> input);
+    //template <size_t length>
+    //std::vector<char> convert_data_from_binary(BinaryArray<length, 2> input);
     
     
     // ------------------------------------------------------------------------------------------------------
@@ -166,19 +175,6 @@ public:
     // ------------------------------------------------------------------------------------------------------
     std::vector<size_t> convert_data_to_binary(std::vector<char> input);
     
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Converts a character to a byte for mapping
-    /// @param[in]  input       Stores the character (ACTG)
-    /// @return     The byte equivalent of the character
-    // ------------------------------------------------------------------------------------------------------
-    byte convert_char_to_byte(char input);
-    
-    // ------------------------------------------------------------------------------------------------------
-    /// @brief      Converts a byte to a character for mapping
-    /// @param[in]  input       Stores the byte value to be converted
-    /// @return     The character equivalent of the byte
-    // ------------------------------------------------------------------------------------------------------
-    char convert_byte_to_char(byte input);
     
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Converts the CIGAR value of a bam file in order to apply operations to the sequence of each read
@@ -257,10 +253,13 @@ private:
     // ------------------------------------------------------------------------------------------------------
     void process_each_read();
     
+    void store_haplotype_answers();
+    
     
 };
 
-template <size_t length>
+// not necessary
+/*template <size_t length>
 std::vector<char> DataConverter::convert_data_from_binary(BinaryArray<length, 2> input)
 {
     std::vector<char> output;
@@ -276,7 +275,7 @@ std::vector<char> DataConverter::convert_data_from_binary(BinaryArray<length, 2>
     }
     
     return output;
-}
+}*/
 
 }               // End namespace haplo
 #endif          // PARAHAPLO_INPUT_CONVERTER_HPP

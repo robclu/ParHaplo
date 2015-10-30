@@ -1,6 +1,5 @@
 #include "cuda.h"
 #include "data.h"
-#include "debug.h"
 #include "graph_internal.h"
 #include "math.h"
 
@@ -20,6 +19,36 @@ using data_type  = Data;
 extern __shared__ size_t distance[];
 extern __shared__ size_t counts[];
 
+// ----------------------------------------------- PRINT FUNCTIONS ------------------------------------------
+
+// Prints the edges of a node
+__global__
+void print_edges(data_type data, graph_type graph)
+{
+    if (threadIdx.y == 0 && blockIdx.x == 0) {   
+        for (size_t i = 0; i < data.reads * (data.reads -1) / 2; ++i) {
+            if (graph.edges[i].distance != 0.0f) {
+                printf("%.4f ", graph.edges[i].distance);
+                printf("%i ", graph.edges[i].f1);
+                printf("%i\n", graph.edges[i].f2);
+            }
+        }
+    } 
+}
+
+__global__
+void print_haplotypes(data_type data, graph_type graph)
+{
+    // Haplotype from set 1
+    for (size_t i = 0; i < data.snps; ++i) {
+        printf("%i", graph.haplo_one[i]);
+    } printf("\n");
+    for (size_t i = 0; i < data.snps; ++i) {
+        printf("%i", graph.haplo_two[i]);
+    } printf("\n"); 
+}
+
+
 __device__
 void print_temp_haplotypes(data_type& data, graph_type& graph)
 {
@@ -32,6 +61,32 @@ void print_temp_haplotypes(data_type& data, graph_type& graph)
     } printf("\n"); 
 }
 
+__device__ 
+void print_sets(graph_type& graph, const size_t elements)
+{
+    if (threadIdx.y == 0 && blockIdx.x == 0) {
+        for (size_t i = 0; i < elements; ++i) 
+            if (graph.set_one[i] == i) 
+                printf("%i ", graph.set_one[i]);
+        printf("\n");
+        for (size_t i = 0; i < elements; ++i) 
+            if (graph.set_two[i] == i)
+                printf("%i ", graph.set_two[i]);
+        printf("\n"); 
+    }
+}
+
+__global__
+void print_fragments(data_type data, graph_type graph)
+{
+    for (size_t i = 0; i < data.reads; ++i) {
+        printf("%i ", graph.fragments[i].score);
+    } printf("\n");
+}
+
+// --------------------------------------- COMPUTATION FUNCTIONS --------------------------------------------
+
+// Finds the distances (similarity) between edges
 __device__
 void map_distances(data_type& data, graph_type& graph, const size_t threads)
 {
@@ -120,7 +175,13 @@ void reduce_distances(data_type& data, graph_type& graph, const size_t threads)
         graph.edges[blockIdx.x].distance = 0.0f;
     }
 }
- 
+
+// NOTE : This sort function should really be a fuctor that takes the swapping type and a swap functor
+//        so that it can be easilty reused, but limited time, so I just copied the code for the fragment
+//        sort -- can improve for future work
+        
+// ----------------------------------- EDGE SORT ------------------------------------------------------------
+
 __device__
 void swap_edges(graph_type& graph, const size_t edge_idx_one, const size_t edge_idx_two)
 {
@@ -134,6 +195,9 @@ __global__
 void bitonic_out_in_sort(graph_type graph, const size_t block_size, const size_t total_elements)
 {
     const size_t block_idx  = blockIdx.x / (block_size / 2);
+    
+    // Mapping for the indices (see https://en.wikipedia.org/wiki/Bitonic_sorter) second image 
+    // idx one and two are the black lines in the orange blocks
     const size_t idx_one    = blockIdx.x + (block_idx * (block_size / 2));
     const size_t idx_two    = idx_one + (block_size - (blockIdx.x % (block_size / 2)) - 1) 
                             - (idx_one % (block_size / 2));
@@ -153,6 +217,9 @@ __global__
 void bitonic_out_out_sort(graph_type graph, const size_t block_size, const size_t total_elements)
 {
     const size_t block_idx = blockIdx.x / (block_size / 2);
+    
+    // Mapping for the indices (see https://en.wikipedia.org/wiki/Bitonic_sorter) second image 
+    // idx one and two are the black lines in the red blocks
     const size_t idx_one   = blockIdx.x + (block_idx * (block_size / 2));
     const size_t idx_two   = idx_one + (block_size / 2);
 
@@ -165,6 +232,8 @@ void bitonic_out_out_sort(graph_type graph, const size_t block_size, const size_
         }
     }    
 }
+
+// ---------------------------------------- FRAGMENT SORT ---------------------------------------------------
 
 __device__
 void swap_fragments(graph_type& graph, const size_t frag_idx_one, const size_t frag_idx_two)
@@ -211,6 +280,7 @@ void bitonic_out_out_sort_frag(graph_type graph, const size_t block_size, const 
     }    
 }
 
+// To remove all uninformative values after the edge sort
 __device__ 
 size_t find_last_valid_edge(const graph_type& graph)
 {
@@ -225,37 +295,23 @@ size_t find_last_valid_edge(const graph_type& graph)
     return last_valid_edge;
 }
 
-// Prints the edges of a node
-__global__
-void print_edges(data_type data, graph_type graph)
-{
-    if (threadIdx.y == 0 && blockIdx.x == 0) {   
-        for (size_t i = 0; i < data.reads * (data.reads -1) / 2; ++i) {
-            if (graph.edges[i].distance != 0.0f) {
-                printf("%.4f ", graph.edges[i].distance);
-                printf("%i ", graph.edges[i].f1);
-                printf("%i\n", graph.edges[i].f2);
-            }
-        }
-    } 
-}
-
 __global__
 void search_graph(data_type data, graph_type graph, size_t threads) 
 {
-    const size_t total_vertices = data.reads * (data.reads - 1) / 2;
-    
     map_distances(data, graph, threads);
     reduce_distances(data, graph, threads);
 }
 
-// We store a fragment as partitioned by setting the element at it's index, to its index
+// ------------------------------------------------ PARTITIONING --------------------------------------------
+
+// If the fragment exists in a set
+// We store a fragment as partitioned by setting the element at it's index to 1
 template <uint8_t Set> __device__ 
 inline uint8_t in_set(graph_type&  graph, const size_t fragment)
 { 
     return Set == 1 
-                ? graph.set_one[fragment] == fragment 
-                : graph.set_two[fragment] == fragment;
+                ? graph.set_one[fragment] == 1
+                : graph.set_two[fragment] == 1;
 }
 
 
@@ -275,23 +331,23 @@ void partition_next_largest_fragment(graph_type& graph, size_t& last_set_edge, c
             
             if (f1_in_set_1 && !f2_in_set_2 && !f2_in_set_1) {
                 // f1 in set one, add f2 to set two
-                graph.set_two[graph.edges[last_set_edge].f2] = graph.edges[last_set_edge].f2;
+                graph.set_two[graph.edges[last_set_edge].f2] = 1;
                 ++graph.set_two_size;
                 found = true;
             } else if (f2_in_set_1 && !f1_in_set_2 && !f1_in_set_1) {
                 // f2 in set one, add f1 to set two
-                graph.set_two[graph.edges[last_set_edge].f1] = graph.edges[last_set_edge].f1;
+                graph.set_two[graph.edges[last_set_edge].f1] = 1;
                 ++graph.set_two_size;
                 found = true;
             } else if (f1_in_set_2 && !f2_in_set_1 && !f2_in_set_2) {
                 // f1 in set 2, add f2 so set one
-                graph.set_one[graph.edges[last_set_edge].f2] = graph.edges[last_set_edge].f2;
+                graph.set_one[graph.edges[last_set_edge].f2] = 1;
                 ++graph.set_one_size;
                 found = true;
             } else if (f2_in_set_2 && !f1_in_set_1 && !f1_in_set_2) {
                 // f2 in set 2, add f1 to set one
-                graph.set_one[graph.edges[last_set_edge].f1] = graph.edges[last_set_edge].f1;
-                ++(graph.set_one_size);
+                graph.set_one[graph.edges[last_set_edge].f1] = 1;
+                ++graph.set_one_size;
                 found = true;
             } else ++last_set_edge;
         }
@@ -320,23 +376,23 @@ void partition_next_smallest_fragment(graph_type& graph, size_t& last_set_edge, 
             
             if (f1_in_set_1 && !f2_in_set_1 && !f2_in_set_2) {
                 // f1 in set one, add f2 to set one
-                graph.set_one[graph.edges[last_set_edge].f2] = graph.edges[last_set_edge].f2;
                 ++graph.set_one_size;
+                graph.set_one[graph.edges[last_set_edge].f2] = 1;
                 found = true;
             } else if (f2_in_set_1 && !f1_in_set_1 && !f1_in_set_2) {
                 // f2 in set one, add f1 to set one
-                graph.set_one[graph.edges[last_set_edge].f1] = graph.edges[last_set_edge].f1;
-                ++(graph.set_one_size);
+                ++graph.set_one_size;
+                graph.set_one[graph.edges[last_set_edge].f1] = 1;
                 found = true;
             } else if (f1_in_set_2 && !f2_in_set_2 && !f2_in_set_1) {
                 // f1 in set 2, add f2 so set two
-                graph.set_two[graph.edges[last_set_edge].f2] = graph.edges[last_set_edge].f2;
-                ++(graph.set_two_size);
+                ++graph.set_two_size;
+                graph.set_two[graph.edges[last_set_edge].f2] = 1;
                 found = true;
             } else if (f2_in_set_2 && !f1_in_set_2 && !f1_in_set_1) {
                 // f2 in set 2, add f1 to set one
-                graph.set_two[graph.edges[last_set_edge].f1] = graph.edges[last_set_edge].f1;
-                ++(graph.set_two_size);
+                ++graph.set_two_size;
+                graph.set_two[graph.edges[last_set_edge].f1] = 1;
                 found = true;
             } else --last_set_edge;
         }
@@ -349,28 +405,37 @@ void partition_next_smallest_fragment(graph_type& graph, size_t& last_set_edge, 
     }
 }
 
-__device__ 
-void print_sets(graph_type& graph, const size_t elements)
+__global__ 
+void map_to_partitions(data_type data, graph_type graph)
 {
-    if (threadIdx.y == 0 && blockIdx.x == 0) {
-        for (size_t i = 0; i < elements; ++i) 
-            if (graph.set_one[i] == i) 
-                printf("%i ", graph.set_one[i]);
-        printf("\n");
-        for (size_t i = 0; i < elements; ++i) 
-            if (graph.set_two[i] == i)
-                printf("%i ", graph.set_two[i]);
-        printf("\n"); 
-    }
+    const size_t last_valid_edge        = find_last_valid_edge(graph);      // Improve this
+    size_t       last_set_edge_forward  = 1;
+    size_t       last_set_edge_backward = last_valid_edge - 1;
+    bool         keep_partitioning      = true;
+   
+    extern __shared__ uint8_t sets[];
+    
+    // Add the first elements in the partitions
+    graph.set_one[graph.edges[0].f1] = graph.edges[0].f1; graph.set_one_size = 1;
+    graph.set_two[graph.edges[0].f2] = graph.edges[0].f2; graph.set_two_size = 1;
+    
+    // Partition the remaining fragments -- this needs to be improved
+    while (keep_partitioning) {
+        size_t last_edge_back_before = last_set_edge_backward;
+        size_t last_edge_fwd_before  = last_set_edge_forward;
+
+        partition_next_largest_fragment(graph, last_set_edge_forward, last_valid_edge, &sets[0]);
+        partition_next_smallest_fragment(graph, last_set_edge_backward, &sets[0]);   
+        
+        if (last_set_edge_forward == last_valid_edge || last_set_edge_backward == 1     ||
+            (last_set_edge_forward == last_edge_fwd_before                              && 
+             last_set_edge_backward == last_edge_back_before)                           ||
+            (graph.set_one_size + graph.set_two_size == data.reads)                      ) {
+                keep_partitioning = false;
+        }
+    }  
 }
 
-__global__
-void print_fragments(data_type data, graph_type graph)
-{
-    for (size_t i = 0; i < data.reads; ++i) {
-        printf("%i ", graph.fragments[i].score);
-    } printf("\n");
-}
 
 __global__
 void swap_fragment_set(data_type data, graph_type graph)
@@ -381,18 +446,22 @@ void swap_fragment_set(data_type data, graph_type graph)
         if (frag->swapped < 2) {
             if (frag->set == 1) {
                 graph.set_one[frag->index] = 0;
-                graph.set_two[frag->index] = frag->index;
+                graph.set_two[frag->index] = 1;
+                --graph.set_one_size; ++graph.set_two_size;
                 graph.fragments[frag->index].swapped = frag->swapped + 1;
                 set = true;
             } else if (frag->set == 2) {
                 graph.set_two[frag->index] = 0;
-                graph.set_one[frag->index] = frag->index; 
+                graph.set_one[frag->index] = 1; 
+                --graph.set_two_size; ++graph.set_one_size;
                 graph.fragments[frag->index].swapped = frag->swapped + 1;
                 set = true;
             }
         } else ++frag;
     }
 }
+
+// ------------------------------------------- NIH CONSIDERATION --------------------------------------------
 
 __global__
 void check_haplotypes(data_type data, graph_type graph)
@@ -419,6 +488,8 @@ void check_haplotypes(data_type data, graph_type graph)
    __syncthreads();
 }
 
+// ------------------------------------- EVALUATES THE PARTITIONS -------------------------------------------
+// Set is the partition -- 1 or 2
 template <uint8_t Set> __global__
 void determine_switch_error(data_type data, graph_type graph)
 {   
@@ -492,6 +563,8 @@ void determine_switch_error(data_type data, graph_type graph)
     }
 }
 
+// -------------------------------------------- ADD UNPARTITIONED PARTITIONS --------------------------------
+
 __global__
 void add_unpartitioned(data_type data, graph_type graph)
 {
@@ -556,6 +629,8 @@ void set_haplotypes(graph_type& graph, const size_t snps)
         graph.haplo_two[snp_idx] = graph.haplo_two_temp[snp_idx];
     }
 }
+
+// ------------------------------------------ MEC SCOR CALCULATION ------------------------------------------
 
 __global__
 void map_mec_score(data_type data, graph_type graph)
@@ -655,116 +730,6 @@ void reduce_mec_score(data_type data, graph_type graph)
     __syncthreads();
     if (*graph.mec_score == frag_scores[0]) set_haplotypes(graph, data.snps);
     __syncthreads();
-}
-
-// Given the current haplotypes and mec score, we look at each nih column 
-// and check if flipping either of the bits leads to a lower score
-template <uint8_t Set> __global__
-void evaluate_nih_columns(data_type data, graph_type graph)
-{
-    // Shared memory for the snp contributions 
-    extern __shared__ size_t contributions[];
-    
-    // Each block is a snp, each thread is a read element at the snp index
-    const size_t snp_idx  = blockIdx.x;
-    const size_t read_idx = threadIdx.y; 
-    const uint8_t haplo_value = Set == 1 ? graph.haplo_one_temp[snp_idx] : graph.haplo_two_temp[snp_idx];
-    
-    if (snp_idx < data.snps) {
-        // If this snps is NIH and can potentially be flipped
-        if (read_idx < data.reads && data.snp_info[snp_idx].type() == NIH) {
-            auto read_info = data.read_info[read_idx];
-            // Check that the snp is valid for the read
-            if (read_info.start_index() <= snp_idx && read_info.end_index()) {
-                uint8_t value = data.data[read_info.offset() + snp_idx - read_info.start_index()];
-                // Add the current contribution
-                if (haplo_value != value && value <= 1) 
-                    contributions[read_idx] = 1;
-                else contributions[read_idx] = 0;
-                // Add the contribution for a flip
-                if (!haplo_value != value && value <= 1)
-                    contributions[read_idx + data.reads] = 1;
-                else contributions[read_idx + data.reads] = 0;
-            } else {
-                contributions[read_idx] = 0;
-                contributions[read_idx + data.reads] = 0;
-            }
-            __syncthreads();
-            
-            // Now reduce the shared array to see which is better
-            size_t reduction_threads = data.reads;
-            while (reduction_threads > 1) {
-                if (read_idx < reduction_threads / 2) {
-                    contributions[read_idx]              += contributions[read_idx + reduction_threads / 2];
-                    contributions[read_idx + data.reads] += 
-                        contributions[read_idx + data.reads + reduction_threads / 2];       
-                }
-                // If there are an odd number of elements to reduce
-                if (reduction_threads % 2 == 1) {
-                    if (read_idx == reduction_threads / 2) {
-                        contributions[read_idx]              = contributions[read_idx + reduction_threads / 2];
-                        contributions[read_idx + data.reads] = 
-                            contributions[read_idx + data.reads + reduction_threads / 2];                        
-                    }
-                    reduction_threads /= 2; reduction_threads += 1;
-                } else reduction_threads /= 2;
-                __syncthreads();
-            }   
-            // Check which solution was better
-            if (threadIdx.y == 0) {
-                // If we can flip a bit
-                if (contributions[data.reads] < contributions[0]) {
-                    Set == 1 
-                        ? graph.haplo_one_temp[snp_idx] = !graph.haplo_one_temp[snp_idx]
-                        : graph.haplo_two_temp[snp_idx] = !graph.haplo_two_temp[snp_idx];
-                }
-            }
-            __syncthreads();
-        }   
-    }   
-}
-
-__global__
-void print_haplotypes(data_type data, graph_type graph)
-{
-    // Haplotype from set 1
-    for (size_t i = 0; i < data.snps; ++i) {
-        printf("%i", graph.haplo_one[i]);
-    } printf("\n");
-    for (size_t i = 0; i < data.snps; ++i) {
-        printf("%i", graph.haplo_two[i]);
-    } printf("\n"); 
-}
-
-__global__ 
-void map_to_partitions(data_type data, graph_type graph)
-{
-    const size_t last_valid_edge        = find_last_valid_edge(graph);
-    size_t       last_set_edge_forward  = 1;
-    size_t       last_set_edge_backward = last_valid_edge - 1;
-    bool         keep_partitioning      = true;
-   
-    extern __shared__ uint8_t sets[];
-    
-    // Add the first elements in the partitions
-    graph.set_one[graph.edges[0].f1] = graph.edges[0].f1; graph.set_one_size = 1;
-    graph.set_two[graph.edges[0].f2] = graph.edges[0].f2; graph.set_two_size = 1;
-    
-    // Partition the remaining fragments
-    while (keep_partitioning) {
-        size_t last_edge_back_before = last_set_edge_backward;
-        size_t last_edge_fwd_before  = last_set_edge_forward;
-
-        partition_next_largest_fragment(graph, last_set_edge_forward, last_valid_edge, &sets[0]);
-        partition_next_smallest_fragment(graph, last_set_edge_backward, &sets[0]);   
-        
-        if (last_set_edge_forward == last_valid_edge || last_set_edge_backward == 1     ||
-            (last_set_edge_forward == last_edge_fwd_before                              && 
-             last_set_edge_backward == last_edge_back_before)                           ||
-            (graph.set_one_size + graph.set_two_size == data.reads)                    ) {
-                keep_partitioning = false;
-        }
-    }  
 }
 
 }               // End namespace haplo

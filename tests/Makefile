@@ -53,34 +53,19 @@ NXX_FLAGS       := -arch=sm_30 --std=c++11 -O3
 PXX_FLAGS       :=
 
 ALL_TESTS       =   small_container_tests.o             \
-					comparator_tests.o                  \
-					equality_checker_tests.o            \
 					data_converter.o                    \
 					data_converter_tests.o              \
-					evaluator_test.o                    \
-					graph_tests.o                       \
+					evaluator.o                         \
+					evaluator_tests.o                   \
 					block_tests.o                       \
-					sorter_tests.o                      \
-					node_selector_tests.o               \
-					search_node_tests.o                 \
-					node_manager_tests.o                \
-					tree_tests.o                        \
-					node_container_tests.o              \
-					link_container_tests.o              \
-					bounder_tests.o                     \
 					subblock_tests.o                    \
 					tests.o 
-
-CUDA_TESTS      = cuda_container_tests.o                
 
 ########################################################################################
 # 					                TARGET RULES 					                   #
 #######################################################################################
 
-.PHONY: all block_tests container_tests checker_tests converter_tests node_constiner_tests      \
-		node_selector_tests link_tests tree_tests comparator_tests sorter_tests                 \
-		search_node_tests node_manager_tests subblock_tests evaluator_tests                     \
-		cuda_container_tests clean
+.PHONY: all
 
 all: build_and_run
 
@@ -91,15 +76,6 @@ build_and_run: build_tests
 build: build_tests
 
 block_tests.o: block_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-
-bounder_tests.o: bounder_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-	
-comparator_tests.o: comparator_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-
-equality_checker_tests.o: equality_checker_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 data_converter.o: ../haplo/data_converter.cpp 
@@ -114,28 +90,7 @@ evaluator.o: ../haplo/evaluator.cpp
 evaluator_tests.o: evaluator_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 	
-link_container_tests.o: link_container_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-
-node_container_tests.o: node_container_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-
-node_selector_tests.o: node_selector_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-
-search_node_tests.o: search_node_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-
-node_manager_tests.o: node_manager_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-	
 small_container_tests.o: small_container_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-
-sorter_tests.o: sorter_tests.cpp 
-	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
-
-tree_tests.o: tree_tests.cpp 
 	$(CXX) $(CXX_INCLUDE) $(CXX_FLAGS) -o $@ -c $<
 
 subblock_tests.o: subblock_tests.cpp
@@ -147,18 +102,6 @@ tests.o: tests.cpp
 block_tests: CXX_FLAGS += -DSTAND_ALONE
 block_tests: block_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-bounder_tests: CXX_FLAGS += -DSTAND_ALONE
-bounder_tests: bounder_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-checker_tests: CXX_FLAGS += -DSTAND_ALONE
-checker_tests: equality_checker_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-comparator_tests: CXX_FLAGS += -DSTAND_ALONE
-comparator_tests: comparator_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 
 container_tests: CXX_FLAGS += -DSTAND_ALONE
 container_tests: small_container_tests.o 
@@ -172,78 +115,19 @@ evaluator_tests: CXX_FLAGS += -DSTAND_ALONE
 evaluator_tests: evaluator.o evaluator_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
 
-link_tests: CXX_FLAGS += -DSTAND_ALONE
-link_tests: link_container_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-node_container_tests: CXX_FLAGS += -DSTAND_ALONE
-node_container_tests: node_container_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-node_selector_tests: CXX_FLAGS += -DSTAND_ALONE
-node_selector_tests: node_selector_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-search_node_tests: CXX_FLAGS += -DSTAND_ALONE
-search_node_tests: search_node_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-node_manager_tests: CXX_FLAGS += -DSTAND_ALONE
-node_manager_tests: node_manager_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-sorter_tests: CXX_FLAGS += -DSTAND_ALONE
-sorter_tests: sorter_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
 subblock_tests: CXX_FLAGS += -DSTAND_ALONE
 subblock_tests: subblock_tests.o 
 	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-tree_tests: CXX_FLAGS += -DSTAND_ALONE
-tree_tests: tree_tests.o 
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)	
-
-build_tests: $(ALL_TESTS)
-	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
-
-cuda_container_tests.o: cuda_container_tests.cu
-	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
-
-cuda_graph_tests.o: cuda_graph_tests.cu
-	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -dc $<
 	
-cuda_link_tests.o: cuda_link_tests.cu
-	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
-
-cuda_tree_tests.o: cuda_tree_tests.cu
-	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -dc $<
-
 snp_info_tests.o: snp_info_tests.cu
 	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -c $<
-
-tree_kernels_gpu.o: ../haplo/tree_kernels_gpu.cu
-	$(NXX) $(NXX_INCLUDE) $(NXX_FLAGS) -o $@ -dc $<
-
-cuda_container_tests: NXX_FLAGS += -DSTAND_ALONE
-cuda_container_tests: cuda_container_tests.o 
-	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
-
-cuda_graph_tests: NXX_FLAGS += -DSTAND_ALONE
-cuda_graph_tests: cuda_graph_tests.o 
-	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
-	
-cuda_link_tests: NXX_FLAGS += -DSTAND_ALONE
-cuda_link_tests: cuda_link_tests.o 
-	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
-
-cuda_tree_tests: NXX_FLAGS += -DSTAND_ALONE
-cuda_tree_tests: cuda_tree_tests.o 
-	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
 
 snp_info_tests: NXX_FLAGS += -DSTAND_ALONE
 snp_info_tests: snp_info_tests.o 
 	$(NXX) -o $(NXX_EXE) $+ $(NXX_LDIR) $(NXX_LIBS)	
+
+build_tests: $(ALL_TESTS)
+	$(CXX) -o $(CXX_EXE) $+ $(CXX_LDIR) $(CXX_LIBS)
 
 clean:
 	rm -rf *.o

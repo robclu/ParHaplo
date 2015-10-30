@@ -7,9 +7,9 @@
 #define PARAHAPLO_BLOCK_HPP
 
 #include "operations.hpp"
-#include "read_info_gpu.cuh"
+#include "read_info.h"
 #include "snp_info.hpp"
-#include "small_containers.hpp"
+#include "small_containers.h"
 
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/tokenizer.hpp>
@@ -71,7 +71,6 @@ private:
     // Solutions for the entire block 
     binary_vector       _haplo_one;             //!< The first haplotype
     binary_vector       _haplo_two;             //!< The second haplotype
-    binary_vector       _alignments;            //!< The alignments of the reads
 public:
     // ------------------------------------------------------------------------------------------------------
     /// @brief      Constructor to fill the block with data from the input file
@@ -221,7 +220,7 @@ Block<Elements, ThreadsX, ThreadsY>::Block(const char* data_file)
     process_snps();                     // Process the SNPs to determine block params
     
     // Resize the haplotypes
-    _haplo_one.resize(_cols); _haplo_two.resize(_cols); _alignments.resize(_rows);
+    _haplo_one.resize(_cols); _haplo_two.resize(_cols); 
 } 
 
 template <size_t Elements, size_t ThreadsX, size_t ThreadsY>
@@ -266,16 +265,6 @@ void Block<Elements, ThreadsX, ThreadsY>::merge_haplotype(const SubBlockType& su
                 ++sub_haplo_idx;  
             }   
         }
-    }
-    
-    // Go over all the rows and set the alignments
-    const size_t start_row = _last_aligned;
-    for (size_t row_idx = start_row; row_idx < start_row + sub_block.reads(); ++row_idx, ++_last_aligned) {
-        // If we don't need to flip the bits
-        if (!flip_all) 
-            _alignments.set(row_idx, sub_block.alignments().get(row_idx - start_row));
-        else 
-            _alignments.set(row_idx, !sub_block.alignments().get(row_idx - start_row));
     }
 }
 
